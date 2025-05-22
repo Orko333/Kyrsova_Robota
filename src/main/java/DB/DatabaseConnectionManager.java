@@ -1,6 +1,8 @@
 package DB;
 
 import Config.DatabaseConfig;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -12,11 +14,17 @@ import java.sql.SQLException;
  */
 public class DatabaseConnectionManager {
 
+    private static final Logger logger = LogManager.getLogger("insurance.log");
+
     static {
         try {
+            // Спроба завантажити драйвер
+            logger.debug("Спроба завантажити JDBC драйвер MySQL: com.mysql.cj.jdbc.Driver");
             Class.forName("com.mysql.cj.jdbc.Driver");
+            logger.info("JDBC драйвер MySQL успішно завантажено.");
         } catch (ClassNotFoundException e) {
-            System.err.println("Критична помилка: JDBC драйвер MySQL не знайдено. Перевірте залежності проекту.");
+            // Логуємо критичну помилку і кидаємо RuntimeException
+            logger.fatal("Критична помилка: JDBC драйвер MySQL не знайдено. Перевірте залежності проекту.", e);
             throw new RuntimeException("Не вдалося завантажити JDBC драйвер MySQL", e);
         }
     }
@@ -35,18 +43,34 @@ public class DatabaseConnectionManager {
      *                      конфігураційний файл не знайдено або містить неповні дані).
      */
     public static Connection getConnection() throws SQLException {
+        logger.debug("Спроба отримати з'єднання з базою даних.");
         String url = DatabaseConfig.getDbUrl();
         String user = DatabaseConfig.getDbUsername();
         String password = DatabaseConfig.getDbPassword();
 
-        if (url == null || url.trim().isEmpty() ||
-                user == null ||
-                password == null) {
-            System.err.println("Помилка конфігурації: URL, ім'я користувача або пароль для БД не вказані або не завантажені. Перевірте файл 'db.properties'.");
-            throw new SQLException("Неповні конфігураційні дані для підключення до БД.");
+        if (url == null || url.trim().isEmpty()) {
+            logger.error("Помилка конфігурації: URL для БД не вказано або не завантажено. Перевірте файл 'db.properties'.");
+            throw new SQLException("URL для підключення до БД не налаштовано.");
+        }
+        if (user == null) { // Пароль може бути порожнім для деяких конфігурацій, тому перевіряємо лише user
+            logger.error("Помилка конфігурації: Ім'я користувача для БД не вказано або не завантажено. Перевірте файл 'db.properties'.");
+            throw new SQLException("Ім'я користувача для підключення до БД не налаштовано.");
+        }
+        if (password == null) {
+            logger.warn("Попередження конфігурації: Пароль для БД не вказано або не завантажено. Використовується null. Перевірте файл 'db.properties'.");
+            // Дозволяємо продовжити, оскільки деякі БД можуть мати порожній пароль або null
         }
 
-        return DriverManager.getConnection(url, user, password);
+        logger.debug("Параметри підключення: URL='{}', Користувач='{}'", url, user); // Не логуємо пароль з міркувань безпеки
+
+        try {
+            Connection connection = DriverManager.getConnection(url, user, password);
+            logger.info("З'єднання з базою даних '{}' успішно встановлено для користувача '{}'.", url, user);
+            return connection;
+        } catch (SQLException e) {
+            logger.error("Помилка підключення до бази даних: URL='{}', Користувач='{}'. Помилка: {}", url, user, e.getMessage(), e);
+            throw e; // Прокидуємо оригінальний SQLException
+        }
     }
 
     /**
@@ -58,10 +82,15 @@ public class DatabaseConnectionManager {
     public static void closeQuietly(AutoCloseable resource) {
         if (resource != null) {
             try {
+                logger.trace("Спроба тихо закрити ресурс: {}", resource.getClass().getSimpleName());
                 resource.close();
+                logger.trace("Ресурс {} успішно закрито.", resource.getClass().getSimpleName());
             } catch (Exception e) {
-                System.err.println("Не вдалося тихо закрити ресурс: " + e.getMessage());
+                // Логуємо попередження, оскільки це "тихе" закриття
+                logger.warn("Не вдалося тихо закрити ресурс {}: {}", resource.getClass().getSimpleName(), e.getMessage(), e);
             }
+        } else {
+            logger.trace("Спроба тихо закрити null ресурс, нічого не робимо.");
         }
     }
 }

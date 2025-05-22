@@ -1,5 +1,8 @@
 package Models;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.Objects;
 
 /**
@@ -8,9 +11,11 @@ import java.util.Objects;
  * та містом, в якому вона розташована.
  *
  * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.0 // Додайте версію, якщо потрібно
+ * @version 1.1 // Версія оновлена для відображення змін
  */
 public class Stop {
+    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+
     /**
      * Унікальний ідентифікатор зупинки.
      */
@@ -32,9 +37,21 @@ public class Stop {
      * @param city місто, в якому розташована зупинка.
      */
     public Stop(long id, String name, String city) {
+        logger.debug("Спроба створити новий об'єкт Stop з ID: {}", id);
+
+        if (name == null || name.trim().isEmpty()) {
+            logger.error("Помилка створення Stop: Назва зупинки (name) не може бути порожньою для ID: {}", id);
+            throw new IllegalArgumentException("Назва зупинки не може бути порожньою.");
+        }
+        if (city == null || city.trim().isEmpty()) {
+            logger.error("Помилка створення Stop: Місто (city) не може бути порожнім для ID: {}", id);
+            throw new IllegalArgumentException("Місто не може бути порожнім.");
+        }
+
         this.id = id;
         this.name = name;
         this.city = city;
+        logger.info("Об'єкт Stop успішно створено: {}", this.toString());
     }
 
     // Getters and Setters
@@ -52,6 +69,7 @@ public class Stop {
      * @param id новий ідентифікатор зупинки.
      */
     public void setId(long id) {
+        logger.trace("Встановлення ID зупинки {} на: {}", this.id, id);
         this.id = id;
     }
 
@@ -68,6 +86,11 @@ public class Stop {
      * @param name нова назва зупинки.
      */
     public void setName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            logger.warn("Спроба встановити порожню назву для зупинки ID: {}", this.id);
+            // throw new IllegalArgumentException("Назва зупинки не може бути порожньою."); // Розкоментуйте, якщо це суворе правило
+        }
+        logger.trace("Зміна назви зупинки ID {}: з '{}' на '{}'", this.id, this.name, name);
         this.name = name;
     }
 
@@ -84,17 +107,25 @@ public class Stop {
      * @param city нова назва міста.
      */
     public void setCity(String city) {
+        if (city == null || city.trim().isEmpty()) {
+            logger.warn("Спроба встановити порожнє місто для зупинки ID: {}", this.id);
+            // throw new IllegalArgumentException("Місто не може бути порожнім."); // Розкоментуйте, якщо це суворе правило
+        }
+        logger.trace("Зміна міста зупинки ID {}: з '{}' на '{}'", this.id, this.city, city);
         this.city = city;
     }
 
     /**
      * Повертає рядкове представлення об'єкта {@code Stop}.
-     * Формат: "НазваЗупинки (Місто)".
+     * Формат: "ID: [id], Назва: [НазваЗупинки], Місто: [Місто]".
      * @return {@code String} рядкове представлення зупинки.
      */
     @Override
     public String toString() {
-        return name + " (" + city + ")";
+        return String.format("ID: %d, Назва: %s, Місто: %s",
+                id,
+                name != null ? name : "н/д",
+                city != null ? city : "н/д");
     }
 
     /**
