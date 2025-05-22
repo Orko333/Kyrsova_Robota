@@ -68,17 +68,7 @@ public class Stop {
         return name;
     }
 
-    /**
-     * Встановлює назву зупинки.
-     * @param name нова назва зупинки.
-     */
-    public void setName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            logger.warn("Спроба встановити порожню назву для зупинки ID: {}", this.id);
-        }
-        logger.trace("Зміна назви зупинки ID {}.", this.id);
-        this.name = name;
-    }
+
 
     /**
      * Повертає місто, в якому знаходиться зупинка.
