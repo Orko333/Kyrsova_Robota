@@ -46,7 +46,7 @@
             <AppenderRef ref="FileAppender"/>
             <AppenderRef ref="ConsoleAppender"/>
             <AppenderRef ref="ErrorFileAppender"/>
-            <AppenderRef ref="EmailAppender"/>
+<!--            <AppenderRef ref="EmailAppender"/>-->
         </Root>
     </Loggers>
 </Configuration>
