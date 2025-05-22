@@ -113,69 +113,6 @@ public class TicketDAO {
     }
 
     /**
-     * Знаходить квиток за ID рейсу та номером місця.
-     * @param flightId ID рейсу.
-     * @param seatNumber Номер місця.
-     * @return Optional, що містить {@link Ticket} якщо знайдено.
-     * @throws SQLException якщо виникає помилка доступу до бази даних.
-     */
-    public Optional<Ticket> findByFlightAndSeat(long flightId, String seatNumber) throws SQLException {
-        logger.info("Пошук квитка: Рейс ID={}, Місце={}", flightId, seatNumber);
-        String sql = "SELECT id, flight_id, passenger_id, seat_number, booking_date_time, purchase_date_time, booking_expiry_date_time, price_paid, status FROM tickets WHERE flight_id = ? AND seat_number = ?";
-        logger.debug("Виконується SQL-запит: {}", sql);
-
-        try (Connection conn = DatabaseConnectionManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, flightId);
-            pstmt.setString(2, seatNumber);
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    long ticketId = rs.getLong("id");
-                    long fId = rs.getLong("flight_id");
-                    long pId = rs.getLong("passenger_id");
-
-                    Flight flight = flightDAO.getFlightById(fId)
-                            .orElseThrow(() -> {
-                                String errorMsg = "Рейс ID " + fId + " не знайдено для квитка ID: " + ticketId;
-                                logger.error(errorMsg);
-                                return new SQLException(errorMsg);
-                            });
-                    Passenger passenger = passengerDAO.findById(pId)
-                            .orElseThrow(() -> {
-                                String errorMsg = "Пасажира ID " + pId + " не знайдено для квитка ID: " + ticketId;
-                                logger.error(errorMsg);
-                                return new SQLException(errorMsg);
-                            });
-
-                    Ticket ticket = new Ticket(
-                            ticketId,
-                            flight,
-                            passenger,
-                            rs.getString("seat_number"),
-                            rs.getTimestamp("booking_date_time").toLocalDateTime(),
-                            rs.getBigDecimal("price_paid"),
-                            TicketStatus.valueOf(rs.getString("status"))
-                    );
-                    Timestamp purchaseTs = rs.getTimestamp("purchase_date_time");
-                    if (purchaseTs != null) ticket.setPurchaseDateTime(purchaseTs.toLocalDateTime());
-                    Timestamp expiryTs = rs.getTimestamp("booking_expiry_date_time");
-                    if (expiryTs != null) ticket.setBookingExpiryDateTime(expiryTs.toLocalDateTime());
-
-                    logger.info("Квиток знайдено: Рейс ID={}, Місце={}. ID квитка: {}", flightId, seatNumber, ticket.getId());
-                    return Optional.of(ticket);
-                } else {
-                    logger.info("Квиток не знайдено: Рейс ID={}, Місце={}", flightId, seatNumber);
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Помилка при пошуку квитка: Рейс ID={}, Місце={}", flightId, seatNumber, e);
-            throw e;
-        }
-    }
-
-    /**
      * Оновлює статус квитка та, опціонально, дату покупки.
      * @param ticketId Ідентифікатор квитка.
      * @param newStatus Новий статус квитка.
