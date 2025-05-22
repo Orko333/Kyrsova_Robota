@@ -61,22 +61,14 @@ class MainFrame extends JFrame { // Клас вже існує, ми його д
     }
 
     public static void main(String[] args) {
-        // Встановлення "красивого" Look and Feel (наприклад, FlatLaf)
-        // Потрібно додати бібліотеку FlatLaf до проекту:
-        // Maven:
-        // <dependency>
-        //     <groupId>com.formdev</groupId>
-        //     <artifactId>flatlaf</artifactId>
-        //     <version>3.4.1</version> <!-- Перевірте актуальну версію -->
-        // </dependency>
+
         try {
-            // UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatLightLaf()); // Світла тема
-            // UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatDarkLaf()); // Темна тема
-            UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatIntelliJLaf()); // IntelliJ тема
-            // UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatMacLightLaf()); // Mac світла
+
+            UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatIntelliJLaf());
+
         } catch (Exception ex) {
             System.err.println("Не вдалося встановити FlatLaf LookAndFeel. Використовується стандартний.");
-            // Якщо FlatLaf недоступний, спробуємо Nimbus
+
             try {
                 for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
                     if ("Nimbus".equals(info.getName())) {
@@ -90,7 +82,7 @@ class MainFrame extends JFrame { // Клас вже існує, ми його д
         }
 
         SwingUtilities.invokeLater(() -> {
-            // Перевірка підключення до БД (залишається з попереднього прикладу)
+
             try (Connection conn = DB.DatabaseConnectionManager.getConnection()) {
                 if (conn == null || conn.isClosed()) {
                     JOptionPane.showMessageDialog(null,
