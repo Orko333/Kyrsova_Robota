@@ -15,7 +15,7 @@ import java.util.Optional;
  * DAO для роботи з об'єктами Stop (Зупинки).
  * Надає методи для отримання даних про зупинки з бази даних.
  */
-public class StopDAO { // Зроблено public для доступу з інших пакетів
+public class StopDAO {
     private static final Logger logger = LogManager.getLogger("insurance.log");
 
     /**
@@ -35,12 +35,12 @@ public class StopDAO { // Зроблено public для доступу з ін�
             while (rs.next()) {
                 Stop stop = new Stop(rs.getLong("id"), rs.getString("name"), rs.getString("city"));
                 stops.add(stop);
-                logger.trace("Зупинку додано до списку: {}", stop); // stop.toString() повинен бути інформативним
+                logger.trace("Зупинку додано до списку: ID={}, Назва={}, Місто={}", stop.getId(), stop.getName(), stop.getCity());
             }
             logger.info("Успішно отримано {} зупинок.", stops.size());
         } catch (SQLException e) {
             logger.error("Помилка при отриманні всіх зупинок.", e);
-            throw e; // SQLException буде прокинуто, якщо виникне
+            throw e;
         }
         return stops;
     }
@@ -62,7 +62,7 @@ public class StopDAO { // Зроблено public для доступу з ін�
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     Stop stop = new Stop(rs.getLong("id"), rs.getString("name"), rs.getString("city"));
-                    logger.info("Зупинку з ID {} знайдено: {}", id, stop);
+                    logger.info("Зупинку з ID {} знайдено: ID={}, Назва={}, Місто={}", id, stop.getId(), stop.getName(), stop.getCity());
                     return Optional.of(stop);
                 } else {
                     logger.info("Зупинку з ID {} не знайдено.", id);
