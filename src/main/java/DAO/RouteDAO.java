@@ -4,6 +4,9 @@ import DB.DatabaseConnectionManager;
 import Models.Route;
 import Models.Stop;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +17,7 @@ import java.util.Optional;
  * Надає методи для отримання та управління даними маршрутів.
  */
 public class RouteDAO { // Зроблено public
+    private static final Logger logger = LogManager.getLogger("insurance.log");
     private final StopDAO stopDAO = new StopDAO(); // Припускаємо, що StopDAO завжди доступний
 
     /**
@@ -25,18 +29,29 @@ public class RouteDAO { // Зроблено public
      * @throws SQLException Якщо виникає помилка SQL.
      */
     private List<Stop> getIntermediateStopsForRoute(Connection conn, long routeId) throws SQLException {
+        logger.debug("Завантаження проміжних зупинок для маршруту ID: {}", routeId);
         List<Stop> stops = new ArrayList<>();
         String sqlIntermediate = "SELECT stop_id FROM route_intermediate_stops WHERE route_id = ? ORDER BY stop_order";
+        logger.trace("Виконується SQL для проміжних зупинок: {} з routeId={}", sqlIntermediate, routeId);
+
         try (PreparedStatement pstmtIntermediate = conn.prepareStatement(sqlIntermediate)) {
             pstmtIntermediate.setLong(1, routeId);
             try (ResultSet rsIntermediate = pstmtIntermediate.executeQuery()) {
                 while (rsIntermediate.next()) {
+                    long intermediateStopId = rsIntermediate.getLong("stop_id");
+                    logger.trace("Обробка проміжної зупинки ID: {} для маршруту ID: {}", intermediateStopId, routeId);
                     // getStopById тепер повертає Optional
-                    Optional<Stop> intermediateStopOpt = stopDAO.getStopById(rsIntermediate.getLong("stop_id"));
-                    intermediateStopOpt.ifPresent(stops::add); // Додаємо, якщо зупинка існує
+                    Optional<Stop> intermediateStopOpt = stopDAO.getStopById(intermediateStopId); // Використовуємо stopDAO, яке може відкрити нове з'єднання
+                    if (intermediateStopOpt.isPresent()) {
+                        stops.add(intermediateStopOpt.get());
+                    } else {
+                        // Це може бути важливою інформацією, якщо цілісність даних порушена
+                        logger.warn("Проміжна зупинка з ID {} для маршруту ID {} не знайдена в таблиці зупинок, але на неї є посилання.", intermediateStopId, routeId);
+                    }
                 }
             }
         }
+        logger.debug("Знайдено {} проміжних зупинок для маршруту ID: {}", stops.size(), routeId);
         return stops;
     }
 
@@ -46,24 +61,48 @@ public class RouteDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public List<Route> getAllRoutes() throws SQLException {
+        logger.info("Спроба отримати всі маршрути.");
         List<Route> routes = new ArrayList<>();
         String sqlRoutes = "SELECT id, departure_stop_id, destination_stop_id FROM routes ORDER BY id";
-        try (Connection conn = DatabaseConnectionManager.getConnection();
+        logger.debug("Виконується SQL-запит для отримання всіх маршрутів: {}", sqlRoutes);
+
+        try (Connection conn = DatabaseConnectionManager.getConnection(); // Отримуємо з'єднання тут
              Statement stmt = conn.createStatement();
              ResultSet rsRoutes = stmt.executeQuery(sqlRoutes)) {
 
             while (rsRoutes.next()) {
                 long routeId = rsRoutes.getLong("id");
-                // Використовуємо Optional та orElseThrow для критичних залежностей
-                Stop departure = stopDAO.getStopById(rsRoutes.getLong("departure_stop_id"))
-                        .orElseThrow(() -> new SQLException("Зупинка відправлення не знайдена для маршруту ID: " + routeId));
-                Stop destination = stopDAO.getStopById(rsRoutes.getLong("destination_stop_id"))
-                        .orElseThrow(() -> new SQLException("Зупинка призначення не знайдена для маршруту ID: " + routeId));
+                logger.debug("Обробка маршруту ID: {}", routeId);
 
-                List<Stop> intermediateStops = getIntermediateStopsForRoute(conn, routeId); // Використовуємо те саме з'єднання
+                long departureStopId = rsRoutes.getLong("departure_stop_id");
+                long destinationStopId = rsRoutes.getLong("destination_stop_id");
+
+                logger.trace("Спроба отримати зупинку відправлення ID: {} для маршруту ID: {}", departureStopId, routeId);
+                Stop departure = stopDAO.getStopById(departureStopId) // stopDAO відкриє своє з'єднання
+                        .orElseThrow(() -> {
+                            String errorMsg = "Зупинка відправлення ID " + departureStopId + " не знайдена для маршруту ID: " + routeId;
+                            logger.error(errorMsg);
+                            return new SQLException(errorMsg);
+                        });
+
+                logger.trace("Спроба отримати зупинку призначення ID: {} для маршруту ID: {}", destinationStopId, routeId);
+                Stop destination = stopDAO.getStopById(destinationStopId) // stopDAO відкриє своє з'єднання
+                        .orElseThrow(() -> {
+                            String errorMsg = "Зупинка призначення ID " + destinationStopId + " не знайдена для маршруту ID: " + routeId;
+                            logger.error(errorMsg);
+                            return new SQLException(errorMsg);
+                        });
+
+                // Передаємо існуюче з'єднання conn для getIntermediateStopsForRoute
+                List<Stop> intermediateStops = getIntermediateStopsForRoute(conn, routeId);
 
                 routes.add(new Route(routeId, departure, destination, intermediateStops));
+                logger.trace("Маршрут ID {} успішно оброблено та додано до списку.", routeId);
             }
+            logger.info("Успішно отримано {} маршрутів.", routes.size());
+        } catch (SQLException e) {
+            logger.error("Помилка при отриманні всіх маршрутів.", e);
+            throw e; // Прокидуємо виняток далі
         }
         return routes;
     }
@@ -75,22 +114,49 @@ public class RouteDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public Optional<Route> getRouteById(long id) throws SQLException {
+        logger.info("Спроба отримати маршрут за ID: {}", id);
         String sql = "SELECT id, departure_stop_id, destination_stop_id FROM routes WHERE id = ?";
-        try (Connection conn = DatabaseConnectionManager.getConnection();
+        logger.debug("Виконується SQL-запит для отримання маршруту за ID: {} з ID={}", sql, id);
+
+        try (Connection conn = DatabaseConnectionManager.getConnection(); // Отримуємо з'єднання тут
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, id);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    Stop departure = stopDAO.getStopById(rs.getLong("departure_stop_id"))
-                            .orElseThrow(() -> new SQLException("Зупинка відправлення не знайдена для маршруту ID: " + id));
-                    Stop destination = stopDAO.getStopById(rs.getLong("destination_stop_id"))
-                            .orElseThrow(() -> new SQLException("Зупинка призначення не знайдена для маршруту ID: " + id));
+                    logger.debug("Маршрут з ID {} знайдено. Обробка даних...", id);
+                    long departureStopId = rs.getLong("departure_stop_id");
+                    long destinationStopId = rs.getLong("destination_stop_id");
+
+                    logger.trace("Спроба отримати зупинку відправлення ID: {} для маршруту ID: {}", departureStopId, id);
+                    Stop departure = stopDAO.getStopById(departureStopId) // stopDAO відкриє своє з'єднання
+                            .orElseThrow(() -> {
+                                String errorMsg = "Зупинка відправлення ID " + departureStopId + " не знайдена для маршруту ID: " + id;
+                                logger.error(errorMsg);
+                                return new SQLException(errorMsg);
+                            });
+
+                    logger.trace("Спроба отримати зупинку призначення ID: {} для маршруту ID: {}", destinationStopId, id);
+                    Stop destination = stopDAO.getStopById(destinationStopId) // stopDAO відкриє своє з'єднання
+                            .orElseThrow(() -> {
+                                String errorMsg = "Зупинка призначення ID " + destinationStopId + " не знайдена для маршруту ID: " + id;
+                                logger.error(errorMsg);
+                                return new SQLException(errorMsg);
+                            });
+
+                    // Передаємо існуюче з'єднання conn для getIntermediateStopsForRoute
                     List<Stop> intermediateStops = getIntermediateStopsForRoute(conn, id);
 
-                    return Optional.of(new Route(rs.getLong("id"), departure, destination, intermediateStops));
+                    Route route = new Route(rs.getLong("id"), departure, destination, intermediateStops);
+                    logger.info("Маршрут з ID {} успішно отримано: {}", id, route); // Можливо, додати Route.toString() для кращого логування
+                    return Optional.of(route);
+                } else {
+                    logger.info("Маршрут з ID {} не знайдено.", id);
+                    return Optional.empty();
                 }
             }
+        } catch (SQLException e) {
+            logger.error("Помилка при отриманні маршруту за ID {}.", id, e);
+            throw e; // Прокидуємо виняток далі
         }
-        return Optional.empty();
     }
 }
