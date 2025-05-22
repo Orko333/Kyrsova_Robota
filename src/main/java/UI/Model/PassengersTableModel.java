@@ -1,7 +1,7 @@
 package UI.Model;
 
 import Models.Passenger;
-import Models.Enums.BenefitType; // Необхідно імпортувати, якщо getBenefitType() повертає цей тип
+import Models.Enums.BenefitType;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -43,7 +43,7 @@ public class PassengersTableModel extends AbstractTableModel {
             logger.debug("Ініціалізація PassengersTableModel з null списком пасажирів. Створюється порожній список.");
             this.passengers = new ArrayList<>();
         } else {
-            this.passengers = new ArrayList<>(passengers); // Створюємо копію
+            this.passengers = new ArrayList<>(passengers);
             logger.debug("Ініціалізація PassengersTableModel з {} пасажирами.", this.passengers.size());
         }
     }
@@ -60,11 +60,11 @@ public class PassengersTableModel extends AbstractTableModel {
             logger.warn("Спроба встановити null список пасажирів в PassengersTableModel. Список буде очищено.");
             this.passengers = new ArrayList<>();
         } else {
-            this.passengers = new ArrayList<>(passengers); // Створюємо копію
+            this.passengers = new ArrayList<>(passengers);
             logger.info("Встановлено новий список з {} пасажирами.", this.passengers.size());
         }
         logger.debug("Дані таблиці пасажирів оновлено.");
-        fireTableDataChanged(); // Сповіщення таблиці про оновлення даних
+        fireTableDataChanged();
     }
 
     /**
@@ -92,7 +92,7 @@ public class PassengersTableModel extends AbstractTableModel {
     @Override
     public int getRowCount() {
         int count = passengers.size();
-        // logger.trace("Запит кількості рядків для таблиці пасажирів: {}", count);
+
         return count;
     }
 
@@ -104,7 +104,7 @@ public class PassengersTableModel extends AbstractTableModel {
      */
     @Override
     public int getColumnCount() {
-        // logger.trace("Запит кількості стовпців для таблиці пасажирів: {}", columnNames.length);
+
         return columnNames.length;
     }
 
@@ -134,7 +134,7 @@ public class PassengersTableModel extends AbstractTableModel {
      */
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        // logger.trace("Запит значення для комірки пасажирів [{}, {}]", rowIndex, columnIndex);
+
         if (rowIndex < 0 || rowIndex >= passengers.size()) {
             logger.error("Недійсний індекс рядка {} при запиті значення для таблиці пасажирів. Кількість рядків: {}", rowIndex, passengers.size());
             return "ПОМИЛКА ІНДЕКСУ РЯДКА";

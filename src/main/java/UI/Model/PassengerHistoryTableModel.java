@@ -1,15 +1,15 @@
 package UI.Model;
 
 import Models.Flight;
-import Models.Route; // Потрібно імпортувати, якщо getRoute() повертає Models.Route
+import Models.Route;
 import Models.Ticket;
-import Models.Enums.TicketStatus; // Потрібно імпортувати, якщо getStatus() повертає Models.Enums.TicketStatus
+import Models.Enums.TicketStatus;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.table.AbstractTableModel;
-import java.time.LocalDateTime; // Потрібно імпортувати, якщо getDepartureDateTime() повертає LocalDateTime
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +49,7 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
             logger.debug("Ініціалізація PassengerHistoryTableModel з null списком квитків. Створюється порожній список.");
             this.tickets = new ArrayList<>();
         } else {
-            this.tickets = new ArrayList<>(tickets); // Створюємо копію
+            this.tickets = new ArrayList<>(tickets);
             logger.debug("Ініціалізація PassengerHistoryTableModel з {} квитками.", this.tickets.size());
         }
     }
@@ -66,11 +66,11 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
             logger.warn("Спроба встановити null список квитків в PassengerHistoryTableModel. Список буде очищено.");
             this.tickets = new ArrayList<>();
         } else {
-            this.tickets = new ArrayList<>(tickets); // Створюємо копію
+            this.tickets = new ArrayList<>(tickets);
             logger.info("Встановлено новий список з {} квитків для історії пасажира.", this.tickets.size());
         }
         logger.debug("Дані таблиці історії пасажира оновлено.");
-        fireTableDataChanged(); // Сповіщення таблиці про оновлення даних
+        fireTableDataChanged();
     }
 
     /**
@@ -82,7 +82,7 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
     @Override
     public int getRowCount() {
         int count = tickets.size();
-        // logger.trace("Запит кількості рядків для історії пасажира: {}", count);
+
         return count;
     }
 
@@ -94,7 +94,7 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
      */
     @Override
     public int getColumnCount() {
-        // logger.trace("Запит кількості стовпців для історії пасажира: {}", columnNames.length);
+
         return columnNames.length;
     }
 
@@ -126,7 +126,7 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
      */
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        // logger.trace("Запит значення для комірки історії пасажира [{}, {}]", rowIndex, columnIndex);
+
         if (rowIndex < 0 || rowIndex >= tickets.size()) {
             logger.error("Недійсний індекс рядка {} при запиті значення для таблиці історії пасажира. Кількість рядків: {}", rowIndex, tickets.size());
             return "ПОМИЛКА ІНДЕКСУ РЯДКА";
@@ -139,37 +139,36 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
 
         Flight flight = ticket.getFlight();
 
-        // Перевірка на null для flight, щоб уникнути NullPointerException
-        // у випадках, коли доступ до flight потрібен.
+
         if (flight == null && (columnIndex == 1 || columnIndex == 2 || columnIndex == 3)) {
             logger.warn("Об'єкт Flight є null для квитка ID {} (рядок {}). Стовпець: {}. Дані рейсу будуть недоступні.",
                     ticket.getId(), rowIndex, columnIndex);
-            return "Рейс N/A"; // "Not Available" або інший плейсхолдер
+            return "Рейс N/A";
         }
 
         try {
             switch (columnIndex) {
-                case 0: // ID Квитка
+                case 0:
                     return ticket.getId();
-                case 1: // Рейс (ID)
+                case 1:
                     return flight != null ? flight.getId() : "ID Рейсу N/A";
-                case 2: // Маршрут
+                case 2:
                     if (flight != null) {
                         Route route = flight.getRoute();
                         return (route != null && route.getFullRouteDescription() != null) ? route.getFullRouteDescription() : "Маршрут не вказано";
                     }
                     return "Маршрут N/A";
-                case 3: // Дата відпр.
+                case 3:
                     if (flight != null) {
                         LocalDateTime departureDateTime = flight.getDepartureDateTime();
                         return (departureDateTime != null) ? departureDateTime.format(HISTORY_DATE_FORMATTER) : "Дата не вказана";
                     }
                     return "Дата N/A";
-                case 4: // Місце
+                case 4:
                     return ticket.getSeatNumber() != null ? ticket.getSeatNumber() : "Місце не вказано";
-                case 5: // Ціна
-                    return ticket.getPricePaid(); // BigDecimal може бути null, таблиця це обробить
-                case 6: // Статус квитка
+                case 5:
+                    return ticket.getPricePaid();
+                case 6:
                     TicketStatus status = ticket.getStatus();
                     return (status != null && status.getDisplayName() != null) ? status.getDisplayName() : "Статус невідомий";
                 default:
