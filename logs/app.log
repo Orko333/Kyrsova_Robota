@@ -3281,3 +3281,337 @@ java.lang.IllegalArgumentException: Місто не може бути порож
 2025-05-22 20:32:14.208 [AWT-EventQueue-0] INFO  insurance.log - Вкладку 'Звітність' додано.
 2025-05-22 20:32:14.352 [AWT-EventQueue-0] INFO  insurance.log - Головне вікно програми успішно налаштовано.
 2025-05-22 20:32:14.386 [AWT-EventQueue-0] INFO  insurance.log - Головне вікно програми відображено.
+2025-05-22 20:34:28.491 [main] INFO  insurance.log - Запуск програми 'Автоматизована система управління автовокзалом'.
+2025-05-22 20:34:28.683 [main] INFO  insurance.log - FlatLaf LookAndFeel успішно встановлено.
+2025-05-22 20:34:28.694 [AWT-EventQueue-0] INFO  insurance.log - JDBC драйвер MySQL успішно завантажено.
+2025-05-22 20:34:28.699 [AWT-EventQueue-0] INFO  Config.DatabaseConfig - Початок завантаження конфігурації бази даних з файлу 'db.properties'
+2025-05-22 20:34:28.713 [AWT-EventQueue-0] INFO  Config.DatabaseConfig - Конфігураційний файл 'db.properties' успішно завантажено.
+2025-05-22 20:34:29.045 [AWT-EventQueue-0] ERROR insurance.log - Помилка підключення до бази даних: URL='jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true', Користувач='root'. Помилка: Access denied for user 'root'@'localhost' (using password: YES)
+java.sql.SQLException: Access denied for user 'root'@'localhost' (using password: YES)
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:130) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.ConnectionImpl.createNewIO(ConnectionImpl.java:825) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.ConnectionImpl.<init>(ConnectionImpl.java:446) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.ConnectionImpl.getInstance(ConnectionImpl.java:239) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.NonRegisteringDriver.connect(NonRegisteringDriver.java:188) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at java.sql.DriverManager.getConnection(DriverManager.java:682) ~[java.sql:?]
+	at java.sql.DriverManager.getConnection(DriverManager.java:230) ~[java.sql:?]
+	at DB.DatabaseConnectionManager.getConnection(DatabaseConnectionManager.java:62) ~[classes/:?]
+	at UI.MainFrame.lambda$main$0(MainFrame.java:127) ~[classes/:?]
+	at java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:318) ~[?:?]
+	at java.awt.EventQueue.dispatchEventImpl(EventQueue.java:773) ~[?:?]
+	at java.awt.EventQueue$4.run(EventQueue.java:720) ~[?:?]
+	at java.awt.EventQueue$4.run(EventQueue.java:714) ~[?:?]
+	at java.security.AccessController.doPrivileged(AccessController.java:400) [?:?]
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:87) [?:?]
+	at java.awt.EventQueue.dispatchEvent(EventQueue.java:742) [?:?]
+	at java.awt.EventDispatchThread.pumpOneEventForFilters(EventDispatchThread.java:203) [?:?]
+	at java.awt.EventDispatchThread.pumpEventsForFilter(EventDispatchThread.java:124) [?:?]
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:113) [?:?]
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109) [?:?]
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101) [?:?]
+	at java.awt.EventDispatchThread.run(EventDispatchThread.java:90) [?:?]
+2025-05-22 20:34:30.948 [AWT-EventQueue-0] FATAL insurance.log - Критична помилка підключення до бази даних. Програма завершує роботу.
+java.sql.SQLException: Access denied for user 'root'@'localhost' (using password: YES)
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:130) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.ConnectionImpl.createNewIO(ConnectionImpl.java:825) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.ConnectionImpl.<init>(ConnectionImpl.java:446) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.ConnectionImpl.getInstance(ConnectionImpl.java:239) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at com.mysql.cj.jdbc.NonRegisteringDriver.connect(NonRegisteringDriver.java:188) ~[mysql-connector-j-8.0.33.jar:8.0.33]
+	at java.sql.DriverManager.getConnection(DriverManager.java:682) ~[java.sql:?]
+	at java.sql.DriverManager.getConnection(DriverManager.java:230) ~[java.sql:?]
+	at DB.DatabaseConnectionManager.getConnection(DatabaseConnectionManager.java:62) ~[classes/:?]
+	at UI.MainFrame.lambda$main$0(MainFrame.java:127) ~[classes/:?]
+	at java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:318) ~[?:?]
+	at java.awt.EventQueue.dispatchEventImpl(EventQueue.java:773) ~[?:?]
+	at java.awt.EventQueue$4.run(EventQueue.java:720) ~[?:?]
+	at java.awt.EventQueue$4.run(EventQueue.java:714) ~[?:?]
+	at java.security.AccessController.doPrivileged(AccessController.java:400) [?:?]
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:87) [?:?]
+	at java.awt.EventQueue.dispatchEvent(EventQueue.java:742) [?:?]
+	at java.awt.EventDispatchThread.pumpOneEventForFilters(EventDispatchThread.java:203) [?:?]
+	at java.awt.EventDispatchThread.pumpEventsForFilter(EventDispatchThread.java:124) [?:?]
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:113) [?:?]
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109) [?:?]
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101) [?:?]
+	at java.awt.EventDispatchThread.run(EventDispatchThread.java:90) [?:?]
+2025-05-22 20:35:00.862 [main] INFO  insurance.log - Запуск програми 'Автоматизована система управління автовокзалом'.
+2025-05-22 20:35:01.051 [main] INFO  insurance.log - FlatLaf LookAndFeel успішно встановлено.
+2025-05-22 20:35:01.062 [AWT-EventQueue-0] INFO  insurance.log - JDBC драйвер MySQL успішно завантажено.
+2025-05-22 20:35:01.066 [AWT-EventQueue-0] INFO  Config.DatabaseConfig - Початок завантаження конфігурації бази даних з файлу 'db.properties'
+2025-05-22 20:35:01.069 [AWT-EventQueue-0] INFO  Config.DatabaseConfig - Конфігураційний файл 'db.properties' успішно завантажено.
+2025-05-22 20:35:01.282 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.282 [AWT-EventQueue-0] INFO  insurance.log - Підключення до БД успішне. Запускаємо GUI...
+2025-05-22 20:35:01.415 [AWT-EventQueue-0] INFO  insurance.log - Ініціалізація головного вікна програми (MainFrame).
+2025-05-22 20:35:01.439 [AWT-EventQueue-0] INFO  insurance.log - Ініціалізація FlightsPanel.
+2025-05-22 20:35:01.522 [AWT-EventQueue-0] INFO  insurance.log - Завантаження даних про рейси.
+2025-05-22 20:35:01.523 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати всі рейси.
+2025-05-22 20:35:01.529 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.554 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 2
+2025-05-22 20:35:01.560 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.571 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 1
+2025-05-22 20:35:01.582 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.598 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.600 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 1 знайдено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.603 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 5
+2025-05-22 20:35:01.608 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.609 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=5, Назва=АС Привокзальна, Місто=Одеса
+2025-05-22 20:35:01.610 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 5 знайдено: ID=5, Назва=АС Привокзальна, Місто=Одеса
+2025-05-22 20:35:01.614 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=2
+2025-05-22 20:35:01.614 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 2 успішно отримано.
+2025-05-22 20:35:01.618 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=6
+2025-05-22 20:35:01.619 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 5
+2025-05-22 20:35:01.625 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.627 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 9
+2025-05-22 20:35:01.632 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.635 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=9, Назва=АС "Привоз", Місто=Одеса
+2025-05-22 20:35:01.635 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 9 знайдено: ID=9, Назва=АС "Привоз", Місто=Одеса
+2025-05-22 20:35:01.636 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 8
+2025-05-22 20:35:01.642 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.644 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=8, Назва=АС Стрийська, Місто=Львів
+2025-05-22 20:35:01.646 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 8 знайдено: ID=8, Назва=АС Стрийська, Місто=Львів
+2025-05-22 20:35:01.648 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 13
+2025-05-22 20:35:01.653 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.655 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=13, Назва=АС-1, Місто=Вінниця
+2025-05-22 20:35:01.656 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 13 знайдено: ID=13, Назва=АС-1, Місто=Вінниця
+2025-05-22 20:35:01.657 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 14
+2025-05-22 20:35:01.662 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.664 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=14, Назва=АС "Західний", Місто=Тернопіль
+2025-05-22 20:35:01.665 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 14 знайдено: ID=14, Назва=АС "Західний", Місто=Тернопіль
+2025-05-22 20:35:01.666 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=5
+2025-05-22 20:35:01.666 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 5 успішно отримано.
+2025-05-22 20:35:01.667 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=11
+2025-05-22 20:35:01.668 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 6
+2025-05-22 20:35:01.674 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.676 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 12
+2025-05-22 20:35:01.681 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.683 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=12, Назва=АС Центральний, Місто=Дніпро
+2025-05-22 20:35:01.684 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 12 знайдено: ID=12, Назва=АС Центральний, Місто=Дніпро
+2025-05-22 20:35:01.684 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 1
+2025-05-22 20:35:01.689 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.691 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.692 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 1 знайдено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.694 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=6
+2025-05-22 20:35:01.695 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 6 успішно отримано.
+2025-05-22 20:35:01.696 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=3
+2025-05-22 20:35:01.696 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 6
+2025-05-22 20:35:01.702 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.703 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 12
+2025-05-22 20:35:01.712 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.716 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=12, Назва=АС Центральний, Місто=Дніпро
+2025-05-22 20:35:01.717 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 12 знайдено: ID=12, Назва=АС Центральний, Місто=Дніпро
+2025-05-22 20:35:01.718 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 1
+2025-05-22 20:35:01.725 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.728 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.728 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 1 знайдено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.731 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=6
+2025-05-22 20:35:01.733 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 6 успішно отримано.
+2025-05-22 20:35:01.735 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=12
+2025-05-22 20:35:01.736 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 2
+2025-05-22 20:35:01.744 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.748 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 1
+2025-05-22 20:35:01.756 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.759 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.761 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 1 знайдено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.763 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 5
+2025-05-22 20:35:01.769 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.774 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=5, Назва=АС Привокзальна, Місто=Одеса
+2025-05-22 20:35:01.775 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 5 знайдено: ID=5, Назва=АС Привокзальна, Місто=Одеса
+2025-05-22 20:35:01.778 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=2
+2025-05-22 20:35:01.779 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 2 успішно отримано.
+2025-05-22 20:35:01.780 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=5
+2025-05-22 20:35:01.780 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 1
+2025-05-22 20:35:01.790 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.792 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 1
+2025-05-22 20:35:01.798 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.800 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.800 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 1 знайдено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.802 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 4
+2025-05-22 20:35:01.810 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.812 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:01.812 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 4 знайдено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:01.815 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 2
+2025-05-22 20:35:01.823 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.826 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:01.827 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 2 знайдено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:01.828 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 3
+2025-05-22 20:35:01.836 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.839 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:01.839 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 3 знайдено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:01.841 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=1
+2025-05-22 20:35:01.842 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 1 успішно отримано.
+2025-05-22 20:35:01.842 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=2
+2025-05-22 20:35:01.843 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 1
+2025-05-22 20:35:01.850 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.853 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 1
+2025-05-22 20:35:01.858 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.859 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.861 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 1 знайдено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.862 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 4
+2025-05-22 20:35:01.866 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.868 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:01.868 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 4 знайдено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:01.870 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 2
+2025-05-22 20:35:01.874 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.876 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:01.876 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 2 знайдено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:01.877 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 3
+2025-05-22 20:35:01.882 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.883 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:01.884 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 3 знайдено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:01.884 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=1
+2025-05-22 20:35:01.885 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 1 успішно отримано.
+2025-05-22 20:35:01.885 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=1
+2025-05-22 20:35:01.886 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 3
+2025-05-22 20:35:01.890 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.892 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 4
+2025-05-22 20:35:01.896 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.897 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:01.898 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 4 знайдено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:01.899 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 1
+2025-05-22 20:35:01.904 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.905 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.906 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 1 знайдено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.907 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 3
+2025-05-22 20:35:01.912 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.914 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:01.914 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 3 знайдено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:01.915 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 2
+2025-05-22 20:35:01.919 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.921 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:01.921 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 2 знайдено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:01.922 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=3
+2025-05-22 20:35:01.922 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 3 успішно отримано.
+2025-05-22 20:35:01.923 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=7
+2025-05-22 20:35:01.924 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 4
+2025-05-22 20:35:01.927 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.929 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 6
+2025-05-22 20:35:01.932 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.936 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=6, Назва=АС Південна, Місто=Київ
+2025-05-22 20:35:01.937 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 6 знайдено: ID=6, Назва=АС Південна, Місто=Київ
+2025-05-22 20:35:01.938 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 10
+2025-05-22 20:35:01.943 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.945 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=10, Назва=АС-1, Місто=Харків
+2025-05-22 20:35:01.946 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 10 знайдено: ID=10, Назва=АС-1, Місто=Харків
+2025-05-22 20:35:01.948 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 11
+2025-05-22 20:35:01.954 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.955 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=11, Назва=АС "Полтавська", Місто=Полтава
+2025-05-22 20:35:01.956 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 11 знайдено: ID=11, Назва=АС "Полтавська", Місто=Полтава
+2025-05-22 20:35:01.956 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=4
+2025-05-22 20:35:01.957 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 4 успішно отримано.
+2025-05-22 20:35:01.958 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=9
+2025-05-22 20:35:01.958 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 3
+2025-05-22 20:35:01.962 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.963 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 4
+2025-05-22 20:35:01.967 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.969 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:01.969 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 4 знайдено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:01.969 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 1
+2025-05-22 20:35:01.972 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.974 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.974 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 1 знайдено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:01.976 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 3
+2025-05-22 20:35:01.983 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.986 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:01.986 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 3 знайдено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:01.988 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 2
+2025-05-22 20:35:01.992 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:01.994 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:01.994 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 2 знайдено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:01.995 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=3
+2025-05-22 20:35:01.995 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 3 успішно отримано.
+2025-05-22 20:35:01.996 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=8
+2025-05-22 20:35:01.996 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 4
+2025-05-22 20:35:02.002 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.004 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 6
+2025-05-22 20:35:02.012 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.014 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=6, Назва=АС Південна, Місто=Київ
+2025-05-22 20:35:02.014 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 6 знайдено: ID=6, Назва=АС Південна, Місто=Київ
+2025-05-22 20:35:02.014 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 10
+2025-05-22 20:35:02.021 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.022 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=10, Назва=АС-1, Місто=Харків
+2025-05-22 20:35:02.023 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 10 знайдено: ID=10, Назва=АС-1, Місто=Харків
+2025-05-22 20:35:02.025 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 11
+2025-05-22 20:35:02.031 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.033 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=11, Назва=АС "Полтавська", Місто=Полтава
+2025-05-22 20:35:02.034 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 11 знайдено: ID=11, Назва=АС "Полтавська", Місто=Полтава
+2025-05-22 20:35:02.035 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=4
+2025-05-22 20:35:02.035 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 4 успішно отримано.
+2025-05-22 20:35:02.036 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=10
+2025-05-22 20:35:02.036 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати маршрут за ID: 1
+2025-05-22 20:35:02.044 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.046 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 1
+2025-05-22 20:35:02.050 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.052 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:02.053 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 1 знайдено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:02.053 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 4
+2025-05-22 20:35:02.056 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.058 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:02.059 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 4 знайдено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:02.061 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 2
+2025-05-22 20:35:02.064 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.065 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:02.065 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 2 знайдено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:02.066 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати зупинку за ID: 3
+2025-05-22 20:35:02.069 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.071 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:02.071 [AWT-EventQueue-0] INFO  insurance.log - Зупинку з ID 3 знайдено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:02.071 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Route успішно створено: ID=1
+2025-05-22 20:35:02.072 [AWT-EventQueue-0] INFO  insurance.log - Маршрут з ID 1 успішно отримано.
+2025-05-22 20:35:02.072 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Flight успішно створено: ID=4
+2025-05-22 20:35:02.073 [AWT-EventQueue-0] INFO  insurance.log - Успішно отримано 12 рейсів.
+2025-05-22 20:35:02.073 [AWT-EventQueue-0] INFO  insurance.log - Встановлено новий список з 12 рейсів в FlightsTableModel.
+2025-05-22 20:35:02.073 [AWT-EventQueue-0] INFO  insurance.log - Успішно завантажено 12 рейсів.
+2025-05-22 20:35:02.074 [AWT-EventQueue-0] INFO  insurance.log - FlightsPanel успішно ініціалізовано.
+2025-05-22 20:35:02.074 [AWT-EventQueue-0] WARN  insurance.log - Не вдалося знайти іконку: /icons/bus_schedule.png
+2025-05-22 20:35:02.076 [AWT-EventQueue-0] INFO  insurance.log - Вкладку 'Управління рейсами' додано.
+2025-05-22 20:35:02.080 [AWT-EventQueue-0] INFO  insurance.log - Ініціалізація TicketsPanel.
+2025-05-22 20:35:02.123 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=0, Назва=Довга назва міста для прототипу, Місто=Місто X
+2025-05-22 20:35:02.127 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=0, Назва=Довга назва міста для прототипу, Місто=Місто Y
+2025-05-22 20:35:02.169 [AWT-EventQueue-0] INFO  insurance.log - Завантаження списку зупинок для JComboBox.
+2025-05-22 20:35:02.171 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати всі зупинки.
+2025-05-22 20:35:02.174 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.175 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=13, Назва=АС-1, Місто=Вінниця
+2025-05-22 20:35:02.176 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=12, Назва=АС Центральний, Місто=Дніпро
+2025-05-22 20:35:02.176 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=2, Назва=АС-1, Місто=Житомир
+2025-05-22 20:35:02.176 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=7, Назва=АС-2 Полісся, Місто=Житомир
+2025-05-22 20:35:02.176 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=6, Назва=АС Південна, Місто=Київ
+2025-05-22 20:35:02.176 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=1, Назва=АС Центральний, Місто=Київ
+2025-05-22 20:35:02.177 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=4, Назва=АС Двірцева, Місто=Львів
+2025-05-22 20:35:02.177 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=8, Назва=АС Стрийська, Місто=Львів
+2025-05-22 20:35:02.177 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=9, Назва=АС "Привоз", Місто=Одеса
+2025-05-22 20:35:02.177 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=5, Назва=АС Привокзальна, Місто=Одеса
+2025-05-22 20:35:02.178 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=11, Назва=АС "Полтавська", Місто=Полтава
+2025-05-22 20:35:02.178 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=3, Назва=АС Чайка, Місто=Рівне
+2025-05-22 20:35:02.178 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=14, Назва=АС "Західний", Місто=Тернопіль
+2025-05-22 20:35:02.179 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=10, Назва=АС-1, Місто=Харків
+2025-05-22 20:35:02.179 [AWT-EventQueue-0] INFO  insurance.log - Успішно отримано 14 зупинок.
+2025-05-22 20:35:02.179 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Stop успішно створено: ID=0, Назва=Будь-який, Місто=місто
+2025-05-22 20:35:02.199 [AWT-EventQueue-0] INFO  insurance.log - Успішно завантажено 14 зупинок у JComboBox.
+2025-05-22 20:35:02.199 [AWT-EventQueue-0] INFO  insurance.log - TicketsPanel успішно ініціалізовано.
+2025-05-22 20:35:02.200 [AWT-EventQueue-0] WARN  insurance.log - Не вдалося знайти іконку: /icons/ticket.png
+2025-05-22 20:35:02.200 [AWT-EventQueue-0] INFO  insurance.log - Вкладку 'Квитки' додано.
+2025-05-22 20:35:02.206 [AWT-EventQueue-0] INFO  insurance.log - Ініціалізація PassengersPanel.
+2025-05-22 20:35:02.222 [AWT-EventQueue-0] INFO  insurance.log - Завантаження даних про пасажирів.
+2025-05-22 20:35:02.223 [AWT-EventQueue-0] INFO  insurance.log - Спроба отримати всіх пасажирів.
+2025-05-22 20:35:02.229 [AWT-EventQueue-0] INFO  insurance.log - З'єднання з базою даних 'jdbc:mysql://localhost:3306/bus_station_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' успішно встановлено для користувача 'root'.
+2025-05-22 20:35:02.234 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Passenger успішно створено: ID=5
+2025-05-22 20:35:02.235 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Passenger успішно створено: ID=3
+2025-05-22 20:35:02.235 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Passenger успішно створено: ID=6
+2025-05-22 20:35:02.235 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Passenger успішно створено: ID=1
+2025-05-22 20:35:02.235 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Passenger успішно створено: ID=2
+2025-05-22 20:35:02.235 [AWT-EventQueue-0] INFO  insurance.log - Об'єкт Passenger успішно створено: ID=4
+2025-05-22 20:35:02.235 [AWT-EventQueue-0] INFO  insurance.log - Успішно отримано 6 пасажирів.
+2025-05-22 20:35:02.236 [AWT-EventQueue-0] INFO  insurance.log - Встановлено новий список з 6 пасажирами.
+2025-05-22 20:35:02.236 [AWT-EventQueue-0] INFO  insurance.log - Успішно завантажено 6 пасажирів.
+2025-05-22 20:35:02.236 [AWT-EventQueue-0] INFO  insurance.log - Встановлено новий список з 0 квитків для історії пасажира.
+2025-05-22 20:35:02.237 [AWT-EventQueue-0] INFO  insurance.log - PassengersPanel успішно ініціалізовано.
+2025-05-22 20:35:02.238 [AWT-EventQueue-0] WARN  insurance.log - Не вдалося знайти іконку: /icons/passengers.png
+2025-05-22 20:35:02.239 [AWT-EventQueue-0] INFO  insurance.log - Вкладку 'Пасажири' додано.
+2025-05-22 20:35:02.256 [AWT-EventQueue-0] INFO  insurance.log - Ініціалізація ReportsPanel.
+2025-05-22 20:35:02.270 [AWT-EventQueue-0] INFO  insurance.log - ReportsPanel успішно ініціалізовано.
+2025-05-22 20:35:02.270 [AWT-EventQueue-0] WARN  insurance.log - Не вдалося знайти іконку: /icons/report.png
+2025-05-22 20:35:02.271 [AWT-EventQueue-0] INFO  insurance.log - Вкладку 'Звітність' додано.
+2025-05-22 20:35:02.418 [AWT-EventQueue-0] INFO  insurance.log - Головне вікно програми успішно налаштовано.
+2025-05-22 20:35:02.438 [AWT-EventQueue-0] INFO  insurance.log - Головне вікно програми відображено.
