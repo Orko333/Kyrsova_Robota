@@ -215,7 +215,7 @@ public class TicketsPanel extends JPanel {
         try {
             List<Stop> stops = stopDAO.getAllStops();
 
-            Stop emptyStop = new Stop(0, "Будь-який", "");
+            Stop emptyStop = new Stop(0, "Будь-який", "місто");
             cmbDepartureStop.addItem(emptyStop);
             cmbDestinationStop.addItem(emptyStop);
             logger.trace("Додано опцію 'Будь-який' до JComboBox зупинок.");
