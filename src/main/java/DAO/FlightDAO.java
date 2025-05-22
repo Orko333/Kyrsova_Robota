@@ -5,6 +5,9 @@ import Models.Flight;
 import Models.Enums.FlightStatus;
 import Models.Route;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -15,6 +18,7 @@ import java.util.Optional;
  * DAO для роботи з об'єктами Flight (Рейси).
  */
 public class FlightDAO { // Зроблено public
+    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
     private final RouteDAO routeDAO = new RouteDAO();
 
     /**
@@ -23,33 +27,54 @@ public class FlightDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public List<Flight> getAllFlights() throws SQLException {
+        logger.info("Спроба отримати всі рейси.");
         List<Flight> flights = new ArrayList<>();
         String sql = "SELECT id, route_id, departure_date_time, arrival_date_time, total_seats, bus_model, price_per_seat, status FROM flights ORDER BY departure_date_time DESC";
+        logger.debug("Виконується SQL-запит: {}", sql);
+
         try (Connection conn = DatabaseConnectionManager.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
+                long flightId = rs.getLong("id");
                 long routeId = rs.getLong("route_id");
                 Route route = routeDAO.getRouteById(routeId)
                         .orElseThrow(() -> {
-                            try {
-                                return new SQLException("Маршрут ID " + routeId + " не знайдено для рейсу ID: " + rs.getLong("id"));
-                            } catch (SQLException e) {
-                                throw new RuntimeException(e);
-                            }
+                            String errorMsg = "Маршрут ID " + routeId + " не знайдено для рейсу ID: " + flightId;
+                            logger.warn("Порушення цілісності даних: {}", errorMsg);
+                            return new SQLException(errorMsg);
                         });
 
+                String statusStr = rs.getString("status");
+                FlightStatus flightStatus;
+                if (statusStr == null) {
+                    String errorMsg = "Статус рейсу є null для рейсу ID " + flightId;
+                    logger.error(errorMsg);
+                    throw new SQLException(errorMsg);
+                }
+                try {
+                    flightStatus = FlightStatus.valueOf(statusStr.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    String errorMsg = "Недійсний статус '" + statusStr + "' для рейсу ID " + flightId;
+                    logger.error(errorMsg, e);
+                    throw new SQLException(errorMsg, e);
+                }
+
                 flights.add(new Flight(
-                        rs.getLong("id"),
+                        flightId,
                         route,
                         rs.getTimestamp("departure_date_time").toLocalDateTime(),
                         rs.getTimestamp("arrival_date_time").toLocalDateTime(),
                         rs.getInt("total_seats"),
-                        FlightStatus.valueOf(rs.getString("status").toUpperCase()),
+                        flightStatus,
                         rs.getString("bus_model"),
                         rs.getBigDecimal("price_per_seat")
                 ));
             }
+            logger.info("Успішно отримано {} рейсів.", flights.size());
+        } catch (SQLException e) {
+            logger.error("Помилка при отриманні всіх рейсів", e);
+            throw e;
         }
         return flights;
     }
@@ -61,7 +86,10 @@ public class FlightDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public boolean addFlight(Flight flight) throws SQLException {
+        logger.info("Спроба додати новий рейс: {}", flight); // Припускаючи, що Flight.toString() надає корисну інформацію
         String sql = "INSERT INTO flights (route_id, departure_date_time, arrival_date_time, total_seats, bus_model, price_per_seat, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        logger.debug("Виконується SQL-запит для додавання рейсу: {}", sql);
+
         try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setLong(1, flight.getRoute().getId());
@@ -77,12 +105,21 @@ public class FlightDAO { // Зроблено public
                 try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         flight.setId(generatedKeys.getLong(1));
+                        logger.info("Рейс успішно додано. ID нового рейсу: {}", flight.getId());
                         return true;
+                    } else {
+                        logger.warn("Рейс додано ({} рядків), але не вдалося отримати згенерований ID.", affectedRows);
+                        return false; // Або кинути виняток, оскільки ID не встановлено
                     }
                 }
+            } else {
+                logger.warn("Рейс не було додано (affectedRows = 0). Рейс: {}", flight);
+                return false;
             }
+        } catch (SQLException e) {
+            logger.error("Помилка при додаванні рейсу: {}", flight, e);
+            throw e;
         }
-        return false;
     }
 
     /**
@@ -92,7 +129,10 @@ public class FlightDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public boolean updateFlight(Flight flight) throws SQLException {
+        logger.info("Спроба оновити рейс з ID {}: {}", flight.getId(), flight);
         String sql = "UPDATE flights SET route_id = ?, departure_date_time = ?, arrival_date_time = ?, total_seats = ?, bus_model = ?, price_per_seat = ?, status = ? WHERE id = ?";
+        logger.debug("Виконується SQL-запит для оновлення рейсу: {}", sql);
+
         try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, flight.getRoute().getId());
@@ -103,7 +143,18 @@ public class FlightDAO { // Зроблено public
             pstmt.setBigDecimal(6, flight.getPricePerSeat());
             pstmt.setString(7, flight.getStatus().name());
             pstmt.setLong(8, flight.getId());
-            return pstmt.executeUpdate() > 0;
+
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows > 0) {
+                logger.info("Рейс з ID {} успішно оновлено.", flight.getId());
+                return true;
+            } else {
+                logger.warn("Рейс з ID {} не знайдено або не було оновлено.", flight.getId());
+                return false;
+            }
+        } catch (SQLException e) {
+            logger.error("Помилка при оновленні рейсу з ID {}: {}", flight.getId(), flight, e);
+            throw e;
         }
     }
 
@@ -115,12 +166,26 @@ public class FlightDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public boolean updateFlightStatus(long flightId, FlightStatus status) throws SQLException {
+        logger.info("Спроба оновити статус рейсу ID {} на {}", flightId, status);
         String sql = "UPDATE flights SET status = ? WHERE id = ?";
+        logger.debug("Виконується SQL-запит для оновлення статусу рейсу: {}", sql);
+
         try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, status.name());
             pstmt.setLong(2, flightId);
-            return pstmt.executeUpdate() > 0;
+
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows > 0) {
+                logger.info("Статус рейсу ID {} успішно оновлено на {}.", flightId, status);
+                return true;
+            } else {
+                logger.warn("Рейс з ID {} не знайдено або статус не було оновлено.", flightId);
+                return false;
+            }
+        } catch (SQLException e) {
+            logger.error("Помилка при оновленні статусу рейсу ID {}: {}", flightId, status, e);
+            throw e;
         }
     }
 
@@ -131,17 +196,28 @@ public class FlightDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public int getOccupiedSeatsCount(long flightId) throws SQLException {
+        logger.info("Спроба отримати кількість зайнятих місць для рейсу ID {}.", flightId);
         String sql = "SELECT COUNT(id) FROM tickets WHERE flight_id = ? AND (status = 'BOOKED' OR status = 'SOLD')";
+        logger.debug("Виконується SQL-запит: {}", sql);
+        int count = 0;
+
         try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, flightId);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt(1);
+                    count = rs.getInt(1);
+                    logger.info("Кількість зайнятих місць для рейсу ID {}: {}", flightId, count);
+                } else {
+                    // Це нормально, якщо запит COUNT(*) нічого не повертає, хоча зазвичай він поверне рядок з 0.
+                    logger.info("Не знайдено даних про зайняті місця для рейсу ID {}. Повертається 0.", flightId);
                 }
             }
+        } catch (SQLException e) {
+            logger.error("Помилка при отриманні кількості зайнятих місць для рейсу ID {}", flightId, e);
+            throw e;
         }
-        return 0;
+        return count;
     }
 
     /**
@@ -151,67 +227,119 @@ public class FlightDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public Optional<Flight> getFlightById(long id) throws SQLException {
+        logger.info("Спроба отримати рейс за ID: {}", id);
         String sql = "SELECT id, route_id, departure_date_time, arrival_date_time, total_seats, bus_model, price_per_seat, status FROM flights WHERE id = ?";
+        logger.debug("Виконується SQL-запит: {}", sql);
+
         try (Connection conn = DatabaseConnectionManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, id);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    Route route = routeDAO.getRouteById(rs.getLong("route_id"))
-                            .orElseThrow(() -> new SQLException("Маршрут не знайдено для рейсу ID: " + id));
-                    return Optional.of(new Flight(
+                    long routeId = rs.getLong("route_id");
+                    Route route = routeDAO.getRouteById(routeId)
+                            .orElseThrow(() -> {
+                                String errorMsg = "Маршрут ID " + routeId + " не знайдено для рейсу ID: " + id;
+                                logger.warn("Порушення цілісності даних: {}", errorMsg);
+                                return new SQLException(errorMsg);
+                            });
+
+                    String statusStr = rs.getString("status");
+                    FlightStatus flightStatus;
+                    if (statusStr == null) {
+                        String errorMsg = "Статус рейсу є null для рейсу ID " + id;
+                        logger.error(errorMsg);
+                        throw new SQLException(errorMsg);
+                    }
+                    try {
+                        flightStatus = FlightStatus.valueOf(statusStr.toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        String errorMsg = "Недійсний статус '" + statusStr + "' для рейсу ID " + id;
+                        logger.error(errorMsg, e);
+                        throw new SQLException(errorMsg, e);
+                    }
+
+                    Flight flight = new Flight(
                             rs.getLong("id"),
                             route,
                             rs.getTimestamp("departure_date_time").toLocalDateTime(),
                             rs.getTimestamp("arrival_date_time").toLocalDateTime(),
                             rs.getInt("total_seats"),
-                            FlightStatus.valueOf(rs.getString("status").toUpperCase()),
+                            flightStatus,
+                            rs.getString("bus_model"),
+                            rs.getBigDecimal("price_per_seat")
+                    );
+                    logger.info("Рейс з ID {} знайдено: {}", id, flight);
+                    return Optional.of(flight);
+                } else {
+                    logger.info("Рейс з ID {} не знайдено.", id);
+                    return Optional.empty();
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Помилка при отриманні рейсу за ID {}: {}", id, e);
+            throw e;
+        }
+    }
+    /**
+     * Повертає список рейсів на конкретну дату.
+     * @param date Дата, на яку потрібно знайти рейси.
+     * @return Список об'єктів {@link Flight}.
+     * @throws SQLException якщо виникає помилка доступу до бази даних.
+     */
+    public List<Flight> getFlightsByDate(LocalDate date) throws SQLException {
+        logger.info("Спроба отримати рейси на дату: {}", date);
+        List<Flight> flightsOnDate = new ArrayList<>();
+        String sql = "SELECT id, route_id, departure_date_time, arrival_date_time, total_seats, bus_model, price_per_seat, status " +
+                "FROM flights WHERE DATE(departure_date_time) = ? ORDER BY departure_date_time";
+        logger.debug("Виконується SQL-запит: {}", sql);
+
+        try (Connection conn = DatabaseConnectionManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setDate(1, java.sql.Date.valueOf(date));
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    long flightId = rs.getLong("id");
+                    long routeId = rs.getLong("route_id");
+                    Route route = routeDAO.getRouteById(routeId)
+                            .orElseThrow(() -> {
+                                String errorMsg = "Маршрут ID " + routeId + " не знайдено для рейсу ID: " + flightId;
+                                logger.warn("Порушення цілісності даних: {}", errorMsg);
+                                return new SQLException(errorMsg);
+                            });
+
+                    String statusStr = rs.getString("status");
+                    FlightStatus flightStatus;
+                    if (statusStr == null) {
+                        String errorMsg = "Статус рейсу є null для рейсу ID " + flightId;
+                        logger.error(errorMsg);
+                        throw new SQLException(errorMsg);
+                    }
+                    try {
+                        flightStatus = FlightStatus.valueOf(statusStr.toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        String errorMsg = "Недійсний статус '" + statusStr + "' для рейсу ID " + flightId;
+                        logger.error(errorMsg, e);
+                        throw new SQLException(errorMsg, e);
+                    }
+
+                    flightsOnDate.add(new Flight(
+                            flightId,
+                            route,
+                            rs.getTimestamp("departure_date_time").toLocalDateTime(),
+                            rs.getTimestamp("arrival_date_time").toLocalDateTime(),
+                            rs.getInt("total_seats"),
+                            flightStatus, // Використовуємо перевірений flightStatus
                             rs.getString("bus_model"),
                             rs.getBigDecimal("price_per_seat")
                     ));
                 }
             }
+            logger.info("Успішно отримано {} рейсів на дату {}.", flightsOnDate.size(), date);
+        } catch (SQLException e) {
+            logger.error("Помилка при отриманні рейсів на дату {}: {}", date, e);
+            throw e;
         }
-        return Optional.empty();
+        return flightsOnDate;
     }
-        /**
-         * Повертає список рейсів на конкретну дату.
-         * @param date Дата, на яку потрібно знайти рейси.
-         * @return Список об'єктів {@link Flight}.
-         * @throws SQLException якщо виникає помилка доступу до бази даних.
-         */
-        public List<Flight> getFlightsByDate(LocalDate date) throws SQLException {
-            List<Flight> flightsOnDate = new ArrayList<>();
-            String sql = "SELECT id, route_id, departure_date_time, arrival_date_time, total_seats, bus_model, price_per_seat, status " +
-                    "FROM flights WHERE DATE(departure_date_time) = ? ORDER BY departure_date_time";
-            try (Connection conn = DatabaseConnectionManager.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                pstmt.setDate(1, java.sql.Date.valueOf(date));
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    while (rs.next()) {
-                        long routeId = rs.getLong("route_id");
-                        Route route = routeDAO.getRouteById(routeId)
-                                .orElseThrow(() -> {
-                                    try {
-                                        return new SQLException("Маршрут ID " + routeId + " не знайдено для рейсу ID: " + rs.getLong("id"));
-                                    } catch (SQLException e) {
-                                        throw new RuntimeException(e);
-                                    }
-                                });
-
-                        flightsOnDate.add(new Flight(
-                                rs.getLong("id"),
-                                route,
-                                rs.getTimestamp("departure_date_time").toLocalDateTime(),
-                                rs.getTimestamp("arrival_date_time").toLocalDateTime(),
-                                rs.getInt("total_seats"),
-                                Models.Enums.FlightStatus.valueOf(rs.getString("status").toUpperCase()),
-                                rs.getString("bus_model"),
-                                rs.getBigDecimal("price_per_seat")
-                        ));
-                    }
-                }
-            }
-            return flightsOnDate;
-        }
-    }
+}
