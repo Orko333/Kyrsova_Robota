@@ -5,6 +5,9 @@ import Models.Passenger;
 import Models.Route;
 import Models.Ticket;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import javax.swing.table.AbstractTableModel;
 import java.util.List;
 import java.time.format.DateTimeFormatter;
@@ -18,9 +21,12 @@ import java.util.Comparator;
  * дати бронювання та продажу, ціну та статус.
  *
  * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.0 // Додайте версію, якщо потрібно
+ * @version 1.1 // Версія оновлена для відображення змін
  */
 public class BookingsTableModel extends AbstractTableModel {
+    private static final Logger logger = LogManager.getLogger("insurance.log");
+    private static final DateTimeFormatter TABLE_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm");
+
     /**
      * Список об'єктів {@link Ticket}, що відображаються в таблиці.
      */
@@ -29,10 +35,7 @@ public class BookingsTableModel extends AbstractTableModel {
      * Масив назв стовпців таблиці.
      */
     private final String[] columnNames = {"ID Квитка", "Рейс (ID)", "Маршрут", "Пасажир", "Місце", "Дата бронюв.", "Дата продажу", "Ціна", "Статус"};
-    /**
-     * Форматер для відображення дати та часу в таблиці у зручному форматі ("dd.MM.yy HH:mm").
-     */
-    private static final DateTimeFormatter TABLE_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm");
+
 
     /**
      * Конструктор для створення моделі таблиці бронювань.
@@ -42,7 +45,15 @@ public class BookingsTableModel extends AbstractTableModel {
      * @param tickets список об'єктів {@link Ticket} для відображення.
      */
     public BookingsTableModel(List<Ticket> tickets) {
-        this.tickets = tickets != null ? new ArrayList<>(tickets) : new ArrayList<>();
+        if (tickets == null) {
+            logger.debug("Ініціалізація BookingsTableModel з null списком квитків. Створюється порожній список.");
+            this.tickets = new ArrayList<>();
+        } else {
+            this.tickets = new ArrayList<>(tickets); // Створюємо копію для уникнення зовнішніх модифікацій
+            logger.debug("Ініціалізація BookingsTableModel з {} квитками.", this.tickets.size());
+        }
+        // Сортування при ініціалізації також може бути корисним
+        sortTickets();
     }
 
     /**
@@ -53,10 +64,23 @@ public class BookingsTableModel extends AbstractTableModel {
      * @param tickets новий список об'єктів {@link Ticket}.
      */
     public void setTickets(List<Ticket> tickets) {
-        this.tickets = tickets != null ? new ArrayList<>(tickets) : new ArrayList<>();
-        // Сортування за датою бронювання (новіші вгорі)
-        this.tickets.sort(Comparator.comparing(Ticket::getBookingDateTime, Comparator.nullsLast(Comparator.reverseOrder())));
+        if (tickets == null) {
+            logger.warn("Спроба встановити null список квитків в BookingsTableModel. Список буде очищено.");
+            this.tickets = new ArrayList<>();
+        } else {
+            this.tickets = new ArrayList<>(tickets); // Створюємо копію
+            logger.info("Встановлено новий список з {} квитків в BookingsTableModel.", this.tickets.size());
+        }
+        sortTickets();
+        logger.debug("Дані таблиці оновлено та відсортовано.");
         fireTableDataChanged(); // Сповіщення таблиці про оновлення даних
+    }
+
+    private void sortTickets() {
+        if (this.tickets != null) {
+            this.tickets.sort(Comparator.comparing(Ticket::getBookingDateTime, Comparator.nullsLast(Comparator.reverseOrder())));
+            logger.trace("Квитки відсортовано за датою бронювання (новіші вгорі).");
+        }
     }
 
     /**
@@ -67,8 +91,11 @@ public class BookingsTableModel extends AbstractTableModel {
      */
     public Ticket getTicketAt(int rowIndex) {
         if (rowIndex >= 0 && rowIndex < tickets.size()) {
-            return tickets.get(rowIndex);
+            Ticket ticket = tickets.get(rowIndex);
+            logger.trace("Отримання квитка за індексом {}: ID {}", rowIndex, ticket.getId());
+            return ticket;
         }
+        logger.warn("Спроба отримати квиток за недійсним індексом рядка: {}. Розмір списку: {}", rowIndex, tickets.size());
         return null;
     }
 
@@ -80,7 +107,9 @@ public class BookingsTableModel extends AbstractTableModel {
      */
     @Override
     public int getRowCount() {
-        return tickets.size();
+        int count = tickets.size();
+        // logger.trace("Запит кількості рядків: {}", count); // Може бути занадто багато логів
+        return count;
     }
 
     /**
@@ -91,6 +120,7 @@ public class BookingsTableModel extends AbstractTableModel {
      */
     @Override
     public int getColumnCount() {
+        // logger.trace("Запит кількості стовпців: {}", columnNames.length); // Може бути занадто багато логів
         return columnNames.length;
     }
 
@@ -102,7 +132,11 @@ public class BookingsTableModel extends AbstractTableModel {
      */
     @Override
     public String getColumnName(int column) {
-        return columnNames[column];
+        if (column >= 0 && column < columnNames.length) {
+            return columnNames[column];
+        }
+        logger.warn("Запит назви стовпця за недійсним індексом: {}", column);
+        return ""; // Або кинути виняток
     }
 
     /**
@@ -114,48 +148,70 @@ public class BookingsTableModel extends AbstractTableModel {
      * @param rowIndex індекс рядка.
      * @param columnIndex індекс стовпця.
      * @return об'єкт, що представляє значення комірки.
-     *         Повертає {@code null}, якщо індекс стовпця невідомий.
+     *         Повертає {@code "N/A"} або інший плейсхолдер у випадку помилки або відсутності даних.
      */
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
+        // logger.trace("Запит значення для комірки [{}, {}]", rowIndex, columnIndex); // Може бути занадто багато логів
+        if (rowIndex < 0 || rowIndex >= tickets.size()) {
+            logger.error("Недійсний індекс рядка {} при запиті значення. Кількість рядків: {}", rowIndex, tickets.size());
+            return "ПОМИЛКА ІНДЕКСУ РЯДКА";
+        }
         Ticket ticket = tickets.get(rowIndex);
-        Flight flight = ticket.getFlight(); // Може бути null, якщо дані неповні
-        Passenger passenger = ticket.getPassenger(); // Може бути null
-
-        // Перевірка на null для flight та passenger, щоб уникнути NullPointerException
-        if (flight == null || passenger == null) {
-            // Можна повернути спеціальне значення або порожній рядок для таких випадків
-            // Або обробити це більш витончено залежно від вимог
-            switch (columnIndex) {
-                case 0: return ticket.getId();
-                // ... обробка інших стовпців, якщо ticket є, але flight/passenger відсутні
-                default: return "N/A"; // "Not Available" або інший плейсхолдер
-            }
+        if (ticket == null) {
+            logger.error("Об'єкт Ticket є null для рядка {} при запиті значення.", rowIndex);
+            return "ПОМИЛКА: NULL КВИТОК";
         }
 
-        Route route = flight.getRoute(); // Може бути null, якщо дані flight неповні
+        Flight flight = ticket.getFlight();
+        Passenger passenger = ticket.getPassenger();
 
-        switch (columnIndex) {
-            case 0: // ID Квитка
-                return ticket.getId();
-            case 1: // Рейс (ID)
-                return flight.getId();
-            case 2: // Маршрут
-                return route != null ? route.getFullRouteDescription() : "Маршрут не вказано";
-            case 3: // Пасажир
-                return passenger.getFullName();
-            case 4: // Місце
-                return ticket.getSeatNumber();
-            case 5: // Дата бронюв.
-                return ticket.getBookingDateTime() != null ? ticket.getBookingDateTime().format(TABLE_DATE_FORMATTER) : "-";
-            case 6: // Дата продажу
-                return ticket.getPurchaseDateTime() != null ? ticket.getPurchaseDateTime().format(TABLE_DATE_FORMATTER) : "-";
-            case 7: // Ціна
-                return ticket.getPricePaid();
-            case 8: // Статус
-                return ticket.getStatus() != null ? ticket.getStatus().getDisplayName() : "Статус невідомий";
-            default:
-                return null; // Для невідомих індексів стовпців
+        // Перевірка на null для flight та passenger, щоб уникнути NullPointerException
+        if (flight == null) {
+            logger.warn("Об'єкт Flight є null для квитка ID {} (рядок {}). Стовпець: {}", ticket.getId(), rowIndex, columnIndex);
+            // Можна повернути спеціальне значення або порожній рядок для таких випадків
+            if (columnIndex == 0) return ticket.getId();
+            if (columnIndex == 4) return ticket.getSeatNumber(); // Місце не залежить від рейсу
+            if (columnIndex == 8 && ticket.getStatus() != null) return ticket.getStatus().getDisplayName();
+            return "Рейс N/A"; // "Not Available" або інший плейсхолдер
+        }
+        if (passenger == null) {
+            logger.warn("Об'єкт Passenger є null для квитка ID {} (рядок {}). Стовпець: {}", ticket.getId(), rowIndex, columnIndex);
+            if (columnIndex == 0) return ticket.getId();
+            if (columnIndex == 4) return ticket.getSeatNumber();
+            if (columnIndex == 8 && ticket.getStatus() != null) return ticket.getStatus().getDisplayName();
+            return "Пасажир N/A";
+        }
+
+        Route route = flight.getRoute();
+
+        try {
+            switch (columnIndex) {
+                case 0: // ID Квитка
+                    return ticket.getId();
+                case 1: // Рейс (ID)
+                    return flight.getId();
+                case 2: // Маршрут
+                    return route != null && route.getFullRouteDescription() != null ? route.getFullRouteDescription() : "Маршрут не вказано";
+                case 3: // Пасажир
+                    return passenger.getFullName() != null ? passenger.getFullName() : "Ім'я не вказано";
+                case 4: // Місце
+                    return ticket.getSeatNumber() != null ? ticket.getSeatNumber() : "Місце не вказано";
+                case 5: // Дата бронюв.
+                    return ticket.getBookingDateTime() != null ? ticket.getBookingDateTime().format(TABLE_DATE_FORMATTER) : "-";
+                case 6: // Дата продажу
+                    return ticket.getPurchaseDateTime() != null ? ticket.getPurchaseDateTime().format(TABLE_DATE_FORMATTER) : "-";
+                case 7: // Ціна
+                    return ticket.getPricePaid() != null ? ticket.getPricePaid() : "Ціна не вказана";
+                case 8: // Статус
+                    return ticket.getStatus() != null && ticket.getStatus().getDisplayName() != null ? ticket.getStatus().getDisplayName() : "Статус невідомий";
+                default:
+                    logger.warn("Запит значення для невідомого індексу стовпця: {} (рядок {})", columnIndex, rowIndex);
+                    return "НЕВІДОМИЙ СТОВПЕЦЬ";
+            }
+        } catch (Exception e) {
+            logger.error("Помилка при отриманні значення для комірки [{}, {}], квиток ID {}", rowIndex, columnIndex, ticket.getId(), e);
+            return "ПОМИЛКА ДАНИХ";
         }
     }
 }
