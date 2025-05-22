@@ -2,9 +2,9 @@ package UI.Panel;
 
 import DAO.*;
 import Models.Flight;
-import Models.Enums.FlightStatus; // Для звіту по статусах
-import Models.Stop; // Додано імпорт
-import Models.Ticket; // Додано імпорт
+import Models.Enums.FlightStatus;
+import Models.Stop;
+import Models.Ticket;
 import UI.Dialog.BookingDialog;
 import UI.Model.FlightsTableModel;
 
@@ -12,10 +12,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer; // Імпорт для рендерера таблиці
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.sql.SQLException; // Важливий імпорт для обробки винятків
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -26,8 +26,13 @@ import java.util.stream.Collectors;
 
 /**
  * Панель для пошуку рейсів та бронювання квитків.
+ * Надає користувацький інтерфейс для вибору пунктів відправлення та призначення, дати,
+ * перегляду списку доступних рейсів, вибору місця та подальшого бронювання квитка.
+ *
+ * @author [Ваше ім'я або назва команди]
+ * @version 1.1
  */
-public class TicketsPanel extends JPanel { // Зроблено public для доступу з MainFrame
+public class TicketsPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter DIALOG_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
@@ -49,8 +54,14 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
 
     private Flight selectedFlightForBooking;
 
-
-    public TicketsPanel() { // Зроблено public
+    /**
+     * Конструктор панелі пошуку та бронювання квитків.
+     * Ініціалізує необхідні DAO, компоненти користувацького інтерфейсу
+     * та завантажує початкові дані (список зупинок).
+     *
+     * @throws RuntimeException якщо не вдалося ініціалізувати один або декілька DAO.
+     */
+    public TicketsPanel() {
         logger.info("Ініціалізація TicketsPanel.");
         try {
             this.flightDAO = new FlightDAO();
@@ -64,7 +75,6 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
             throw new RuntimeException("Не вдалося ініціалізувати DAO", e);
         }
 
-
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -72,9 +82,14 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         logger.info("TicketsPanel успішно ініціалізовано.");
     }
 
+    /**
+     * Ініціалізує та розміщує компоненти користувацького інтерфейсу панелі.
+     * Створює панель пошуку рейсів (з випадаючими списками зупинок, полем для дати та кнопкою пошуку),
+     * таблицю для відображення результатів пошуку, панель для деталей обраного рейсу
+     * (включаючи список доступних місць та кнопку бронювання).
+     */
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для TicketsPanel.");
-        // --- Панель пошуку рейсів ---
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         searchPanel.setBorder(BorderFactory.createTitledBorder("Пошук рейсів"));
 
@@ -99,7 +114,6 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
 
         add(searchPanel, BorderLayout.NORTH);
 
-        // --- Панель результатів пошуку та деталей рейсу ---
         JPanel resultsAndDetailsPanel = new JPanel(new BorderLayout(10,10));
 
         flightsResultTableModel = new FlightsTableModel(new ArrayList<>());
@@ -150,8 +164,6 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
             logger.warn("Не вдалося налаштувати ширину стовпців для таблиці рейсів - недостатньо стовпців.");
         }
 
-
-
         JPanel flightDetailsPanel = new JPanel(new BorderLayout(5,5));
         flightDetailsPanel.setBorder(BorderFactory.createTitledBorder("Деталі рейсу та доступні місця"));
 
@@ -163,7 +175,7 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         listAvailableSeats = new JList<>(availableSeatsModel);
         listAvailableSeats.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         listAvailableSeats.setLayoutOrientation(JList.HORIZONTAL_WRAP);
-        listAvailableSeats.setVisibleRowCount(-1); // Дозволяє JList визначити кількість видимих рядків
+        listAvailableSeats.setVisibleRowCount(-1);
         JScrollPane seatsScrollPane = new JScrollPane(listAvailableSeats);
         seatsScrollPane.setPreferredSize(new Dimension(300, 150));
         flightDetailsPanel.add(seatsScrollPane, BorderLayout.CENTER);
@@ -193,12 +205,17 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         logger.debug("Компоненти UI для TicketsPanel успішно створені та додані.");
     }
 
+    /**
+     * Завантажує список зупинок з бази даних та заповнює випадаючі списки
+     * пунктів відправлення та призначення.
+     * Додає опцію "Будь-який" для можливості пошуку без конкретизації зупинки.
+     */
     private void loadStopsIntoComboBoxes() {
         logger.info("Завантаження списку зупинок для JComboBox.");
         try {
             List<Stop> stops = stopDAO.getAllStops();
 
-            Stop emptyStop = new Stop(0, "Будь-який", ""); // Об'єкт для опції "Будь-який"
+            Stop emptyStop = new Stop(0, "Будь-який", "");
             cmbDepartureStop.addItem(emptyStop);
             cmbDestinationStop.addItem(emptyStop);
             logger.trace("Додано опцію 'Будь-який' до JComboBox зупинок.");
@@ -209,7 +226,7 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
                     super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                     if (value instanceof Stop) {
                         Stop s = (Stop) value;
-                        if (s.getId() == 0) setText(s.getName()); // Для "Будь-який"
+                        if (s.getId() == 0) setText(s.getName());
                         else setText(s.getName() + " (" + s.getCity() + ")");
                     }
                     return this;
@@ -231,6 +248,12 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         }
     }
 
+    /**
+     * Обробляє дію пошуку рейсів.
+     * Отримує параметри пошуку з полів форми, фільтрує список всіх рейсів
+     * та оновлює таблицю результатів.
+     * @param e Об'єкт події {@link ActionEvent}.
+     */
     private void searchFlightsAction(ActionEvent e) {
         logger.info("Натиснуто кнопку 'Знайти рейси'.");
         Stop departureFilter = (Stop) cmbDepartureStop.getSelectedItem();
@@ -279,6 +302,11 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         }
     }
 
+    /**
+     * Очищує інформацію про обраний рейс та список доступних місць.
+     * Встановлює текст за замовчуванням для мітки деталей рейсу,
+     * очищує модель списку місць та деактивує кнопку бронювання.
+     */
     private void clearFlightDetailsAndSeats() {
         logger.debug("Очищення деталей обраного рейсу та списку доступних місць.");
         lblSelectedFlightInfo.setText("Оберіть рейс зі списку вище для перегляду деталей.");
@@ -287,6 +315,12 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         selectedFlightForBooking = null;
     }
 
+    /**
+     * Оновлює панель деталей рейсу інформацією про обраний рейс та список доступних місць.
+     * Якщо рейс не дозволяє бронювання (наприклад, через його статус),
+     * відповідне повідомлення додається до інформації про рейс.
+     * @param flight Обраний об'єкт {@link Flight}.
+     */
     private void updateFlightDetailsAndSeats(Flight flight) {
         if (flight == null) {
             logger.warn("Спроба оновити деталі для null рейсу. Викликається очищення.");
@@ -301,7 +335,6 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         String arrivalTime = (flight.getArrivalDateTime() != null) ? flight.getArrivalDateTime().format(DIALOG_DATE_TIME_FORMATTER) : "N/A";
         String price = (flight.getPricePerSeat() != null) ? String.format("%.2f грн", flight.getPricePerSeat()) : "N/A";
         String status = (flight.getStatus() != null && flight.getStatus().getDisplayName() != null) ? flight.getStatus().getDisplayName() : "N/A";
-
 
         lblSelectedFlightInfo.setText(String.format("Обрано: %s -> %s, Відпр: %s, Приб: %s, Ціна: %s, Статус: %s",
                 departureCity, destinationCity, departureTime, arrivalTime, price, status));
@@ -343,6 +376,13 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         }
     }
 
+    /**
+     * Обробляє дію бронювання квитка.
+     * Перевіряє, чи обрано рейс та місце, і чи дозволяє статус рейсу бронювання.
+     * Відкриває діалогове вікно {@link BookingDialog} для введення даних пасажира.
+     * Якщо бронювання успішне, оновлює список доступних місць.
+     * @param e Об'єкт події {@link ActionEvent}.
+     */
     private void bookTicketAction(ActionEvent e) {
         logger.info("Натиснуто кнопку 'Забронювати обране місце'.");
         if (selectedFlightForBooking == null || listAvailableSeats.isSelectionEmpty()) {
@@ -373,11 +413,21 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         }
     }
 
+    /**
+     * Обробляє винятки типу {@link SQLException}, логує їх та показує повідомлення користувачу.
+     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
+     * @param e Об'єкт винятку {@link SQLException}.
+     */
     private void handleSqlException(String userMessage, SQLException e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
     }
 
+    /**
+     * Обробляє загальні винятки (не {@link SQLException}), логує їх та показує повідомлення користувачу.
+     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
+     * @param e Об'єкт винятку {@link Exception}.
+     */
     private void handleGenericException(String userMessage, Exception e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);

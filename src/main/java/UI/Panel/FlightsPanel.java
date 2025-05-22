@@ -1,9 +1,9 @@
 package UI.Panel;
 
 import DAO.FlightDAO;
-import DAO.RouteDAO; // Потрібен для передачі в FlightDialog
+import DAO.RouteDAO;
 import Models.Flight;
-import Models.Enums.FlightStatus; // Для перевірки статусу при скасуванні
+import Models.Enums.FlightStatus;
 import UI.Dialog.FlightDialog;
 import UI.Model.FlightsTableModel;
 
@@ -20,6 +20,14 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Панель для управління рейсами.
+ * Надає користувацький інтерфейс для перегляду списку рейсів,
+ * додавання нових рейсів, редагування та скасування існуючих.
+ *
+ * @author [Ваше ім'я або назва команди]
+ * @version 1.1
+ */
 public class FlightsPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
 
@@ -27,12 +35,14 @@ public class FlightsPanel extends JPanel {
     private FlightsTableModel flightsTableModel;
     private JButton btnAddFlight, btnEditFlight, btnCancelFlight, btnRefreshFlights;
 
-    private final FlightDAO flightDAO; // Гарантовано буде ініціалізовано або конструктор кине виняток
-    private final RouteDAO routeDAO;   // Гарантовано буде ініціалізовано або конструктор кине виняток
+    private final FlightDAO flightDAO;
+    private final RouteDAO routeDAO;
 
     /**
-     * Конструктор панелі рейсів.
-     * @throws RuntimeException якщо не вдалося ініціалізувати FlightDAO або RouteDAO.
+     * Конструктор панелі управління рейсами.
+     * Ініціалізує DAO, компоненти UI та завантажує початкові дані про рейси.
+     *
+     * @throws RuntimeException якщо не вдалося ініціалізувати {@link FlightDAO} або {@link RouteDAO}.
      */
     public FlightsPanel() {
         logger.info("Ініціалізація FlightsPanel.");
@@ -42,7 +52,7 @@ public class FlightsPanel extends JPanel {
         } catch (Exception e) {
             logger.fatal("Не вдалося створити FlightDAO в FlightsPanel.", e);
             JOptionPane.showMessageDialog(null, "Критична помилка: не вдалося ініціалізувати сервіс даних рейсів.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
-            throw new RuntimeException("Не вдалося ініціалізувати FlightDAO", e); // Кидаємо виняток
+            throw new RuntimeException("Не вдалося ініціалізувати FlightDAO", e);
         }
 
         try {
@@ -51,9 +61,8 @@ public class FlightsPanel extends JPanel {
         } catch (Exception e) {
             logger.fatal("Не вдалося створити RouteDAO в FlightsPanel.", e);
             JOptionPane.showMessageDialog(null, "Критична помилка: не вдалося ініціалізувати сервіс даних маршрутів.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
-            throw new RuntimeException("Не вдалося ініціалізувати RouteDAO", e); // Кидаємо виняток
+            throw new RuntimeException("Не вдалося ініціалізувати RouteDAO", e);
         }
-
 
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -63,7 +72,11 @@ public class FlightsPanel extends JPanel {
         logger.info("FlightsPanel успішно ініціалізовано.");
     }
 
-    // ... решта коду класу залишається без змін ...
+    /**
+     * Ініціалізує та розміщує компоненти користувацького інтерфейсу панелі.
+     * Створює таблицю для відображення рейсів та кнопки для виконання операцій:
+     * "Додати рейс", "Редагувати рейс", "Скасувати рейс" та "Оновити список".
+     */
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для FlightsPanel.");
         flightsTableModel = new FlightsTableModel(new ArrayList<>());
@@ -74,16 +87,16 @@ public class FlightsPanel extends JPanel {
 
         DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
         rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-        if (flightsTable.getColumnModel().getColumnCount() > 6) { // Захист від IndexOutOfBounds
+        if (flightsTable.getColumnModel().getColumnCount() > 6) {
             logger.trace("Налаштування рендерера для стовпців ID, Місць, Ціна.");
-            flightsTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer); // ID
-            flightsTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer); // Місць
-            flightsTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); // Ціна
+            flightsTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer);
+            flightsTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
+            flightsTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer);
         } else {
             logger.warn("Кількість стовпців ({}) менша за 7, рендерер для деяких стовпців може бути не встановлено.", flightsTable.getColumnModel().getColumnCount());
         }
 
-        if (flightsTable.getColumnModel().getColumnCount() > 7) { // Захист від IndexOutOfBounds
+        if (flightsTable.getColumnModel().getColumnCount() > 7) {
             logger.trace("Налаштування ширини стовпців.");
             flightsTable.getColumnModel().getColumn(0).setPreferredWidth(40);
             flightsTable.getColumnModel().getColumn(1).setPreferredWidth(250);
@@ -96,7 +109,6 @@ public class FlightsPanel extends JPanel {
         } else {
             logger.warn("Кількість стовпців ({}) менша за 8, ширина деяких стовпців може бути не встановлена.", flightsTable.getColumnModel().getColumnCount());
         }
-
 
         flightsTable.addMouseListener(new MouseAdapter() {
             public void mousePressed(MouseEvent mouseEvent) {
@@ -143,6 +155,11 @@ public class FlightsPanel extends JPanel {
         logger.debug("Компоненти UI для FlightsPanel успішно створені та додані.");
     }
 
+    /**
+     * Завантажує або оновлює список рейсів у таблиці.
+     * Дані отримуються з {@link FlightDAO}. У випадку помилки,
+     * виводиться повідомлення користувачу.
+     */
     public void loadFlightsData() {
         logger.info("Завантаження даних про рейси.");
         try {
@@ -156,6 +173,12 @@ public class FlightsPanel extends JPanel {
         }
     }
 
+    /**
+     * Відкриває діалогове вікно для редагування обраного рейсу.
+     * Якщо рейс не передано ({@code null}), виводить повідомлення про помилку.
+     * Після закриття діалогу, якщо дані були збережені, оновлює список рейсів.
+     * @param flightToEdit Об'єкт {@link Flight} для редагування.
+     */
     private void openEditFlightDialog(Flight flightToEdit) {
         if (flightToEdit == null) {
             logger.error("Спроба відкрити діалог редагування для null рейсу.");
@@ -179,6 +202,12 @@ public class FlightsPanel extends JPanel {
         }
     }
 
+    /**
+     * Обробляє дію додавання нового рейсу.
+     * Відкриває діалогове вікно {@link FlightDialog} для створення нового рейсу.
+     * Якщо рейс успішно створено та збережено, оновлює список рейсів у таблиці.
+     * @param e Об'єкт події {@link ActionEvent}.
+     */
     private void addFlightAction(ActionEvent e) {
         logger.info("Натиснуто кнопку 'Додати рейс'. Відкриття FlightDialog для створення нового рейсу.");
         FlightDialog dialog = new FlightDialog((Frame) SwingUtilities.getWindowAncestor(this),
@@ -192,6 +221,12 @@ public class FlightsPanel extends JPanel {
         }
     }
 
+    /**
+     * Обробляє дію редагування обраного рейсу.
+     * Отримує обраний рейс з таблиці та відкриває діалогове вікно {@link FlightDialog}
+     * для його редагування.
+     * @param e Об'єкт події {@link ActionEvent}.
+     */
     private void editFlightAction(ActionEvent e) {
         logger.debug("Натиснуто кнопку 'Редагувати рейс'.");
         int selectedRowView = flightsTable.getSelectedRow();
@@ -212,6 +247,13 @@ public class FlightsPanel extends JPanel {
         }
     }
 
+    /**
+     * Обробляє дію скасування обраного рейсу.
+     * Змінює статус рейсу на {@link FlightStatus#CANCELLED}.
+     * Забороняє скасування рейсів, які вже скасовані, відправлені або прибули.
+     * Попередньо запитує підтвердження у користувача.
+     * @param e Об'єкт події {@link ActionEvent}.
+     */
     private void cancelFlightAction(ActionEvent e) {
         logger.debug("Натиснуто кнопку 'Скасувати рейс'.");
         int selectedRowView = flightsTable.getSelectedRow();
@@ -266,13 +308,23 @@ public class FlightsPanel extends JPanel {
         }
     }
 
+    /**
+     * Обробляє винятки типу {@link SQLException}, логує їх та показує повідомлення користувачу.
+     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
+     * @param e Об'єкт винятку {@link SQLException}.
+     */
     private void handleSqlException(String userMessage, SQLException e) {
-        logger.error("{}: {}", userMessage, e.getMessage(), e); // Додано повний стек виклику до логу
+        logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
     }
 
+    /**
+     * Обробляє загальні винятки (не {@link SQLException}), логує їх та показує повідомлення користувачу.
+     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
+     * @param e Об'єкт винятку {@link Exception}.
+     */
     private void handleGenericException(String userMessage, Exception e) {
-        logger.error("{}: {}", userMessage, e.getMessage(), e); // Додано повний стек виклику до логу
+        logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);
     }
 }

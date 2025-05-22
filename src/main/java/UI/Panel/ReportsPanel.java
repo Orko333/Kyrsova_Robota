@@ -3,7 +3,7 @@ package UI.Panel;
 import DAO.FlightDAO;
 import DAO.TicketDAO;
 import Models.Flight;
-import Models.Enums.TicketStatus; // Для звіту по статусах
+import Models.Enums.TicketStatus;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,12 +11,12 @@ import org.apache.logging.log4j.Logger;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel; // Для створення пустої моделі таблиці при помилці
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.text.NumberFormat; // Для форматування валюти
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -25,29 +25,44 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Панель для генерації та відображення звітів.
+ * Панель для генерації та відображення звітів у системі автовокзалу.
+ * Дозволяє користувачеві вибирати тип звіту, вказувати параметри (якщо потрібно)
+ * та переглядати сформовані звіти у текстовому або табличному вигляді.
+ * Підтримувані звіти:
+ * <ul>
+ *     <li>Продажі за маршрутами за вказаний період.</li>
+ *     <li>Завантаженість рейсів на конкретну дату.</li>
+ *     <li>Статистика квитків за їх статусами.</li>
+ * </ul>
+ *
+ * @author [Ваше ім'я або назва команди]
+ * @version 1.1
  */
-public class ReportsPanel extends JPanel { // Зроблено public
+public class ReportsPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final NumberFormat CURRENCY_FORMATTER = NumberFormat.getCurrencyInstance(new Locale("uk", "UA"));
     private static final DateTimeFormatter TABLE_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     private JComboBox<String> cmbReportType;
-    private JPanel parametersPanel; // Панель для динамічних параметрів
+    private JPanel parametersPanel;
     private JButton btnGenerateReport;
-    private JTextArea reportTextArea; // Для текстових звітів
-    private JTable reportTable;       // Для табличних звітів
-    private JScrollPane reportScrollPane; // Для прокрутки таблиці або тексту
+    private JTextArea reportTextArea;
+    private JTable reportTable;
+    private JScrollPane reportScrollPane;
 
     private final TicketDAO ticketDAO;
     private final FlightDAO flightDAO;
 
-    // Поля для параметрів звітів (можуть бути перевизначені)
     private JTextField txtStartDate, txtEndDate, txtReportDate;
 
-
-    public ReportsPanel() { // Зроблено public
+    /**
+     * Конструктор панелі звітів.
+     * Ініціалізує DAO, компоненти UI.
+     *
+     * @throws RuntimeException якщо не вдалося ініціалізувати {@link TicketDAO} або {@link FlightDAO}.
+     */
+    public ReportsPanel() {
         logger.info("Ініціалізація ReportsPanel.");
         try {
             this.ticketDAO = new TicketDAO();
@@ -59,7 +74,6 @@ public class ReportsPanel extends JPanel { // Зроблено public
             throw new RuntimeException("Не вдалося ініціалізувати DAO", e);
         }
 
-
         setLayout(new BorderLayout(10, 10));
         setBorder(new EmptyBorder(10, 10, 10, 10));
 
@@ -67,9 +81,13 @@ public class ReportsPanel extends JPanel { // Зроблено public
         logger.info("ReportsPanel успішно ініціалізовано.");
     }
 
+    /**
+     * Ініціалізує та розміщує компоненти користувацького інтерфейсу панелі.
+     * Створює випадаючий список для вибору типу звіту, панель для динамічних параметрів звіту,
+     * кнопку для генерації звіту та область для відображення результатів (текстову або табличну).
+     */
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для ReportsPanel.");
-        // --- Панель вибору звіту та параметрів ---
         JPanel topPanel = new JPanel(new BorderLayout(10, 5));
 
         JPanel reportSelectionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -84,18 +102,17 @@ public class ReportsPanel extends JPanel { // Зроблено public
         reportSelectionPanel.add(cmbReportType);
 
         btnGenerateReport = new JButton("Сформувати звіт");
-        btnGenerateReport.setEnabled(false); // Активується при виборі типу звіту
+        btnGenerateReport.setEnabled(false);
         btnGenerateReport.addActionListener(this::generateReportAction);
         reportSelectionPanel.add(btnGenerateReport);
 
         topPanel.add(reportSelectionPanel, BorderLayout.NORTH);
 
-        parametersPanel = new JPanel(new FlowLayout(FlowLayout.LEFT)); // Динамічна панель параметрів
+        parametersPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topPanel.add(parametersPanel, BorderLayout.CENTER);
 
         add(topPanel, BorderLayout.NORTH);
 
-        // --- Панель відображення звіту ---
         reportTextArea = new JTextArea(15, 70);
         reportTextArea.setEditable(false);
         reportTextArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
@@ -106,7 +123,11 @@ public class ReportsPanel extends JPanel { // Зроблено public
     }
 
     /**
-     * Обробник зміни типу звіту. Оновлює панель параметрів.
+     * Обробник події зміни вибраного типу звіту в JComboBox.
+     * Оновлює панель параметрів звіту відповідно до обраного типу.
+     * Наприклад, для звіту за період додає поля для введення початкової та кінцевої дати.
+     *
+     * @param e Об'єкт події {@link ActionEvent}.
      */
     private void onReportTypeChange(ActionEvent e) {
         String selectedReport = (String) cmbReportType.getSelectedItem();
@@ -141,7 +162,11 @@ public class ReportsPanel extends JPanel { // Зроблено public
     }
 
     /**
-     * Обробник натискання кнопки "Сформувати звіт".
+     * Обробник події натискання кнопки "Сформувати звіт".
+     * Викликає відповідний метод генерації звіту залежно від обраного типу.
+     * Обробляє можливі помилки формату дати та помилки бази даних.
+     *
+     * @param e Об'єкт події {@link ActionEvent}.
      */
     private void generateReportAction(ActionEvent e) {
         String selectedReport = (String) cmbReportType.getSelectedItem();
@@ -161,7 +186,6 @@ public class ReportsPanel extends JPanel { // Зроблено public
         } else {
             logger.debug("Очищення попереднього текстового звіту.");
         }
-
 
         try {
             switch (selectedReport) {
@@ -196,6 +220,14 @@ public class ReportsPanel extends JPanel { // Зроблено public
         }
     }
 
+    /**
+     * Генерує звіт про продажі за маршрутами за вказаний період.
+     * Дані отримуються з {@link TicketDAO#getSalesByRouteForPeriod(LocalDate, LocalDate)}.
+     * Результат відображається у текстовому вигляді в {@code reportTextArea}.
+     *
+     * @throws SQLException Якщо виникає помилка при доступі до бази даних.
+     * @throws DateTimeParseException Якщо введено некоректний формат дати.
+     */
     private void generateSalesByRouteReport() throws SQLException, DateTimeParseException {
         if (txtStartDate == null || txtEndDate == null) {
             logger.error("Поля дат для звіту 'Продажі за маршрутами' не ініціалізовані.");
@@ -244,6 +276,15 @@ public class ReportsPanel extends JPanel { // Зроблено public
         reportTextArea.setText(sb.toString());
     }
 
+    /**
+     * Генерує звіт про завантаженість рейсів на вказану дату.
+     * Дані про рейси отримуються з {@link FlightDAO#getFlightsByDate(LocalDate)},
+     * а кількість зайнятих місць з {@link FlightDAO#getOccupiedSeatsCount(long)}.
+     * Результат відображається у вигляді таблиці в {@code reportTable}.
+     *
+     * @throws SQLException Якщо виникає помилка при доступі до бази даних.
+     * @throws DateTimeParseException Якщо введено некоректний формат дати.
+     */
     private void generateFlightLoadReport() throws SQLException, DateTimeParseException {
         if (txtReportDate == null) {
             logger.error("Поле дати для звіту 'Завантаженість рейсів' не ініціалізоване.");
@@ -259,9 +300,8 @@ public class ReportsPanel extends JPanel { // Зроблено public
         if (flights.isEmpty()) {
             reportTextArea.setText("На дату " + reportDate.format(DATE_FORMATTER) + " рейсів не знайдено.");
             logger.info("На дату {} рейсів не знайдено.", reportDate);
-            // Створюємо пусту таблицю з заголовками, щоб користувач бачив структуру
             String[] columnNames = {"ID Рейсу", "Маршрут", "Відправлення", "Місць всього", "Зайнято", "Завантаженість (%)"};
-            reportTable = new JTable(new DefaultTableModel(new Object[][]{}, columnNames)); // Пуста модель
+            reportTable = new JTable(new DefaultTableModel(new Object[][]{}, columnNames));
             reportTable.setEnabled(false);
             reportTable.setFillsViewportHeight(true);
             reportScrollPane.setViewportView(reportTable);
@@ -278,7 +318,6 @@ public class ReportsPanel extends JPanel { // Зроблено public
                 occupiedSeats = flightDAO.getOccupiedSeatsCount(flight.getId());
             } catch (SQLException sqlEx) {
                 logger.error("Помилка отримання кількості зайнятих місць для рейсу ID: {}", flight.getId(), sqlEx);
-                // Можна встановити якесь значення за замовчуванням або пропустити
             }
             double loadPercentage = (flight.getTotalSeats() > 0) ? ((double) occupiedSeats / flight.getTotalSeats()) * 100 : 0;
 
@@ -297,20 +336,26 @@ public class ReportsPanel extends JPanel { // Зроблено public
 
         DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
         rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-        if (reportTable.getColumnModel().getColumnCount() > 5) { // Перевірка кількості стовпців
-            reportTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer); // ID Рейсу
-            reportTable.getColumnModel().getColumn(3).setCellRenderer(rightRenderer); // Місць всього
-            reportTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer); // Зайнято
-            reportTable.getColumnModel().getColumn(5).setCellRenderer(rightRenderer); // Завантаженість
+        if (reportTable.getColumnModel().getColumnCount() > 5) {
+            reportTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer);
+            reportTable.getColumnModel().getColumn(3).setCellRenderer(rightRenderer);
+            reportTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
+            reportTable.getColumnModel().getColumn(5).setCellRenderer(rightRenderer);
         } else {
             logger.warn("Не вдалося налаштувати рендерер для таблиці завантаженості рейсів - недостатньо стовпців.");
         }
-
 
         reportScrollPane.setViewportView(reportTable);
         logger.info("Звіт завантаженості рейсів на дату {} сформовано.", reportDate);
     }
 
+    /**
+     * Генерує звіт про статистику квитків за їх статусами.
+     * Дані отримуються з {@link TicketDAO#getTicketCountsByStatus()}.
+     * Результат відображається у текстовому вигляді в {@code reportTextArea}.
+     *
+     * @throws SQLException Якщо виникає помилка при доступі до бази даних.
+     */
     private void generateTicketStatusReport() throws SQLException {
         logger.info("Генерація звіту статистики по статусах квитків.");
         Map<TicketStatus, Integer> statusCounts = ticketDAO.getTicketCountsByStatus();
@@ -334,6 +379,11 @@ public class ReportsPanel extends JPanel { // Зроблено public
         logger.info("Звіт статистики по статусах квитків сформовано. Всього квитків: {}", totalTickets);
     }
 
+    /**
+     * Обробляє винятки типу {@link SQLException}, логує їх та показує повідомлення користувачу.
+     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
+     * @param e Об'єкт винятку {@link SQLException}.
+     */
     private void handleSqlException(String userMessage, SQLException e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this,
@@ -342,6 +392,11 @@ public class ReportsPanel extends JPanel { // Зроблено public
                 JOptionPane.ERROR_MESSAGE);
     }
 
+    /**
+     * Обробляє загальні винятки (не {@link SQLException}), логує їх та показує повідомлення користувачу.
+     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
+     * @param e Об'єкт винятку {@link Exception}.
+     */
     private void handleGenericException(String userMessage, Exception e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this,

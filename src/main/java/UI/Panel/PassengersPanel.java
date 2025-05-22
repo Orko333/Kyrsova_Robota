@@ -1,9 +1,9 @@
 package UI.Panel;
 
 import DAO.PassengerDAO;
-import DAO.TicketDAO; // Для історії поїздок
+import DAO.TicketDAO;
 import Models.Passenger;
-import Models.Ticket; // Для PassengerHistoryTableModel
+import Models.Ticket;
 import UI.Dialog.PassengerDialog;
 import UI.Model.PassengerHistoryTableModel;
 import UI.Model.PassengersTableModel;
@@ -21,9 +21,15 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-// Припускаємо, що PassengersTableModel, PassengerHistoryTableModel та PassengerDialog визначені або імпортовані
-// і PassengerDialog.savePassenger() (або еквівалент) обробляє SQLException всередині
-
+/**
+ * Панель для управління даними пасажирів та перегляду їхньої історії поїздок.
+ * Надає користувацький інтерфейс для відображення списку пасажирів,
+ * редагування їхніх даних та перегляду історії куплених/заброньованих квитків
+ * для обраного пасажира.
+ *
+ * @author [Ваше ім'я або назва команди]
+ * @version 1.1
+ */
 public class PassengersPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
 
@@ -36,6 +42,12 @@ public class PassengersPanel extends JPanel {
     private final PassengerDAO passengerDAO;
     private final TicketDAO ticketDAO;
 
+    /**
+     * Конструктор панелі управління пасажирами.
+     * Ініціалізує DAO, компоненти UI та завантажує початкові дані про пасажирів.
+     *
+     * @throws RuntimeException якщо не вдалося ініціалізувати {@link PassengerDAO} або {@link TicketDAO}.
+     */
     public PassengersPanel() {
         logger.info("Ініціалізація PassengersPanel.");
         try {
@@ -45,7 +57,6 @@ public class PassengersPanel extends JPanel {
         } catch (Exception e) {
             logger.fatal("Не вдалося створити DAO в PassengersPanel.", e);
             JOptionPane.showMessageDialog(this, "Критична помилка: не вдалося ініціалізувати сервіси даних.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
-            // Кидаємо виняток, щоб зупинити створення панелі у неконсистентному стані
             throw new RuntimeException("Не вдалося ініціалізувати DAO", e);
         }
 
@@ -57,9 +68,14 @@ public class PassengersPanel extends JPanel {
         logger.info("PassengersPanel успішно ініціалізовано.");
     }
 
+    /**
+     * Ініціалізує та розміщує компоненти користувацького інтерфейсу панелі.
+     * Створює таблицю для відображення списку пасажирів, таблицю для історії поїздок,
+     * та кнопки для операцій "Редагувати пасажира" та "Оновити список".
+     * Налаштовує взаємодію між таблицями (вибір пасажира оновлює історію поїздок).
+     */
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для PassengersPanel.");
-        // Панель зі списком пасажирів
         JPanel passengerListPanel = new JPanel(new BorderLayout(5,5));
         passengerListPanel.setBorder(BorderFactory.createTitledBorder("Список пасажирів"));
 
@@ -124,7 +140,6 @@ public class PassengersPanel extends JPanel {
         passengerButtonsPanel.add(btnRefreshPassengers);
         passengerListPanel.add(passengerButtonsPanel, BorderLayout.SOUTH);
 
-        // Панель історії поїздок
         JPanel historyPanel = new JPanel(new BorderLayout(5,5));
         historyPanel.setBorder(BorderFactory.createTitledBorder("Історія поїздок обраного пасажира"));
         historyTableModel = new PassengerHistoryTableModel(new ArrayList<>());
@@ -133,7 +148,7 @@ public class PassengersPanel extends JPanel {
 
         DefaultTableCellRenderer rightRendererHistory = new DefaultTableCellRenderer();
         rightRendererHistory.setHorizontalAlignment(JLabel.RIGHT);
-        if (historyTable.getColumnModel().getColumnCount() > 5) { // ID Квитка, Рейс (ID), Ціна
+        if (historyTable.getColumnModel().getColumnCount() > 5) {
             logger.trace("Налаштування рендерера для таблиці історії.");
             historyTable.getColumnModel().getColumn(0).setCellRenderer(rightRendererHistory);
             historyTable.getColumnModel().getColumn(1).setCellRenderer(rightRendererHistory);
@@ -141,7 +156,6 @@ public class PassengersPanel extends JPanel {
         } else {
             logger.warn("Кількість стовпців у таблиці історії ({}) менша за 6, рендерер може бути не встановлено для всіх стовпців.", historyTable.getColumnModel().getColumnCount());
         }
-
 
         JScrollPane historyScrollPane = new JScrollPane(historyTable);
         historyScrollPane.setPreferredSize(new Dimension(700, 200));
@@ -153,6 +167,13 @@ public class PassengersPanel extends JPanel {
         logger.debug("Компоненти UI для PassengersPanel успішно створені та додані.");
     }
 
+    /**
+     * Відкриває діалогове вікно для редагування даних обраного пасажира.
+     * Якщо пасажир не передано ({@code null}), виводить повідомлення про помилку.
+     * Після закриття діалогу, якщо дані були збережені, оновлює список пасажирів
+     * та намагається відновити попередній вибір у таблиці.
+     * @param passengerToEdit Об'єкт {@link Passenger} для редагування.
+     */
     private void openEditPassengerDialog(Passenger passengerToEdit) {
         if (passengerToEdit == null) {
             logger.error("Спроба відкрити діалог редагування для null пасажира.");
@@ -170,7 +191,6 @@ public class PassengersPanel extends JPanel {
             logger.info("Пасажира ID: {} було відредаговано та збережено. Оновлення списку пасажирів.", passengerToEdit.getId());
             int selectedRowBeforeEdit = passengersTable.getSelectedRow();
             loadPassengersData();
-            // Спроба відновити вибір
             if (selectedRowBeforeEdit != -1 && selectedRowBeforeEdit < passengersTable.getRowCount()) {
                 try {
                     passengersTable.setRowSelectionInterval(selectedRowBeforeEdit, selectedRowBeforeEdit);
@@ -184,6 +204,12 @@ public class PassengersPanel extends JPanel {
         }
     }
 
+    /**
+     * Обробляє дію редагування обраного пасажира.
+     * Отримує обраного пасажира з таблиці та викликає метод {@link #openEditPassengerDialog(Passenger)}
+     * для відкриття діалогу редагування.
+     * @param e Об'єкт події {@link ActionEvent}.
+     */
     private void editPassengerAction(ActionEvent e) {
         logger.debug("Натиснуто кнопку 'Редагувати пасажира'.");
         int selectedRowView = passengersTable.getSelectedRow();
@@ -204,6 +230,12 @@ public class PassengersPanel extends JPanel {
         }
     }
 
+    /**
+     * Завантажує або оновлює список пасажирів у таблиці.
+     * Дані отримуються з {@link PassengerDAO}. У випадку помилки,
+     * виводиться повідомлення користувачу. Якщо жоден пасажир не обраний після оновлення,
+     * таблиця історії поїздок очищується.
+     */
     private void loadPassengersData() {
         logger.info("Завантаження даних про пасажирів.");
         try {
@@ -221,6 +253,12 @@ public class PassengersPanel extends JPanel {
         }
     }
 
+    /**
+     * Завантажує історію поїздок для вказаного пасажира та відображає її в таблиці історії.
+     * Дані отримуються з {@link TicketDAO}. У випадку помилки,
+     * виводиться повідомлення користувачу.
+     * @param passengerId Ідентифікатор пасажира, для якого потрібно завантажити історію.
+     */
     private void loadPassengerHistory(long passengerId) {
         logger.info("Завантаження історії поїздок для пасажира ID: {}", passengerId);
         try {
@@ -234,11 +272,21 @@ public class PassengersPanel extends JPanel {
         }
     }
 
+    /**
+     * Обробляє винятки типу {@link SQLException}, логує їх та показує повідомлення користувачу.
+     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
+     * @param e Об'єкт винятку {@link SQLException}.
+     */
     private void handleSqlException(String userMessage, SQLException e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
     }
 
+    /**
+     * Обробляє загальні винятки (не {@link SQLException}), логує їх та показує повідомлення користувачу.
+     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
+     * @param e Об'єкт винятку {@link Exception}.
+     */
     private void handleGenericException(String userMessage, Exception e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);
