@@ -10,23 +10,12 @@ import java.util.Objects;
  * Кожна зупинка характеризується унікальним ідентифікатором, назвою (наприклад, назва автостанції або конкретного місця зупинки)
  * та містом, в якому вона розташована.
  *
- * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.1 // Версія оновлена для відображення змін
  */
 public class Stop {
-    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+    private static final Logger logger = LogManager.getLogger("insurance.log");
 
-    /**
-     * Унікальний ідентифікатор зупинки.
-     */
     private long id;
-    /**
-     * Назва зупинки (наприклад, "Автовокзал Центральний", "Зупинка Площа Ринок").
-     */
     private String name;
-    /**
-     * Місто, в якому знаходиться зупинка (наприклад, "Київ", "Львів").
-     */
     private String city;
 
     /**
@@ -51,10 +40,8 @@ public class Stop {
         this.id = id;
         this.name = name;
         this.city = city;
-        logger.info("Об'єкт Stop успішно створено: {}", this.toString());
+        logger.info("Об'єкт Stop успішно створено: ID={}, Назва={}, Місто={}", this.id, this.name, this.city);
     }
-
-    // Getters and Setters
 
     /**
      * Повертає унікальний ідентифікатор зупинки.
@@ -88,9 +75,8 @@ public class Stop {
     public void setName(String name) {
         if (name == null || name.trim().isEmpty()) {
             logger.warn("Спроба встановити порожню назву для зупинки ID: {}", this.id);
-            // throw new IllegalArgumentException("Назва зупинки не може бути порожньою."); // Розкоментуйте, якщо це суворе правило
         }
-        logger.trace("Зміна назви зупинки ID {}: з '{}' на '{}'", this.id, this.name, name);
+        logger.trace("Зміна назви зупинки ID {}.", this.id);
         this.name = name;
     }
 
@@ -109,9 +95,8 @@ public class Stop {
     public void setCity(String city) {
         if (city == null || city.trim().isEmpty()) {
             logger.warn("Спроба встановити порожнє місто для зупинки ID: {}", this.id);
-            // throw new IllegalArgumentException("Місто не може бути порожнім."); // Розкоментуйте, якщо це суворе правило
         }
-        logger.trace("Зміна міста зупинки ID {}: з '{}' на '{}'", this.id, this.city, city);
+        logger.trace("Зміна міста зупинки ID {}.", this.id);
         this.city = city;
     }
 

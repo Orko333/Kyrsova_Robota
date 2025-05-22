@@ -12,30 +12,13 @@ import java.util.stream.Collectors;
  * Клас, що представляє маршрут рейсу.
  * Маршрут складається з пункту відправлення, пункту призначення та списку проміжних зупинок.
  *
- * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.1 // Версія оновлена для відображення змін
  */
 public class Route {
-    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+    private static final Logger logger = LogManager.getLogger("insurance.log");
 
-    /**
-     * Унікальний ідентифікатор маршруту.
-     */
     private long id;
-    /**
-     * Зупинка, що є пунктом відправлення маршруту.
-     * @see Stop
-     */
     private Stop departureStop;
-    /**
-     * Зупинка, що є пунктом призначення маршруту.
-     * @see Stop
-     */
     private Stop destinationStop;
-    /**
-     * Список проміжних зупинок на маршруті. Може бути порожнім, якщо проміжних зупинок немає.
-     * @see Stop
-     */
     private List<Stop> intermediateStops;
 
     /**
@@ -58,10 +41,8 @@ public class Route {
             throw new IllegalArgumentException("Зупинка призначення не може бути null.");
         }
         if (departureStop.equals(destinationStop)) {
-            logger.warn("Увага при створенні Route (ID: {}): Зупинка відправлення ({}) та зупинка призначення ({}) однакові.",
-                    id, departureStop, destinationStop);
+            logger.warn("Увага при створенні Route (ID: {}): Зупинка відправлення та зупинка призначення однакові.", id);
         }
-
 
         this.id = id;
         this.departureStop = departureStop;
@@ -70,13 +51,11 @@ public class Route {
             logger.trace("Для Route ID: {} список проміжних зупинок був null, ініціалізовано порожнім списком.", id);
             this.intermediateStops = new ArrayList<>();
         } else {
-            this.intermediateStops = new ArrayList<>(intermediateStops); // Створюємо копію, щоб уникнути зовнішніх модифікацій
+            this.intermediateStops = new ArrayList<>(intermediateStops);
             logger.trace("Для Route ID: {} встановлено {} проміжних зупинок.", id, this.intermediateStops.size());
         }
-        logger.info("Об'єкт Route успішно створено: {}", this.toString());
+        logger.info("Об'єкт Route успішно створено: ID={}", this.id);
     }
-
-    // Getters and Setters
 
     /**
      * Повертає унікальний ідентифікатор маршруту.
@@ -113,10 +92,9 @@ public class Route {
             throw new IllegalArgumentException("Зупинка відправлення не може бути null.");
         }
         if (this.destinationStop != null && departureStop.equals(this.destinationStop)) {
-            logger.warn("Увага при зміні зупинки відправлення маршруту ID {}: Нова зупинка відправлення ({}) збігається з поточною зупинкою призначення ({}).",
-                    this.id, departureStop, this.destinationStop);
+            logger.warn("Увага при зміні зупинки відправлення маршруту ID {}: Нова зупинка відправлення збігається з поточною зупинкою призначення.", this.id);
         }
-        logger.trace("Зміна зупинки відправлення для маршруту ID {}: з {} на {}", this.id, this.departureStop, departureStop);
+        logger.trace("Зміна зупинки відправлення для маршруту ID {}.", this.id);
         this.departureStop = departureStop;
     }
 
@@ -138,10 +116,9 @@ public class Route {
             throw new IllegalArgumentException("Зупинка призначення не може бути null.");
         }
         if (this.departureStop != null && destinationStop.equals(this.departureStop)) {
-            logger.warn("Увага при зміні зупинки призначення маршруту ID {}: Нова зупинка призначення ({}) збігається з поточною зупинкою відправлення ({}).",
-                    this.id, destinationStop, this.departureStop);
+            logger.warn("Увага при зміні зупинки призначення маршруту ID {}: Нова зупинка призначення збігається з поточною зупинкою відправлення.", this.id);
         }
-        logger.trace("Зміна зупинки призначення для маршруту ID {}: з {} на {}", this.id, this.destinationStop, destinationStop);
+        logger.trace("Зміна зупинки призначення для маршруту ID {}.", this.id);
         this.destinationStop = destinationStop;
     }
 
@@ -151,7 +128,6 @@ public class Route {
      * @return {@code List<Stop>} список проміжних зупинок. Може бути порожнім.
      */
     public List<Stop> getIntermediateStops() {
-        // Повертаємо копію, щоб уникнути модифікації оригінального списку ззовні
         return intermediateStops != null ? new ArrayList<>(intermediateStops) : new ArrayList<>();
     }
 
@@ -165,10 +141,9 @@ public class Route {
             this.intermediateStops = new ArrayList<>();
             logger.trace("Список проміжних зупинок для маршруту ID {} очищено (був null).", this.id);
         } else {
-            this.intermediateStops = new ArrayList<>(intermediateStops); // Створюємо копію
-            logger.trace("Зміна списку проміжних зупинок для маршруту ID {}. Старий розмір: {}, Новий розмір: {}. Зупинки: {}",
-                    this.id, oldSize, this.intermediateStops.size(),
-                    this.intermediateStops.stream().map(Stop::toString).collect(Collectors.joining(", ")));
+            this.intermediateStops = new ArrayList<>(intermediateStops);
+            logger.trace("Зміна списку проміжних зупинок для маршруту ID {}. Старий розмір: {}, Новий розмір: {}.",
+                    this.id, oldSize, this.intermediateStops.size());
         }
     }
 
@@ -198,7 +173,7 @@ public class Route {
 
     /**
      * Повертає рядкове представлення об'єкта {@code Route}.
-     * Формат: "Маршрут [id]: [Повний опис маршруту]".
+     * Формат: "Маршрут ID [id]: [Повний опис маршруту]".
      * @return {@code String} рядкове представлення маршруту.
      */
     @Override

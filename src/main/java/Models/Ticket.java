@@ -14,52 +14,18 @@ import java.util.Objects;
  * Він містить інформацію про час бронювання, час покупки (якщо квиток куплений),
  * термін дії броні (якщо застосовно), фактично сплачену ціну та поточний статус квитка.
  *
- * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.1 // Версія оновлена для відображення змін
  */
 public class Ticket {
-    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+    private static final Logger logger = LogManager.getLogger("insurance.log");
 
-    /**
-     * Унікальний ідентифікатор квитка.
-     */
     private long id;
-    /**
-     * Рейс, на який видано квиток.
-     * @see Flight
-     */
     private Flight flight;
-    /**
-     * Пасажир, для якого призначений квиток.
-     * @see Passenger
-     */
     private Passenger passenger;
-    /**
-     * Номер місця, закріпленого за цим квитком (наприклад, "1A", "25").
-     */
     private String seatNumber;
-    /**
-     * Дата та час бронювання квитка.
-     */
     private LocalDateTime bookingDateTime;
-    /**
-     * Дата та час покупки квитка. Може бути {@code null}, якщо квиток лише заброньовано, але ще не оплачено.
-     */
     private LocalDateTime purchaseDateTime;
-    /**
-     * Дата та час, до якого дійсна бронь квитка. Може бути {@code null}, якщо бронь не має терміну дії
-     * або квиток вже куплений.
-     */
     private LocalDateTime bookingExpiryDateTime;
-    /**
-     * Фактично сплачена ціна за квиток. Може відрізнятися від базової ціни рейсу
-     * через застосування пільг або знижок.
-     */
     private BigDecimal pricePaid;
-    /**
-     * Поточний статус квитка (наприклад, заброньований, куплений, скасований).
-     * @see TicketStatus
-     */
     private TicketStatus status;
 
     /**
@@ -105,7 +71,6 @@ public class Ticket {
             throw new IllegalArgumentException("Статус квитка не може бути null.");
         }
 
-
         this.id = id;
         this.flight = flight;
         this.passenger = passenger;
@@ -113,11 +78,8 @@ public class Ticket {
         this.bookingDateTime = bookingDateTime;
         this.pricePaid = pricePaid;
         this.status = status;
-        // purchaseDateTime та bookingExpiryDateTime можуть бути встановлені пізніше
-        logger.info("Об'єкт Ticket успішно створено: {}", this.toString());
+        logger.info("Об'єкт Ticket успішно створено: ID={}", this.id);
     }
-
-    // Getters and Setters
 
     /**
      * Повертає унікальний ідентифікатор квитка.
@@ -151,11 +113,8 @@ public class Ticket {
     public void setFlight(Flight flight) {
         if (flight == null) {
             logger.warn("Спроба встановити null рейс для квитка ID: {}", this.id);
-            // throw new IllegalArgumentException("Рейс не може бути null."); // Розкоментуйте, якщо це суворе правило
         }
-        logger.trace("Зміна рейсу для квитка ID {}: з {} на {}", this.id,
-                (this.flight != null ? "ID " + this.flight.getId() : "null"),
-                (flight != null ? "ID " + flight.getId() : "null"));
+        logger.trace("Зміна рейсу для квитка ID {}.", this.id);
         this.flight = flight;
     }
 
@@ -174,11 +133,8 @@ public class Ticket {
     public void setPassenger(Passenger passenger) {
         if (passenger == null) {
             logger.warn("Спроба встановити null пасажира для квитка ID: {}", this.id);
-            // throw new IllegalArgumentException("Пасажир не може бути null."); // Розкоментуйте, якщо це суворе правило
         }
-        logger.trace("Зміна пасажира для квитка ID {}: з {} на {}", this.id,
-                (this.passenger != null ? "ID " + this.passenger.getId() : "null"),
-                (passenger != null ? "ID " + passenger.getId() : "null"));
+        logger.trace("Зміна пасажира для квитка ID {}.", this.id);
         this.passenger = passenger;
     }
 
@@ -197,9 +153,8 @@ public class Ticket {
     public void setSeatNumber(String seatNumber) {
         if (seatNumber == null || seatNumber.trim().isEmpty()) {
             logger.warn("Спроба встановити порожній номер місця для квитка ID: {}", this.id);
-            // throw new IllegalArgumentException("Номер місця не може бути порожнім."); // Розкоментуйте, якщо це суворе правило
         }
-        logger.trace("Зміна номера місця для квитка ID {}: з '{}' на '{}'", this.id, this.seatNumber, seatNumber);
+        logger.trace("Зміна номера місця для квитка ID {}.", this.id);
         this.seatNumber = seatNumber;
     }
 
@@ -218,9 +173,8 @@ public class Ticket {
     public void setBookingDateTime(LocalDateTime bookingDateTime) {
         if (bookingDateTime == null) {
             logger.warn("Спроба встановити null дату бронювання для квитка ID: {}", this.id);
-            // throw new IllegalArgumentException("Дата бронювання не може бути null."); // Розкоментуйте, якщо це суворе правило
         }
-        logger.trace("Зміна дати бронювання для квитка ID {}: з {} на {}", this.id, this.bookingDateTime, bookingDateTime);
+        logger.trace("Зміна дати бронювання для квитка ID {}.", this.id);
         this.bookingDateTime = bookingDateTime;
     }
 
@@ -237,7 +191,7 @@ public class Ticket {
      * @param purchaseDateTime нова дата та час покупки (може бути {@code null}).
      */
     public void setPurchaseDateTime(LocalDateTime purchaseDateTime) {
-        logger.trace("Зміна дати покупки для квитка ID {}: з {} на {}", this.id, this.purchaseDateTime, purchaseDateTime);
+        logger.trace("Зміна дати покупки для квитка ID {}.", this.id);
         this.purchaseDateTime = purchaseDateTime;
     }
 
@@ -254,7 +208,7 @@ public class Ticket {
      * @param bookingExpiryDateTime нова дата та час закінчення терміну дії броні (може бути {@code null}).
      */
     public void setBookingExpiryDateTime(LocalDateTime bookingExpiryDateTime) {
-        logger.trace("Зміна дати закінчення броні для квитка ID {}: з {} на {}", this.id, this.bookingExpiryDateTime, bookingExpiryDateTime);
+        logger.trace("Зміна дати закінчення броні для квитка ID {}.", this.id);
         this.bookingExpiryDateTime = bookingExpiryDateTime;
     }
 
@@ -273,9 +227,8 @@ public class Ticket {
     public void setPricePaid(BigDecimal pricePaid) {
         if (pricePaid == null || pricePaid.compareTo(BigDecimal.ZERO) < 0) {
             logger.warn("Спроба встановити некоректну ціну ({}) для квитка ID: {}", pricePaid, this.id);
-            // throw new IllegalArgumentException("Ціна не може бути null або від'ємною."); // Розкоментуйте, якщо це суворе правило
         }
-        logger.trace("Зміна ціни для квитка ID {}: з {} на {}", this.id, this.pricePaid, pricePaid);
+        logger.trace("Зміна ціни для квитка ID {}.", this.id);
         this.pricePaid = pricePaid;
     }
 
@@ -295,9 +248,7 @@ public class Ticket {
         TicketStatus oldStatus = this.status;
         if (status == null) {
             logger.error("Спроба встановити null статус для квитка ID: {}. Поточний статус: {}", this.id, oldStatus);
-            // Залежно від логіки, можна кинути виняток або залишити старий статус
-            // throw new IllegalArgumentException("Статус квитка не може бути null.");
-            return; // Або не змінювати статус
+            return;
         }
         this.status = status;
         logger.info("Зміна статусу для квитка ID {}: з {} на {}", this.id, oldStatus, this.status);
@@ -305,10 +256,7 @@ public class Ticket {
 
     /**
      * Повертає рядкове представлення об'єкта {@code Ticket}.
-     * Формат: "Квиток [id] на рейс [id_рейсу], Пасажир: [ПІБ_пасажира], Місце: [номер_місця], Статус: [назва_статусу]".
-     * Передбачається, що клас {@link Flight} має метод {@code getId()},
-     * клас {@link Passenger} має метод {@code getFullName()},
-     * а перерахування {@link TicketStatus} має метод {@code getDisplayName()}.
+     * Формат: "Квиток ID [id]: Рейс [ID рейсу], Пасажир [ПІБ пасажира], Місце [номер місця], Бронювання [час бронювання], Ціна [сплачена ціна], Статус [назва статусу]".
      *
      * @return {@code String} рядкове представлення квитка.
      */
@@ -320,7 +268,6 @@ public class Ticket {
         String statusInfo = (status != null && status.getDisplayName() != null) ? status.getDisplayName() : "Статус невідомий";
         String priceInfo = (pricePaid != null) ? pricePaid.toString() : "Ціна не вказана";
         String bookingTimeInfo = (bookingDateTime != null) ? bookingDateTime.toString() : "Час бронювання не вказано";
-
 
         return String.format("Квиток ID %d: Рейс [%s], Пасажир [%s], Місце [%s], Бронювання [%s], Ціна [%s], Статус [%s]",
                 id, flightInfo, passengerInfo, seatInfo, bookingTimeInfo, priceInfo, statusInfo);

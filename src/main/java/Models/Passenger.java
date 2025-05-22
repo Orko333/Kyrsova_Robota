@@ -11,40 +11,17 @@ import java.util.Objects;
  * Містить персональні дані пасажира та інформацію про пільги.
  * Історія поїздок буде реалізована через запити до квитків.
  *
- * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.1 // Версія оновлена для відображення змін
+ * @version 1.1
  */
 public class Passenger {
-    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+    private static final Logger logger = LogManager.getLogger("insurance.log");
 
-    /**
-     * Унікальний ідентифікатор пасажира.
-     */
     private long id;
-    /**
-     * Повне ім'я та прізвище пасажира (ПІБ).
-     */
     private String fullName;
-    /**
-     * Номер документа, що посвідчує особу (наприклад, паспорт, студентський квиток).
-     */
     private String documentNumber;
-    /**
-     * Тип документа, що посвідчує особу.
-     */
     private String documentType;
-    /**
-     * Номер телефону пасажира.
-     */
     private String phoneNumber;
-    /**
-     * Адреса електронної пошти пасажира (необов'язкове поле).
-     */
     private String email;
-    /**
-     * Тип пільги, якою користується пасажир.
-     * @see Models.Enums.BenefitType
-     */
     private BenefitType benefitType;
 
     /**
@@ -62,7 +39,6 @@ public class Passenger {
                      String phoneNumber, String email, BenefitType benefitType) {
         logger.debug("Спроба створити новий об'єкт Passenger з ID: {}", id);
 
-        // Додамо базову валідацію та логування для критичних полів
         if (fullName == null || fullName.trim().isEmpty()) {
             logger.error("Помилка створення Passenger: Повне ім'я (fullName) не може бути порожнім для ID: {}", id);
             throw new IllegalArgumentException("Повне ім'я не може бути порожнім.");
@@ -77,26 +53,20 @@ public class Passenger {
         }
         if (benefitType == null) {
             logger.warn("Увага при створенні Passenger (ID: {}): Тип пільги (benefitType) є null. Буде встановлено NONE.", id);
-            // Залежно від логіки, можна або кинути виняток, або встановити значення за замовчуванням
-            // throw new IllegalArgumentException("Тип пільги не може бути null.");
-            this.benefitType = BenefitType.NONE; // Встановлюємо значення за замовчуванням
+            this.benefitType = BenefitType.NONE;
         } else {
             this.benefitType = benefitType;
         }
-
 
         this.id = id;
         this.fullName = fullName;
         this.documentNumber = documentNumber;
         this.documentType = documentType;
-        this.phoneNumber = phoneNumber; // Може бути null або порожнім, залежно від вимог
-        this.email = email; // Може бути null
-        // this.benefitType вже встановлено вище
+        this.phoneNumber = phoneNumber;
+        this.email = email;
 
-        logger.info("Об'єкт Passenger успішно створено: {}", this.toString());
+        logger.info("Об'єкт Passenger успішно створено: ID={}", this.id);
     }
-
-    // Getters and Setters
 
     /**
      * Повертає унікальний ідентифікатор пасажира.
@@ -130,10 +100,8 @@ public class Passenger {
     public void setFullName(String fullName) {
         if (fullName == null || fullName.trim().isEmpty()) {
             logger.warn("Спроба встановити порожнє повне ім'я для пасажира ID: {}", this.id);
-            // Можна кинути IllegalArgumentException, якщо це неприпустимо
-            // throw new IllegalArgumentException("Повне ім'я не може бути порожнім.");
         }
-        logger.trace("Зміна повного імені для пасажира ID {}: з '{}' на '{}'", this.id, this.fullName, fullName);
+        logger.trace("Зміна повного імені для пасажира ID {}.", this.id);
         this.fullName = fullName;
     }
 
@@ -152,9 +120,8 @@ public class Passenger {
     public void setDocumentNumber(String documentNumber) {
         if (documentNumber == null || documentNumber.trim().isEmpty()) {
             logger.warn("Спроба встановити порожній номер документа для пасажира ID: {}", this.id);
-            // throw new IllegalArgumentException("Номер документа не може бути порожнім.");
         }
-        logger.trace("Зміна номера документа для пасажира ID {}: з '{}' на '{}'", this.id, this.documentNumber, documentNumber);
+        logger.trace("Зміна номера документа для пасажира ID {}.", this.id);
         this.documentNumber = documentNumber;
     }
 
@@ -173,9 +140,8 @@ public class Passenger {
     public void setDocumentType(String documentType) {
         if (documentType == null || documentType.trim().isEmpty()) {
             logger.warn("Спроба встановити порожній тип документа для пасажира ID: {}", this.id);
-            // throw new IllegalArgumentException("Тип документа не може бути порожнім.");
         }
-        logger.trace("Зміна типу документа для пасажира ID {}: з '{}' на '{}'", this.id, this.documentType, documentType);
+        logger.trace("Зміна типу документа для пасажира ID {}.", this.id);
         this.documentType = documentType;
     }
 
@@ -192,7 +158,7 @@ public class Passenger {
      * @param phoneNumber новий номер телефону.
      */
     public void setPhoneNumber(String phoneNumber) {
-        logger.trace("Зміна номера телефону для пасажира ID {}: з '{}' на '{}'", this.id, this.phoneNumber, phoneNumber);
+        logger.trace("Зміна номера телефону для пасажира ID {}.", this.id);
         this.phoneNumber = phoneNumber;
     }
 
@@ -209,7 +175,7 @@ public class Passenger {
      * @param email нова адреса електронної пошти (може бути {@code null}).
      */
     public void setEmail(String email) {
-        logger.trace("Зміна email для пасажира ID {}: з '{}' на '{}'", this.id, this.email, email);
+        logger.trace("Зміна email для пасажира ID {}.", this.id);
         this.email = email;
     }
 
@@ -238,7 +204,7 @@ public class Passenger {
 
     /**
      * Повертає рядкове представлення об'єкта {@code Passenger}.
-     * Формат: "ПІБ (Док.: ТипДокумента НомерДокумента, Пільга: ТипПільги)".
+     * Формат: "ПІБ (ID: id, Док.: ТипДокумента НомерДокумента, Тел: Телефон, Email: Email, Пільга: ТипПільги)".
      * @return {@code String} рядкове представлення пасажира.
      */
     @Override
