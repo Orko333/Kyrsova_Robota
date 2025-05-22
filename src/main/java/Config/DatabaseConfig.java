@@ -21,12 +21,20 @@ public class DatabaseConfig {
         try (InputStream input = DatabaseConfig.class.getClassLoader().getResourceAsStream(PROPERTIES_FILE)) {
             if (input == null) {
                 logger.error("Помилка: Неможливо знайти конфігураційний файл '{}'. Переконайтесь, що він знаходиться в src/main/resources.", PROPERTIES_FILE);
+                // Можна кинути RuntimeException, якщо файл конфігурації є критичним
+                // throw new RuntimeException("Конфігураційний файл " + PROPERTIES_FILE + " не знайдено.");
             } else {
                 properties.load(input);
                 logger.info("Конфігураційний файл '{}' успішно завантажено.", PROPERTIES_FILE);
+                // Логування завантажених властивостей (опціонально, може бути корисно для налагодження)
+                // if (logger.isDebugEnabled()) {
+                //     properties.forEach((key, value) -> logger.debug("Завантажена властивість: {} = {}", key, value));
+                // }
             }
         } catch (IOException ex) {
             logger.error("Помилка завантаження конфігураційного файлу '{}': {}", PROPERTIES_FILE, ex.getMessage(), ex);
+            // Можна кинути RuntimeException тут також, якщо завантаження конфігурації критичне
+            // throw new RuntimeException("Помилка завантаження конфігураційного файлу " + PROPERTIES_FILE, ex);
         }
     }
 
@@ -40,6 +48,7 @@ public class DatabaseConfig {
         if (url == null) {
             logger.warn("Властивість 'db.url' не знайдена у файлі '{}'", PROPERTIES_FILE);
         }
+        // logger.debug("Повертається db.url: {}", url); // Увімкніть для детального логування
         return url;
     }
 
@@ -53,6 +62,7 @@ public class DatabaseConfig {
         if (username == null) {
             logger.warn("Властивість 'db.username' не знайдена у файлі '{}'", PROPERTIES_FILE);
         }
+        // logger.debug("Повертається db.username: {}", username); // Увімкніть для детального логування
         return username;
     }
 
@@ -66,6 +76,21 @@ public class DatabaseConfig {
         if (password == null) {
             logger.warn("Властивість 'db.password' не знайдена у файлі '{}'", PROPERTIES_FILE);
         }
+        // logger.debug("Повертається db.password: {}", (password != null ? "****" : null)); // Не логуйте пароль напряму
         return password;
+    }
+
+    // Для тестування (опціонально)
+    public static void main(String[] args) {
+        logger.info("Тестування DatabaseConfig...");
+        System.out.println("DB URL: " + DatabaseConfig.getDbUrl());
+        System.out.println("DB Username: " + DatabaseConfig.getDbUsername());
+        System.out.println("DB Password: " + DatabaseConfig.getDbPassword());
+
+        // Симуляція помилки для тестування логування помилок
+        if (DatabaseConfig.getDbUrl() == null) {
+            logger.error("Критична помилка: URL бази даних не налаштовано!");
+        }
+        logger.info("Тестування DatabaseConfig завершено.");
     }
 }
