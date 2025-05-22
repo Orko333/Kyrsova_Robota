@@ -80,17 +80,4 @@ public class DatabaseConfig {
         return password;
     }
 
-    // Для тестування (опціонально)
-    public static void main(String[] args) {
-        logger.info("Тестування DatabaseConfig...");
-        System.out.println("DB URL: " + DatabaseConfig.getDbUrl());
-        System.out.println("DB Username: " + DatabaseConfig.getDbUsername());
-        System.out.println("DB Password: " + DatabaseConfig.getDbPassword());
-
-        // Симуляція помилки для тестування логування помилок
-        if (DatabaseConfig.getDbUrl() == null) {
-            logger.error("Критична помилка: URL бази даних не налаштовано!");
-        }
-        logger.info("Тестування DatabaseConfig завершено.");
-    }
 }

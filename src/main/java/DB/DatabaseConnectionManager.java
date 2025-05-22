@@ -67,24 +67,4 @@ public class DatabaseConnectionManager {
             throw e;
         }
     }
-
-    /**
-     * Допоміжний метод для тихого закриття ресурсів (Connection, Statement, ResultSet).
-     * Ігнорує винятки, що виникають під час закриття.
-     *
-     * @param resource ресурс, який потрібно закрити (має реалізовувати AutoCloseable).
-     */
-    public static void closeQuietly(AutoCloseable resource) {
-        if (resource != null) {
-            try {
-                logger.trace("Спроба тихо закрити ресурс: {}", resource.getClass().getSimpleName());
-                resource.close();
-                logger.trace("Ресурс {} успішно закрито.", resource.getClass().getSimpleName());
-            } catch (Exception e) {
-                logger.warn("Не вдалося тихо закрити ресурс {}: {}", resource.getClass().getSimpleName(), e.getMessage(), e);
-            }
-        } else {
-            logger.trace("Спроба тихо закрити null ресурс, нічого не робимо.");
-        }
-    }
 }
