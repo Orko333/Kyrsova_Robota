@@ -1,6 +1,6 @@
 package Models;
 
-import Models.Enums.FlightStatus; // Припускаємо, що FlightStatus знаходиться в Models.Enums
+import Models.Enums.FlightStatus;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -8,7 +8,6 @@ import org.apache.logging.log4j.Logger;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
-// import java.util.Optional; // Optional не використовується в цьому класі
 
 /**
  * Клас, що представляє один конкретний рейс (поїздку) автобуса.
@@ -29,54 +28,17 @@ import java.util.Objects;
  *
  * @see Route
  * @see Models.Enums.FlightStatus
- * @author YourName // Замініть на ваше ім'я або назву команди
- * @version 1.1 // Версія оновлена для відображення змін
  */
 public class Flight {
-    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+    private static final Logger logger = LogManager.getLogger("insurance.log");
 
-    /**
-     * Унікальний ідентифікатор рейсу.
-     */
     private long id;
-
-    /**
-     * Маршрут, за яким виконується рейс.
-     * @see Route
-     */
     private Route route;
-
-    /**
-     * Дата та час відправлення рейсу.
-     */
     private LocalDateTime departureDateTime;
-
-    /**
-     * Очікувана дата та час прибуття рейсу.
-     */
     private LocalDateTime arrivalDateTime;
-
-    /**
-     * Загальна кількість місць в автобусі, що виконує рейс.
-     * Кількість доступних для продажу місць зазвичай розраховується окремо.
-     */
     private int totalSeats;
-
-    /**
-     * Поточний статус рейсу (наприклад, запланований, відкладений, скасований).
-     * @see Models.Enums.FlightStatus
-     */
     private FlightStatus status;
-
-    /**
-     * Модель автобуса, що обслуговує рейс. Це поле є опціональним.
-     */
     private String busModel;
-
-    /**
-     * Базова ціна за одне місце на цьому рейсі.
-     * Може використовуватися як основа для розрахунку кінцевої вартості квитка.
-     */
     private BigDecimal pricePerSeat;
 
     /**
@@ -121,10 +83,7 @@ public class Flight {
         }
         if (departureDateTime.isAfter(arrivalDateTime)) {
             logger.warn("Увага при створенні Flight (ID: {}): Дата відправлення ({}) пізніше за дату прибуття ({}).", id, departureDateTime, arrivalDateTime);
-            // Можливо, це не помилка, а логічна перевірка, яка може бути корисною
-            // throw new IllegalArgumentException("Дата відправлення не може бути пізніше за дату прибуття"); // Розкоментуйте, якщо це суворе правило
         }
-
 
         this.id = id;
         this.route = route;
@@ -132,12 +91,10 @@ public class Flight {
         this.arrivalDateTime = arrivalDateTime;
         this.totalSeats = totalSeats;
         this.status = status;
-        this.busModel = busModel; // busModel може бути null
+        this.busModel = busModel;
         this.pricePerSeat = pricePerSeat;
-        logger.info("Об'єкт Flight успішно створено: {}", this.toString());
+        logger.info("Об'єкт Flight успішно створено: ID={}", this.id);
     }
-
-    // Getters and Setters
 
     /**
      * Повертає унікальний ідентифікатор рейсу.
@@ -174,7 +131,7 @@ public class Flight {
             logger.error("Спроба встановити null маршрут для рейсу ID: {}", this.id);
             throw new IllegalArgumentException("Маршрут (route) не може бути null");
         }
-        logger.trace("Зміна маршруту для рейсу ID {}: з {} на {}", this.id, this.route, route);
+        logger.trace("Зміна маршруту для рейсу ID {}.", this.id);
         this.route = route;
     }
 
@@ -199,7 +156,7 @@ public class Flight {
         if (this.arrivalDateTime != null && departureDateTime.isAfter(this.arrivalDateTime)) {
             logger.warn("Увага при зміні дати відправлення рейсу ID {}: Нова дата відправлення ({}) пізніше за поточну дату прибуття ({}).", this.id, departureDateTime, this.arrivalDateTime);
         }
-        logger.trace("Зміна дати відправлення для рейсу ID {}: з {} на {}", this.id, this.departureDateTime, departureDateTime);
+        logger.trace("Зміна дати відправлення для рейсу ID {}.", this.id);
         this.departureDateTime = departureDateTime;
     }
 
@@ -224,7 +181,7 @@ public class Flight {
         if (this.departureDateTime != null && this.departureDateTime.isAfter(arrivalDateTime)) {
             logger.warn("Увага при зміні дати прибуття рейсу ID {}: Нова дата прибуття ({}) раніше за поточну дату відправлення ({}).", this.id, arrivalDateTime, this.departureDateTime);
         }
-        logger.trace("Зміна дати прибуття для рейсу ID {}: з {} на {}", this.id, this.arrivalDateTime, arrivalDateTime);
+        logger.trace("Зміна дати прибуття для рейсу ID {}.", this.id);
         this.arrivalDateTime = arrivalDateTime;
     }
 
@@ -246,7 +203,7 @@ public class Flight {
             logger.error("Спроба встановити непозитивну кількість місць ({}) для рейсу ID: {}", totalSeats, this.id);
             throw new IllegalArgumentException("Загальна кількість місць (totalSeats) має бути позитивним числом");
         }
-        logger.trace("Зміна кількості місць для рейсу ID {}: з {} на {}", this.id, this.totalSeats, totalSeats);
+        logger.trace("Зміна кількості місць для рейсу ID {}.", this.id);
         this.totalSeats = totalSeats;
     }
 
@@ -285,7 +242,7 @@ public class Flight {
      * @param busModel Назва моделі автобуса. Може бути {@code null} або порожнім рядком.
      */
     public void setBusModel(String busModel) {
-        logger.trace("Зміна моделі автобуса для рейсу ID {}: з '{}' на '{}'", this.id, this.busModel, busModel);
+        logger.trace("Зміна моделі автобуса для рейсу ID {}.", this.id);
         this.busModel = busModel;
     }
 
@@ -307,7 +264,7 @@ public class Flight {
             logger.error("Спроба встановити некоректну ціну ({}) для рейсу ID: {}", pricePerSeat, this.id);
             throw new IllegalArgumentException("Ціна за місце (pricePerSeat) не може бути null або від'ємною");
         }
-        logger.trace("Зміна ціни за місце для рейсу ID {}: з {} на {}", this.id, this.pricePerSeat, pricePerSeat);
+        logger.trace("Зміна ціни за місце для рейсу ID {}.", this.id);
         this.pricePerSeat = pricePerSeat;
     }
 
@@ -333,7 +290,6 @@ public class Flight {
                 ", Ціна: " + priceDisplay +
                 ", Статус: " + statusDisplay;
     }
-
 
     /**
      * Порівнює цей об'єкт {@code Flight} з іншим об'єктом на рівність.
