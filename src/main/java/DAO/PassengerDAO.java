@@ -208,7 +208,7 @@ public class PassengerDAO {
         }
     }
 
-    private Passenger mapRowToPassenger(ResultSet rs) throws SQLException {
+    Passenger mapRowToPassenger(ResultSet rs) throws SQLException {
         String benefitTypeStr = rs.getString("benefit_type");
         BenefitType benefitType;
         try {
