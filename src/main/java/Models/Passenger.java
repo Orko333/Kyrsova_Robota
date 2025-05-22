@@ -1,6 +1,8 @@
 package Models;
 
 import Models.Enums.BenefitType;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
 
@@ -10,9 +12,11 @@ import java.util.Objects;
  * Історія поїздок буде реалізована через запити до квитків.
  *
  * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.0 // Додайте версію, якщо потрібно
+ * @version 1.1 // Версія оновлена для відображення змін
  */
 public class Passenger {
+    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+
     /**
      * Унікальний ідентифікатор пасажира.
      */
@@ -56,13 +60,40 @@ public class Passenger {
      */
     public Passenger(long id, String fullName, String documentNumber, String documentType,
                      String phoneNumber, String email, BenefitType benefitType) {
+        logger.debug("Спроба створити новий об'єкт Passenger з ID: {}", id);
+
+        // Додамо базову валідацію та логування для критичних полів
+        if (fullName == null || fullName.trim().isEmpty()) {
+            logger.error("Помилка створення Passenger: Повне ім'я (fullName) не може бути порожнім для ID: {}", id);
+            throw new IllegalArgumentException("Повне ім'я не може бути порожнім.");
+        }
+        if (documentNumber == null || documentNumber.trim().isEmpty()) {
+            logger.error("Помилка створення Passenger: Номер документа (documentNumber) не може бути порожнім для ID: {}", id);
+            throw new IllegalArgumentException("Номер документа не може бути порожнім.");
+        }
+        if (documentType == null || documentType.trim().isEmpty()) {
+            logger.error("Помилка створення Passenger: Тип документа (documentType) не може бути порожнім для ID: {}", id);
+            throw new IllegalArgumentException("Тип документа не може бути порожнім.");
+        }
+        if (benefitType == null) {
+            logger.warn("Увага при створенні Passenger (ID: {}): Тип пільги (benefitType) є null. Буде встановлено NONE.", id);
+            // Залежно від логіки, можна або кинути виняток, або встановити значення за замовчуванням
+            // throw new IllegalArgumentException("Тип пільги не може бути null.");
+            this.benefitType = BenefitType.NONE; // Встановлюємо значення за замовчуванням
+        } else {
+            this.benefitType = benefitType;
+        }
+
+
         this.id = id;
         this.fullName = fullName;
         this.documentNumber = documentNumber;
         this.documentType = documentType;
-        this.phoneNumber = phoneNumber;
-        this.email = email;
-        this.benefitType = benefitType;
+        this.phoneNumber = phoneNumber; // Може бути null або порожнім, залежно від вимог
+        this.email = email; // Може бути null
+        // this.benefitType вже встановлено вище
+
+        logger.info("Об'єкт Passenger успішно створено: {}", this.toString());
     }
 
     // Getters and Setters
@@ -80,6 +111,7 @@ public class Passenger {
      * @param id новий ідентифікатор пасажира.
      */
     public void setId(long id) {
+        logger.trace("Встановлення ID пасажира {} на: {}", this.id, id);
         this.id = id;
     }
 
@@ -96,6 +128,12 @@ public class Passenger {
      * @param fullName нове ПІБ пасажира.
      */
     public void setFullName(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) {
+            logger.warn("Спроба встановити порожнє повне ім'я для пасажира ID: {}", this.id);
+            // Можна кинути IllegalArgumentException, якщо це неприпустимо
+            // throw new IllegalArgumentException("Повне ім'я не може бути порожнім.");
+        }
+        logger.trace("Зміна повного імені для пасажира ID {}: з '{}' на '{}'", this.id, this.fullName, fullName);
         this.fullName = fullName;
     }
 
@@ -112,6 +150,11 @@ public class Passenger {
      * @param documentNumber новий номер документа.
      */
     public void setDocumentNumber(String documentNumber) {
+        if (documentNumber == null || documentNumber.trim().isEmpty()) {
+            logger.warn("Спроба встановити порожній номер документа для пасажира ID: {}", this.id);
+            // throw new IllegalArgumentException("Номер документа не може бути порожнім.");
+        }
+        logger.trace("Зміна номера документа для пасажира ID {}: з '{}' на '{}'", this.id, this.documentNumber, documentNumber);
         this.documentNumber = documentNumber;
     }
 
@@ -128,6 +171,11 @@ public class Passenger {
      * @param documentType новий тип документа.
      */
     public void setDocumentType(String documentType) {
+        if (documentType == null || documentType.trim().isEmpty()) {
+            logger.warn("Спроба встановити порожній тип документа для пасажира ID: {}", this.id);
+            // throw new IllegalArgumentException("Тип документа не може бути порожнім.");
+        }
+        logger.trace("Зміна типу документа для пасажира ID {}: з '{}' на '{}'", this.id, this.documentType, documentType);
         this.documentType = documentType;
     }
 
@@ -144,6 +192,7 @@ public class Passenger {
      * @param phoneNumber новий номер телефону.
      */
     public void setPhoneNumber(String phoneNumber) {
+        logger.trace("Зміна номера телефону для пасажира ID {}: з '{}' на '{}'", this.id, this.phoneNumber, phoneNumber);
         this.phoneNumber = phoneNumber;
     }
 
@@ -160,6 +209,7 @@ public class Passenger {
      * @param email нова адреса електронної пошти (може бути {@code null}).
      */
     public void setEmail(String email) {
+        logger.trace("Зміна email для пасажира ID {}: з '{}' на '{}'", this.id, this.email, email);
         this.email = email;
     }
 
@@ -176,17 +226,33 @@ public class Passenger {
      * @param benefitType новий тип пільги.
      */
     public void setBenefitType(BenefitType benefitType) {
-        this.benefitType = benefitType;
+        BenefitType oldBenefitType = this.benefitType;
+        if (benefitType == null) {
+            logger.warn("Спроба встановити null тип пільги для пасажира ID: {}. Буде встановлено NONE.", this.id);
+            this.benefitType = BenefitType.NONE;
+        } else {
+            this.benefitType = benefitType;
+        }
+        logger.info("Зміна типу пільги для пасажира ID {}: з {} на {}", this.id, oldBenefitType, this.benefitType);
     }
 
     /**
      * Повертає рядкове представлення об'єкта {@code Passenger}.
-     * Формат: "ПІБ (Док.: ТипДокумента НомерДокумента)".
+     * Формат: "ПІБ (Док.: ТипДокумента НомерДокумента, Пільга: ТипПільги)".
      * @return {@code String} рядкове представлення пасажира.
      */
     @Override
     public String toString() {
-        return fullName + " (Док.: " + documentType + " " + documentNumber + ")";
+        String benefitDisplay = (benefitType != null && benefitType.getDisplayName() != null) ? benefitType.getDisplayName() : "не вказано";
+        return String.format("%s (ID: %d, Док.: %s %s, Тел: %s, Email: %s, Пільга: %s)",
+                fullName != null ? fullName : "Ім'я не вказано",
+                id,
+                documentType != null ? documentType : "н/д",
+                documentNumber != null ? documentNumber : "н/д",
+                phoneNumber != null ? phoneNumber : "н/д",
+                email != null ? email : "н/д",
+                benefitDisplay
+        );
     }
 
     /**

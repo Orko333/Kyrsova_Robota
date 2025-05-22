@@ -1,6 +1,8 @@
 package Models;
 
 import Models.Enums.TicketStatus;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,9 +15,11 @@ import java.util.Objects;
  * термін дії броні (якщо застосовно), фактично сплачену ціну та поточний статус квитка.
  *
  * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.0 // Додайте версію, якщо потрібно
+ * @version 1.1 // Версія оновлена для відображення змін
  */
 public class Ticket {
+    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+
     /**
      * Унікальний ідентифікатор квитка.
      */
@@ -74,6 +78,34 @@ public class Ticket {
      */
     public Ticket(long id, Flight flight, Passenger passenger, String seatNumber,
                   LocalDateTime bookingDateTime, BigDecimal pricePaid, TicketStatus status) {
+        logger.debug("Спроба створити новий об'єкт Ticket з ID: {}", id);
+
+        if (flight == null) {
+            logger.error("Помилка створення Ticket: Рейс (flight) не може бути null для ID: {}", id);
+            throw new IllegalArgumentException("Рейс не може бути null.");
+        }
+        if (passenger == null) {
+            logger.error("Помилка створення Ticket: Пасажир (passenger) не може бути null для ID: {}", id);
+            throw new IllegalArgumentException("Пасажир не може бути null.");
+        }
+        if (seatNumber == null || seatNumber.trim().isEmpty()) {
+            logger.error("Помилка створення Ticket: Номер місця (seatNumber) не може бути порожнім для ID: {}", id);
+            throw new IllegalArgumentException("Номер місця не може бути порожнім.");
+        }
+        if (bookingDateTime == null) {
+            logger.error("Помилка створення Ticket: Дата та час бронювання (bookingDateTime) не можуть бути null для ID: {}", id);
+            throw new IllegalArgumentException("Дата та час бронювання не можуть бути null.");
+        }
+        if (pricePaid == null || pricePaid.compareTo(BigDecimal.ZERO) < 0) {
+            logger.error("Помилка створення Ticket: Ціна (pricePaid) не може бути null або від'ємною ({}) для ID: {}", pricePaid, id);
+            throw new IllegalArgumentException("Ціна не може бути null або від'ємною.");
+        }
+        if (status == null) {
+            logger.error("Помилка створення Ticket: Статус (status) не може бути null для ID: {}", id);
+            throw new IllegalArgumentException("Статус квитка не може бути null.");
+        }
+
+
         this.id = id;
         this.flight = flight;
         this.passenger = passenger;
@@ -82,6 +114,7 @@ public class Ticket {
         this.pricePaid = pricePaid;
         this.status = status;
         // purchaseDateTime та bookingExpiryDateTime можуть бути встановлені пізніше
+        logger.info("Об'єкт Ticket успішно створено: {}", this.toString());
     }
 
     // Getters and Setters
@@ -99,6 +132,7 @@ public class Ticket {
      * @param id новий ідентифікатор квитка.
      */
     public void setId(long id) {
+        logger.trace("Встановлення ID квитка {} на: {}", this.id, id);
         this.id = id;
     }
 
@@ -115,6 +149,13 @@ public class Ticket {
      * @param flight новий об'єкт рейсу.
      */
     public void setFlight(Flight flight) {
+        if (flight == null) {
+            logger.warn("Спроба встановити null рейс для квитка ID: {}", this.id);
+            // throw new IllegalArgumentException("Рейс не може бути null."); // Розкоментуйте, якщо це суворе правило
+        }
+        logger.trace("Зміна рейсу для квитка ID {}: з {} на {}", this.id,
+                (this.flight != null ? "ID " + this.flight.getId() : "null"),
+                (flight != null ? "ID " + flight.getId() : "null"));
         this.flight = flight;
     }
 
@@ -131,6 +172,13 @@ public class Ticket {
      * @param passenger новий об'єкт пасажира.
      */
     public void setPassenger(Passenger passenger) {
+        if (passenger == null) {
+            logger.warn("Спроба встановити null пасажира для квитка ID: {}", this.id);
+            // throw new IllegalArgumentException("Пасажир не може бути null."); // Розкоментуйте, якщо це суворе правило
+        }
+        logger.trace("Зміна пасажира для квитка ID {}: з {} на {}", this.id,
+                (this.passenger != null ? "ID " + this.passenger.getId() : "null"),
+                (passenger != null ? "ID " + passenger.getId() : "null"));
         this.passenger = passenger;
     }
 
@@ -147,6 +195,11 @@ public class Ticket {
      * @param seatNumber новий номер місця.
      */
     public void setSeatNumber(String seatNumber) {
+        if (seatNumber == null || seatNumber.trim().isEmpty()) {
+            logger.warn("Спроба встановити порожній номер місця для квитка ID: {}", this.id);
+            // throw new IllegalArgumentException("Номер місця не може бути порожнім."); // Розкоментуйте, якщо це суворе правило
+        }
+        logger.trace("Зміна номера місця для квитка ID {}: з '{}' на '{}'", this.id, this.seatNumber, seatNumber);
         this.seatNumber = seatNumber;
     }
 
@@ -163,6 +216,11 @@ public class Ticket {
      * @param bookingDateTime нова дата та час бронювання.
      */
     public void setBookingDateTime(LocalDateTime bookingDateTime) {
+        if (bookingDateTime == null) {
+            logger.warn("Спроба встановити null дату бронювання для квитка ID: {}", this.id);
+            // throw new IllegalArgumentException("Дата бронювання не може бути null."); // Розкоментуйте, якщо це суворе правило
+        }
+        logger.trace("Зміна дати бронювання для квитка ID {}: з {} на {}", this.id, this.bookingDateTime, bookingDateTime);
         this.bookingDateTime = bookingDateTime;
     }
 
@@ -179,6 +237,7 @@ public class Ticket {
      * @param purchaseDateTime нова дата та час покупки (може бути {@code null}).
      */
     public void setPurchaseDateTime(LocalDateTime purchaseDateTime) {
+        logger.trace("Зміна дати покупки для квитка ID {}: з {} на {}", this.id, this.purchaseDateTime, purchaseDateTime);
         this.purchaseDateTime = purchaseDateTime;
     }
 
@@ -195,6 +254,7 @@ public class Ticket {
      * @param bookingExpiryDateTime нова дата та час закінчення терміну дії броні (може бути {@code null}).
      */
     public void setBookingExpiryDateTime(LocalDateTime bookingExpiryDateTime) {
+        logger.trace("Зміна дати закінчення броні для квитка ID {}: з {} на {}", this.id, this.bookingExpiryDateTime, bookingExpiryDateTime);
         this.bookingExpiryDateTime = bookingExpiryDateTime;
     }
 
@@ -211,6 +271,11 @@ public class Ticket {
      * @param pricePaid нова сплачена ціна.
      */
     public void setPricePaid(BigDecimal pricePaid) {
+        if (pricePaid == null || pricePaid.compareTo(BigDecimal.ZERO) < 0) {
+            logger.warn("Спроба встановити некоректну ціну ({}) для квитка ID: {}", pricePaid, this.id);
+            // throw new IllegalArgumentException("Ціна не може бути null або від'ємною."); // Розкоментуйте, якщо це суворе правило
+        }
+        logger.trace("Зміна ціни для квитка ID {}: з {} на {}", this.id, this.pricePaid, pricePaid);
         this.pricePaid = pricePaid;
     }
 
@@ -227,7 +292,15 @@ public class Ticket {
      * @param status новий статус квитка.
      */
     public void setStatus(TicketStatus status) {
+        TicketStatus oldStatus = this.status;
+        if (status == null) {
+            logger.error("Спроба встановити null статус для квитка ID: {}. Поточний статус: {}", this.id, oldStatus);
+            // Залежно від логіки, можна кинути виняток або залишити старий статус
+            // throw new IllegalArgumentException("Статус квитка не може бути null.");
+            return; // Або не змінювати статус
+        }
         this.status = status;
+        logger.info("Зміна статусу для квитка ID {}: з {} на {}", this.id, oldStatus, this.status);
     }
 
     /**
@@ -241,10 +314,16 @@ public class Ticket {
      */
     @Override
     public String toString() {
-        return "Квиток " + id + " на рейс " + (flight != null ? flight.getId() : "N/A") +
-                ", Пасажир: " + (passenger != null ? passenger.getFullName() : "N/A") +
-                ", Місце: " + seatNumber +
-                ", Статус: " + (status != null ? status.getDisplayName() : "N/A");
+        String flightInfo = (flight != null) ? "ID " + flight.getId() : "Рейс не вказано";
+        String passengerInfo = (passenger != null && passenger.getFullName() != null) ? passenger.getFullName() : "Пасажир не вказаний";
+        String seatInfo = (seatNumber != null && !seatNumber.isEmpty()) ? seatNumber : "Місце не вказано";
+        String statusInfo = (status != null && status.getDisplayName() != null) ? status.getDisplayName() : "Статус невідомий";
+        String priceInfo = (pricePaid != null) ? pricePaid.toString() : "Ціна не вказана";
+        String bookingTimeInfo = (bookingDateTime != null) ? bookingDateTime.toString() : "Час бронювання не вказано";
+
+
+        return String.format("Квиток ID %d: Рейс [%s], Пасажир [%s], Місце [%s], Бронювання [%s], Ціна [%s], Статус [%s]",
+                id, flightInfo, passengerInfo, seatInfo, bookingTimeInfo, priceInfo, statusInfo);
     }
 
     /**
