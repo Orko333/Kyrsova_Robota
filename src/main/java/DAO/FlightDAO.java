@@ -2,7 +2,7 @@ package DAO;
 
 import DB.DatabaseConnectionManager;
 import Models.Flight;
-import Models.Enums.FlightStatus;
+import Models.Enums.FlightStatus; // Виправлено імпорт
 import Models.Route;
 
 import org.apache.logging.log4j.LogManager;
@@ -17,8 +17,8 @@ import java.util.Optional;
 /**
  * DAO для роботи з об'єктами Flight (Рейси).
  */
-public class FlightDAO { // Зроблено public
-    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+public class FlightDAO {
+    private static final Logger logger = LogManager.getLogger("insurance.log");
     private final RouteDAO routeDAO = new RouteDAO();
 
     /**
@@ -41,7 +41,7 @@ public class FlightDAO { // Зроблено public
                 Route route = routeDAO.getRouteById(routeId)
                         .orElseThrow(() -> {
                             String errorMsg = "Маршрут ID " + routeId + " не знайдено для рейсу ID: " + flightId;
-                            logger.warn("Порушення цілісності даних: {}", errorMsg);
+                            logger.warn(errorMsg); // Логування попередження про цілісність даних
                             return new SQLException(errorMsg);
                         });
 
@@ -86,7 +86,7 @@ public class FlightDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public boolean addFlight(Flight flight) throws SQLException {
-        logger.info("Спроба додати новий рейс: {}", flight); // Припускаючи, що Flight.toString() надає корисну інформацію
+        logger.info("Спроба додати новий рейс.");
         String sql = "INSERT INTO flights (route_id, departure_date_time, arrival_date_time, total_seats, bus_model, price_per_seat, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
         logger.debug("Виконується SQL-запит для додавання рейсу: {}", sql);
 
@@ -109,15 +109,15 @@ public class FlightDAO { // Зроблено public
                         return true;
                     } else {
                         logger.warn("Рейс додано ({} рядків), але не вдалося отримати згенерований ID.", affectedRows);
-                        return false; // Або кинути виняток, оскільки ID не встановлено
+                        return false;
                     }
                 }
             } else {
-                logger.warn("Рейс не було додано (affectedRows = 0). Рейс: {}", flight);
+                logger.warn("Рейс не було додано (affectedRows = 0).");
                 return false;
             }
         } catch (SQLException e) {
-            logger.error("Помилка при додаванні рейсу: {}", flight, e);
+            logger.error("Помилка при додаванні рейсу", e);
             throw e;
         }
     }
@@ -129,7 +129,7 @@ public class FlightDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public boolean updateFlight(Flight flight) throws SQLException {
-        logger.info("Спроба оновити рейс з ID {}: {}", flight.getId(), flight);
+        logger.info("Спроба оновити рейс з ID {}.", flight.getId());
         String sql = "UPDATE flights SET route_id = ?, departure_date_time = ?, arrival_date_time = ?, total_seats = ?, bus_model = ?, price_per_seat = ?, status = ? WHERE id = ?";
         logger.debug("Виконується SQL-запит для оновлення рейсу: {}", sql);
 
@@ -153,7 +153,7 @@ public class FlightDAO { // Зроблено public
                 return false;
             }
         } catch (SQLException e) {
-            logger.error("Помилка при оновленні рейсу з ID {}: {}", flight.getId(), flight, e);
+            logger.error("Помилка при оновленні рейсу з ID {}", flight.getId(), e);
             throw e;
         }
     }
@@ -209,7 +209,6 @@ public class FlightDAO { // Зроблено public
                     count = rs.getInt(1);
                     logger.info("Кількість зайнятих місць для рейсу ID {}: {}", flightId, count);
                 } else {
-                    // Це нормально, якщо запит COUNT(*) нічого не повертає, хоча зазвичай він поверне рядок з 0.
                     logger.info("Не знайдено даних про зайняті місця для рейсу ID {}. Повертається 0.", flightId);
                 }
             }
@@ -240,7 +239,7 @@ public class FlightDAO { // Зроблено public
                     Route route = routeDAO.getRouteById(routeId)
                             .orElseThrow(() -> {
                                 String errorMsg = "Маршрут ID " + routeId + " не знайдено для рейсу ID: " + id;
-                                logger.warn("Порушення цілісності даних: {}", errorMsg);
+                                logger.warn(errorMsg);
                                 return new SQLException(errorMsg);
                             });
 
@@ -269,7 +268,7 @@ public class FlightDAO { // Зроблено public
                             rs.getString("bus_model"),
                             rs.getBigDecimal("price_per_seat")
                     );
-                    logger.info("Рейс з ID {} знайдено: {}", id, flight);
+                    logger.info("Рейс з ID {} знайдено.", id);
                     return Optional.of(flight);
                 } else {
                     logger.info("Рейс з ID {} не знайдено.", id);
@@ -304,7 +303,7 @@ public class FlightDAO { // Зроблено public
                     Route route = routeDAO.getRouteById(routeId)
                             .orElseThrow(() -> {
                                 String errorMsg = "Маршрут ID " + routeId + " не знайдено для рейсу ID: " + flightId;
-                                logger.warn("Порушення цілісності даних: {}", errorMsg);
+                                logger.warn(errorMsg);
                                 return new SQLException(errorMsg);
                             });
 
@@ -329,7 +328,7 @@ public class FlightDAO { // Зроблено public
                             rs.getTimestamp("departure_date_time").toLocalDateTime(),
                             rs.getTimestamp("arrival_date_time").toLocalDateTime(),
                             rs.getInt("total_seats"),
-                            flightStatus, // Використовуємо перевірений flightStatus
+                            flightStatus,
                             rs.getString("bus_model"),
                             rs.getBigDecimal("price_per_seat")
                     ));

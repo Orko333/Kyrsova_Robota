@@ -1,7 +1,7 @@
 package DAO;
 
 import DB.DatabaseConnectionManager;
-import Models.*; // Flight, Passenger, Route, Stop, Ticket, TicketStatus
+import Models.*;
 import Models.Enums.FlightStatus;
 import Models.Enums.TicketStatus;
 
@@ -21,11 +21,11 @@ import java.util.Optional;
 /**
  * DAO для роботи з об'єктами Ticket (Квитки).
  */
-public class TicketDAO { // Зроблено public
+public class TicketDAO {
     private static final Logger logger = LogManager.getLogger("insurance.log");
     private final FlightDAO flightDAO = new FlightDAO();
     private final PassengerDAO passengerDAO = new PassengerDAO();
-    private final RouteDAO routeDAO = new RouteDAO(); // Додано для getSalesByRouteForPeriod
+    private final RouteDAO routeDAO = new RouteDAO();
 
     /**
      * Повертає список заброньованих або проданих місць для конкретного рейсу.
@@ -100,19 +100,15 @@ public class TicketDAO { // Зроблено public
                 return false;
             }
         } catch (SQLException e) {
-            // Перевіряємо SQLState та повідомлення для ідентифікації помилки унікальності
-            // '23000' є загальним для constraint violation, '23505' специфічний для PostgreSQL
             if (e.getSQLState() != null && (e.getSQLState().equals("23000") || e.getSQLState().equals("23505")) &&
                     e.getMessage() != null && e.getMessage().toLowerCase().contains("uq_ticket_flight_seat")) {
                 logger.warn("Помилка додавання квитка: Місце {} на рейсі {} вже зайняте. Порушення обмеження uq_ticket_flight_seat.",
                         ticket.getSeatNumber(), ticket.getFlight().getId(), e);
-                // Можна прокинути кастомний виняток або повернути false
-                // throw new SeatAlreadyBookedException("Місце " + ticket.getSeatNumber() + " на рейсі " + ticket.getFlight().getId() + " вже зайняте.", e);
-                return false; // Повертаємо false, щоб UI міг обробити це
+                return false;
             }
             logger.error("Помилка SQL при додаванні квитка: Рейс ID={}, Місце={}",
                     ticket.getFlight().getId(), ticket.getSeatNumber(), e);
-            throw e; // Прокинути інші SQL винятки
+            throw e;
         }
     }
 
@@ -233,7 +229,6 @@ public class TicketDAO { // Зроблено public
     public List<Ticket> getTicketsByPassengerId(long passengerId) throws SQLException {
         logger.info("Спроба отримати історію поїздок для пасажира ID: {}", passengerId);
         List<Ticket> tickets = new ArrayList<>();
-        // Запит залишається з попередньої версії, він досить повний для історії
         String sql = "SELECT t.id, t.flight_id, t.passenger_id, t.seat_number, t.booking_date_time, t.purchase_date_time, t.booking_expiry_date_time, t.price_paid, t.status, " +
                 "f.departure_date_time AS flight_departure_date_time, f.arrival_date_time AS flight_arrival_date_time, f.total_seats AS flight_total_seats, f.bus_model AS flight_bus_model, f.price_per_seat AS flight_price_per_seat, f.status AS flight_status, " +
                 "r.id AS route_id, r.departure_stop_id, r.destination_stop_id, " +
@@ -262,7 +257,7 @@ public class TicketDAO { // Зроблено public
                     logger.trace("Обробка рядка результату для квитка ID: {}", rs.getLong("id"));
                     Stop departureStop = new Stop(rs.getLong("departure_stop_id"), rs.getString("dep_stop_name"), rs.getString("dep_stop_city"));
                     Stop arrivalStop = new Stop(rs.getLong("destination_stop_id"), rs.getString("arr_stop_name"), rs.getString("arr_stop_city"));
-                    Route route = new Route(rs.getLong("route_id"), departureStop, arrivalStop, new ArrayList<>()); // Проміжні зупинки тут не завантажуються для спрощення
+                    Route route = new Route(rs.getLong("route_id"), departureStop, arrivalStop, new ArrayList<>());
 
                     Flight flight = new Flight(
                             rs.getLong("flight_id"), route,
@@ -435,7 +430,6 @@ public class TicketDAO { // Зроблено public
             logger.error("Помилка при отриманні кількості квитків за статусами.", e);
             throw e;
         }
-        // Переконуємося, що всі статуси присутні в мапі, навіть якщо їх 0
         for (TicketStatus ts : TicketStatus.values()) {
             statusCounts.putIfAbsent(ts, 0);
         }

@@ -15,8 +15,8 @@ import java.util.Optional;
 /**
  * DAO для роботи з об'єктами Passenger (Пасажири).
  */
-public class PassengerDAO { // Зроблено public
-    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+public class PassengerDAO {
+    private static final Logger logger = LogManager.getLogger("insurance.log");
 
     /**
      * Додає нового пасажира до бази даних.
@@ -37,8 +37,8 @@ public class PassengerDAO { // Зроблено public
             return existingId;
         }
 
-        logger.info("Пасажир з документом Тип={}, Номер={} не знайдений. Спроба додати нового пасажира: {}",
-                passenger.getDocumentType(), passenger.getDocumentNumber(), passenger);
+        logger.info("Пасажир з документом Тип={}, Номер={} не знайдений. Спроба додати нового пасажира.",
+                passenger.getDocumentType(), passenger.getDocumentNumber());
         String sql = "INSERT INTO passengers (full_name, document_number, document_type, phone_number, email, benefit_type) VALUES (?, ?, ?, ?, ?, ?)";
         logger.debug("Виконується SQL-запит для додавання пасажира: {}", sql);
 
@@ -64,17 +64,13 @@ public class PassengerDAO { // Зроблено public
                     }
                 }
             } else {
-                logger.error("Пасажира не було додано (affectedRows = 0). Пасажир: {}", passenger);
+                logger.error("Пасажира не було додано (affectedRows = 0).");
                 throw new SQLException("Не вдалося створити пасажира, жоден рядок не було змінено.");
             }
         } catch (SQLException e) {
             logger.warn("Помилка SQL під час спроби додати пасажира: SQLState={}, Повідомлення={}", e.getSQLState(), e.getMessage());
-            // Обробка унікального ключа uq_passenger_document
-            // Код помилки для порушення унікальності може відрізнятися для різних БД. '23000' є загальним, але '23505' для PostgreSQL.
-            // Краще перевіряти на основі назви обмеження, якщо це можливо, або на більш специфічний SQLState, якщо відомо.
             if (e.getSQLState() != null && (e.getSQLState().equals("23000") || e.getSQLState().equals("23505") || e.getMessage().toLowerCase().contains("unique constraint") || e.getMessage().toLowerCase().contains("uq_passenger_document"))) {
-                logger.info("Виник конфлікт унікальності (SQLState={}). Спроба знайти пасажира ще раз, можливо, через гонку потоків.", e.getSQLState());
-                // Спробувати знайти ще раз, якщо виникла гонка потоків
+                logger.info("Виник конфлікт унікальності (SQLState={}). Спроба знайти пасажира ще раз.", e.getSQLState());
                 return findByDocument(passenger.getDocumentType(), passenger.getDocumentNumber())
                         .map(p -> {
                             logger.info("Пасажир знайдений після конфлікту унікальності. ID: {}", p.getId());
@@ -85,8 +81,8 @@ public class PassengerDAO { // Зроблено public
                             return new SQLException("Пасажир з таким документом вже існує, але не вдалося його отримати після конфлікту.", e);
                         });
             }
-            logger.error("Непередбачена помилка SQL при додаванні пасажира: {}", passenger, e);
-            throw e; // Прокинути оригінальний SQLException, якщо це не помилка унікальності
+            logger.error("Непередбачена помилка SQL при додаванні пасажира.", e);
+            throw e;
         }
     }
 
@@ -139,7 +135,7 @@ public class PassengerDAO { // Зроблено public
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     Passenger passenger = mapRowToPassenger(rs);
-                    logger.info("Пасажира знайдено за ID {}: {}", passengerId, passenger);
+                    logger.info("Пасажира знайдено за ID {}.", passengerId);
                     return Optional.of(passenger);
                 } else {
                     logger.info("Пасажира з ID {} не знайдено.", passengerId);
@@ -184,7 +180,7 @@ public class PassengerDAO { // Зроблено public
      * @throws SQLException якщо виникає помилка доступу до бази даних.
      */
     public boolean updatePassenger(Passenger passenger) throws SQLException {
-        logger.info("Спроба оновити пасажира з ID {}: {}", passenger.getId(), passenger);
+        logger.info("Спроба оновити пасажира з ID {}.", passenger.getId());
         String sql = "UPDATE passengers SET full_name = ?, document_number = ?, document_type = ?, phone_number = ?, email = ?, benefit_type = ? WHERE id = ?";
         logger.debug("Виконується SQL-запит для оновлення пасажира: {}", sql);
 
@@ -207,24 +203,20 @@ public class PassengerDAO { // Зроблено public
                 return false;
             }
         } catch (SQLException e) {
-            logger.error("Помилка при оновленні пасажира з ID {}: {}", passenger.getId(), passenger, e);
+            logger.error("Помилка при оновленні пасажира з ID {}.", passenger.getId(), e);
             throw e;
         }
     }
 
     private Passenger mapRowToPassenger(ResultSet rs) throws SQLException {
-        // Логування тут може бути надмірним, оскільки цей метод викликається часто.
-        // Якщо потрібне детальне логування мапінгу, його можна додати на рівні DEBUG.
-        // logger.trace("Мапінг рядка ResultSet на об'єкт Passenger. ID: {}", rs.getLong("id"));
         String benefitTypeStr = rs.getString("benefit_type");
         BenefitType benefitType;
         try {
             benefitType = BenefitType.valueOf(benefitTypeStr);
         } catch (IllegalArgumentException | NullPointerException e) {
-            long passengerId = rs.getLong("id"); // Отримуємо ID для контексту помилки
+            long passengerId = rs.getLong("id");
             logger.error("Недійсний або відсутній тип пільги '{}' для пасажира з ID {}. Встановлюється NONE.", benefitTypeStr, passengerId, e);
-            // Можна встановити значення за замовчуванням або кинути виняток, залежно від бізнес-логіки
-            benefitType = BenefitType.NONE; // Або кинути new SQLException("Недійсний тип пільги: " + benefitTypeStr, e);
+            benefitType = BenefitType.NONE;
         }
 
         return new Passenger(
