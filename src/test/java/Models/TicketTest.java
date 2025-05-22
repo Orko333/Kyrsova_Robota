@@ -27,6 +27,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
+import org.mockito.Mockito; // Імпорт Mockito
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.Serializable;
@@ -85,7 +86,6 @@ class TicketTest {
     private Flight mockFlight;
     @Mock
     private Passenger mockPassenger;
-    // mockTicketStatus використовується в деяких тестах для симуляції поведінки TicketStatus
     @Mock
     private TicketStatus mockTicketStatus;
 
@@ -94,7 +94,7 @@ class TicketTest {
     private final String DEFAULT_SEAT_NUMBER = "A1";
     private final LocalDateTime DEFAULT_BOOKING_DATE_TIME = LocalDateTime.of(2024, 1, 1, 10, 0);
     private final BigDecimal DEFAULT_PRICE_PAID = new BigDecimal("100.00");
-    private final TicketStatus DEFAULT_STATUS_ENUM_INSTANCE = TicketStatus.BOOKED; // Використовуємо реальний екземпляр enum
+    private final TicketStatus DEFAULT_STATUS_ENUM_INSTANCE = TicketStatus.BOOKED;
 
 
     @BeforeEach
@@ -113,11 +113,9 @@ class TicketTest {
         loggerConfig.addAppender(listAppender, Level.ALL, null);
         ctx.updateLoggers();
 
-        // Налаштування моків, необхідних для toString() та конструктора
-        when(mockFlight.getId()).thenReturn(101L);
-        when(mockPassenger.getFullName()).thenReturn("Тест Пасажир");
-        // Не потрібно мокувати DEFAULT_STATUS_ENUM_INSTANCE.getDisplayName(),
-        // оскільки це реальний enum і його метод getDisplayName() працює як очікується.
+        // Використовуємо lenient() для стаббінгів, які можуть бути не використані в кожному тесті
+        Mockito.lenient().when(mockFlight.getId()).thenReturn(101L);
+        Mockito.lenient().when(mockPassenger.getFullName()).thenReturn("Тест Пасажир");
 
         validTicket = new Ticket(DEFAULT_ID, mockFlight, mockPassenger, DEFAULT_SEAT_NUMBER,
                 DEFAULT_BOOKING_DATE_TIME, DEFAULT_PRICE_PAID, DEFAULT_STATUS_ENUM_INSTANCE);
@@ -373,7 +371,6 @@ class TicketTest {
     void setStatus_validStatus_changesStatusAndLogsInfo() {
         TicketStatus oldStatus = validTicket.getStatus();
         TicketStatus newStatus = TicketStatus.SOLD;
-        // when(newStatus.getDisplayName()).thenReturn("Проданий"); // Не потрібно, оскільки newStatus - це реальний enum
 
         validTicket.setStatus(newStatus);
         assertEquals(newStatus, validTicket.getStatus());
@@ -390,6 +387,8 @@ class TicketTest {
 
     @Test
     void toString_withValidData_returnsCorrectFormat() {
+        // Переконуємося, що моки, які використовуються в toString, налаштовані
+        // Це вже зроблено в setUp через lenient()
         String expected = String.format("Квиток ID %d: Рейс [ID %d], Пасажир [%s], Місце [%s], Бронювання [%s], Ціна [%s], Статус [%s]",
                 DEFAULT_ID, mockFlight.getId(), mockPassenger.getFullName(), DEFAULT_SEAT_NUMBER,
                 DEFAULT_BOOKING_DATE_TIME.toString(), DEFAULT_PRICE_PAID.toString(), DEFAULT_STATUS_ENUM_INSTANCE.getDisplayName());
@@ -414,8 +413,11 @@ class TicketTest {
 
     @Test
     void toString_withNullPassengerFullName_handlesGracefully() {
-        when(mockPassenger.getFullName()).thenReturn(null);
-        Ticket ticketWithNullPassengerName = new Ticket(3L, mockFlight, mockPassenger, "C3", DEFAULT_BOOKING_DATE_TIME, DEFAULT_PRICE_PAID, DEFAULT_STATUS_ENUM_INSTANCE);
+        // Створюємо новий мок Passenger для цього тесту або змінюємо налаштування існуючого mockPassenger
+        Passenger passengerWithNullName = mock(Passenger.class);
+        when(passengerWithNullName.getFullName()).thenReturn(null);
+
+        Ticket ticketWithNullPassengerName = new Ticket(3L, mockFlight, passengerWithNullName, "C3", DEFAULT_BOOKING_DATE_TIME, DEFAULT_PRICE_PAID, DEFAULT_STATUS_ENUM_INSTANCE);
         listAppender.clear();
         String str = ticketWithNullPassengerName.toString();
         assertTrue(str.contains("Пасажир не вказаний"));
@@ -430,7 +432,7 @@ class TicketTest {
     }
     @Test
     void toString_withEmptySeatNumber_handlesGracefully() {
-        validTicket.setSeatNumber(" "); // Порожній рядок з пробілом
+        validTicket.setSeatNumber(" ");
         listAppender.clear();
         String str = validTicket.toString();
         assertFalse(str.contains("Місце не вказано"));
@@ -454,10 +456,10 @@ class TicketTest {
 
     @Test
     void toString_withStatusHavingNullDisplayName_handlesGracefully() {
-        // Використовуємо @Mock mockTicketStatus, який налаштовуємо
+        // Використовуємо @Mock mockTicketStatus
         when(mockTicketStatus.getDisplayName()).thenReturn(null);
-        validTicket.setStatus(mockTicketStatus); // Це використовує setStatus, який логує
-        listAppender.clear();
+        validTicket.setStatus(mockTicketStatus);
+        listAppender.clear(); // Очистити логи від setStatus
         String str = validTicket.toString();
         assertTrue(str.contains("Статус невідомий"));
     }
