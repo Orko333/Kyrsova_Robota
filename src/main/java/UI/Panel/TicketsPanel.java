@@ -1,10 +1,15 @@
 package UI.Panel;
 
 import DAO.*;
-import Models.*;
-import Models.Enums.FlightStatus;
+import Models.Flight;
+import Models.Enums.FlightStatus; // Для звіту по статусах
+import Models.Stop; // Додано імпорт
+import Models.Ticket; // Додано імпорт
 import UI.Dialog.BookingDialog;
 import UI.Model.FlightsTableModel;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer; // Імпорт для рендерера таблиці
@@ -23,6 +28,10 @@ import java.util.stream.Collectors;
  * Панель для пошуку рейсів та бронювання квитків.
  */
 public class TicketsPanel extends JPanel { // Зроблено public для доступу з MainFrame
+    private static final Logger logger = LogManager.getLogger("insurance.log");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter DIALOG_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
     private JComboBox<Stop> cmbDepartureStop, cmbDestinationStop;
     private JTextField txtDepartureDate;
     private JButton btnSearchFlights;
@@ -34,32 +43,37 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
     private JLabel lblSelectedFlightInfo;
 
     private final FlightDAO flightDAO;
-    // private final RouteDAO routeDAO; // routeDAO може бути не потрібен безпосередньо тут, якщо вся логіка маршрутів інкапсульована у Flight
     private final StopDAO stopDAO;
     private final TicketDAO ticketDAO;
     private final PassengerDAO passengerDAO;
 
     private Flight selectedFlightForBooking;
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final DateTimeFormatter DIALOG_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-
 
     public TicketsPanel() { // Зроблено public
-        this.flightDAO = new FlightDAO();
-        // this.routeDAO = new RouteDAO();
-        this.stopDAO = new StopDAO();
-        this.ticketDAO = new TicketDAO();
-        this.passengerDAO = new PassengerDAO();
+        logger.info("Ініціалізація TicketsPanel.");
+        try {
+            this.flightDAO = new FlightDAO();
+            this.stopDAO = new StopDAO();
+            this.ticketDAO = new TicketDAO();
+            this.passengerDAO = new PassengerDAO();
+            logger.debug("Всі DAO успішно створені для TicketsPanel.");
+        } catch (Exception e) {
+            logger.fatal("Не вдалося створити один або декілька DAO в TicketsPanel.", e);
+            JOptionPane.showMessageDialog(this, "Критична помилка: не вдалося ініціалізувати сервіси даних.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
+            throw new RuntimeException("Не вдалося ініціалізувати DAO", e);
+        }
+
 
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        initComponents(); // Ініціалізація компонентів
-        // loadStopsIntoComboBoxes() викликається всередині initComponents
+        initComponents();
+        logger.info("TicketsPanel успішно ініціалізовано.");
     }
 
     private void initComponents() {
+        logger.debug("Ініціалізація компонентів UI для TicketsPanel.");
         // --- Панель пошуку рейсів ---
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         searchPanel.setBorder(BorderFactory.createTitledBorder("Пошук рейсів"));
@@ -95,12 +109,18 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         flightsResultTable.setFillsViewportHeight(true);
         flightsResultTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && flightsResultTable.getSelectedRow() != -1) {
-                int modelRow = flightsResultTable.convertRowIndexToModel(flightsResultTable.getSelectedRow());
+                int viewRow = flightsResultTable.getSelectedRow();
+                int modelRow = flightsResultTable.convertRowIndexToModel(viewRow);
+                logger.debug("Змінено вибір у таблиці результатів пошуку. Вибраний рядок (view): {}, (model): {}.", viewRow, modelRow);
                 selectedFlightForBooking = flightsResultTableModel.getFlightAt(modelRow);
                 if (selectedFlightForBooking != null) {
+                    logger.info("Обрано рейс ID: {} для перегляду деталей.", selectedFlightForBooking.getId());
                     updateFlightDetailsAndSeats(selectedFlightForBooking);
+                } else {
+                    logger.warn("Вибрано рядок, але не вдалося отримати об'єкт рейсу (модельний індекс: {}).", modelRow);
                 }
             } else if (flightsResultTable.getSelectedRow() == -1) {
+                logger.debug("Вибір у таблиці результатів пошуку знято. Очищення деталей рейсу.");
                 clearFlightDetailsAndSeats();
             }
         });
@@ -109,17 +129,27 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
 
         DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
         rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-        flightsResultTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer);
-        flightsResultTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
-        flightsResultTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer);
-        flightsResultTable.getColumnModel().getColumn(0).setPreferredWidth(40);
-        flightsResultTable.getColumnModel().getColumn(1).setPreferredWidth(250);
-        flightsResultTable.getColumnModel().getColumn(2).setPreferredWidth(120);
-        flightsResultTable.getColumnModel().getColumn(3).setPreferredWidth(120);
-        flightsResultTable.getColumnModel().getColumn(4).setPreferredWidth(60);
-        flightsResultTable.getColumnModel().getColumn(5).setPreferredWidth(100);
-        flightsResultTable.getColumnModel().getColumn(6).setPreferredWidth(80);
-        flightsResultTable.getColumnModel().getColumn(7).setPreferredWidth(100);
+        if (flightsResultTable.getColumnModel().getColumnCount() > 6) {
+            flightsResultTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer);
+            flightsResultTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
+            flightsResultTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer);
+        } else {
+            logger.warn("Не вдалося налаштувати рендерер для таблиці рейсів - недостатньо стовпців.");
+        }
+
+        if (flightsResultTable.getColumnModel().getColumnCount() > 7) {
+            flightsResultTable.getColumnModel().getColumn(0).setPreferredWidth(40);
+            flightsResultTable.getColumnModel().getColumn(1).setPreferredWidth(250);
+            flightsResultTable.getColumnModel().getColumn(2).setPreferredWidth(120);
+            flightsResultTable.getColumnModel().getColumn(3).setPreferredWidth(120);
+            flightsResultTable.getColumnModel().getColumn(4).setPreferredWidth(60);
+            flightsResultTable.getColumnModel().getColumn(5).setPreferredWidth(100);
+            flightsResultTable.getColumnModel().getColumn(6).setPreferredWidth(80);
+            flightsResultTable.getColumnModel().getColumn(7).setPreferredWidth(100);
+        } else {
+            logger.warn("Не вдалося налаштувати ширину стовпців для таблиці рейсів - недостатньо стовпців.");
+        }
+
 
 
         JPanel flightDetailsPanel = new JPanel(new BorderLayout(5,5));
@@ -133,7 +163,7 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         listAvailableSeats = new JList<>(availableSeatsModel);
         listAvailableSeats.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         listAvailableSeats.setLayoutOrientation(JList.HORIZONTAL_WRAP);
-        listAvailableSeats.setVisibleRowCount(-1);
+        listAvailableSeats.setVisibleRowCount(-1); // Дозволяє JList визначити кількість видимих рядків
         JScrollPane seatsScrollPane = new JScrollPane(listAvailableSeats);
         seatsScrollPane.setPreferredSize(new Dimension(300, 150));
         flightDetailsPanel.add(seatsScrollPane, BorderLayout.CENTER);
@@ -142,8 +172,14 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
         btnBookTicket.setEnabled(false);
         btnBookTicket.addActionListener(this::bookTicketAction);
         listAvailableSeats.addListSelectionListener(e -> {
-            btnBookTicket.setEnabled(!listAvailableSeats.isSelectionEmpty() && selectedFlightForBooking != null &&
-                    (selectedFlightForBooking.getStatus() == FlightStatus.PLANNED || selectedFlightForBooking.getStatus() == FlightStatus.DELAYED) );
+            if (!e.getValueIsAdjusting()) {
+                boolean isSeatSelected = !listAvailableSeats.isSelectionEmpty();
+                boolean isFlightBookable = selectedFlightForBooking != null &&
+                        (selectedFlightForBooking.getStatus() == FlightStatus.PLANNED || selectedFlightForBooking.getStatus() == FlightStatus.DELAYED);
+                btnBookTicket.setEnabled(isSeatSelected && isFlightBookable);
+                logger.trace("Зміна вибору місця. Місце вибрано: {}, Рейс доступний для бронювання: {}. Кнопка 'Забронювати': {}",
+                        isSeatSelected, isFlightBookable, btnBookTicket.isEnabled());
+            }
         });
         flightDetailsPanel.add(btnBookTicket, BorderLayout.SOUTH);
 
@@ -153,17 +189,19 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
 
         add(resultsAndDetailsPanel, BorderLayout.CENTER);
 
-        // Завантаження даних для комбобоксів
         loadStopsIntoComboBoxes();
+        logger.debug("Компоненти UI для TicketsPanel успішно створені та додані.");
     }
 
     private void loadStopsIntoComboBoxes() {
+        logger.info("Завантаження списку зупинок для JComboBox.");
         try {
-            List<Stop> stops = stopDAO.getAllStops(); // Може кинути SQLException
+            List<Stop> stops = stopDAO.getAllStops();
 
-            Stop emptyStop = new Stop(0, "Будь-який", "");
+            Stop emptyStop = new Stop(0, "Будь-який", ""); // Об'єкт для опції "Будь-який"
             cmbDepartureStop.addItem(emptyStop);
             cmbDestinationStop.addItem(emptyStop);
+            logger.trace("Додано опцію 'Будь-який' до JComboBox зупинок.");
 
             DefaultListCellRenderer stopRenderer = new DefaultListCellRenderer() {
                 @Override
@@ -171,7 +209,7 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
                     super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                     if (value instanceof Stop) {
                         Stop s = (Stop) value;
-                        if (s.getId() == 0) setText(s.getName());
+                        if (s.getId() == 0) setText(s.getName()); // Для "Будь-який"
                         else setText(s.getName() + " (" + s.getCity() + ")");
                     }
                     return this;
@@ -179,38 +217,47 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
             };
             cmbDepartureStop.setRenderer(stopRenderer);
             cmbDestinationStop.setRenderer(stopRenderer);
+            logger.trace("Рендерер для JComboBox зупинок встановлено.");
 
             for (Stop stop : stops) {
                 cmbDepartureStop.addItem(stop);
                 cmbDestinationStop.addItem(stop);
             }
+            logger.info("Успішно завантажено {} зупинок у JComboBox.", stops.size());
         } catch (SQLException e) {
-            System.err.println("Помилка завантаження списку зупинок: " + e.getMessage());
-            // e.printStackTrace(); // Розкоментуйте для детального стеку помилок
-            JOptionPane.showMessageDialog(this,
-                    "Не вдалося завантажити список зупинок: " + e.getMessage(),
-                    "Помилка бази даних",
-                    JOptionPane.ERROR_MESSAGE);
+            handleSqlException("Помилка завантаження списку зупинок", e);
+        } catch (Exception e) {
+            handleGenericException("Непередбачена помилка при завантаженні списку зупинок", e);
         }
     }
 
     private void searchFlightsAction(ActionEvent e) {
+        logger.info("Натиснуто кнопку 'Знайти рейси'.");
         Stop departureFilter = (Stop) cmbDepartureStop.getSelectedItem();
         Stop destinationFilter = (Stop) cmbDestinationStop.getSelectedItem();
         LocalDate dateFilter = null;
+
+        String departureStopLog = (departureFilter != null && departureFilter.getId() != 0) ? departureFilter.getId() + " (" + departureFilter.getName() + ")" : "Будь-який";
+        String destinationStopLog = (destinationFilter != null && destinationFilter.getId() != 0) ? destinationFilter.getId() + " (" + destinationFilter.getName() + ")" : "Будь-який";
+        String dateLog = "Не вказано";
+
         try {
             if (!txtDepartureDate.getText().trim().isEmpty()) {
                 dateFilter = LocalDate.parse(txtDepartureDate.getText().trim(), DATE_FORMATTER);
+                dateLog = dateFilter.format(DATE_FORMATTER);
             }
         } catch (DateTimeParseException ex) {
+            logger.warn("Помилка формату дати при пошуку рейсів. Введено: '{}'", txtDepartureDate.getText(), ex);
             JOptionPane.showMessageDialog(this, "Неправильний формат дати. Використовуйте РРРР-ММ-ДД.", "Помилка дати", JOptionPane.ERROR_MESSAGE);
             return;
         }
+        logger.debug("Параметри пошуку: Відправлення={}, Призначення={}, Дата={}", departureStopLog, destinationStopLog, dateLog);
 
         final LocalDate finalDateFilter = dateFilter;
 
-        try { // Обробка SQLException від flightDAO.getAllFlights()
+        try {
             List<Flight> allFlights = flightDAO.getAllFlights();
+            logger.trace("Отримано {} рейсів з DAO перед фільтрацією.", allFlights.size());
             List<Flight> filteredFlights = allFlights.stream()
                     .filter(flight -> flight.getStatus() == FlightStatus.PLANNED || flight.getStatus() == FlightStatus.DELAYED)
                     .filter(flight -> departureFilter == null || departureFilter.getId() == 0 || (flight.getRoute() != null && flight.getRoute().getDepartureStop().getId() == departureFilter.getId()))
@@ -219,22 +266,21 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
                     .sorted(Comparator.comparing(Flight::getDepartureDateTime))
                     .collect(Collectors.toList());
 
+            logger.info("Знайдено {} рейсів за критеріями пошуку.", filteredFlights.size());
             flightsResultTableModel.setFlights(filteredFlights);
             clearFlightDetailsAndSeats();
             if (filteredFlights.isEmpty()){
                 JOptionPane.showMessageDialog(this, "Рейсів за вашим запитом не знайдено.", "Результати пошуку", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (SQLException ex) {
-            System.err.println("Помилка отримання списку рейсів: " + ex.getMessage());
-            // ex.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Не вдалося завантажити список рейсів: " + ex.getMessage(),
-                    "Помилка бази даних",
-                    JOptionPane.ERROR_MESSAGE);
+            handleSqlException("Помилка отримання списку рейсів під час пошуку", ex);
+        } catch (Exception ex) {
+            handleGenericException("Непередбачена помилка під час пошуку рейсів", ex);
         }
     }
 
     private void clearFlightDetailsAndSeats() {
+        logger.debug("Очищення деталей обраного рейсу та списку доступних місць.");
         lblSelectedFlightInfo.setText("Оберіть рейс зі списку вище для перегляду деталей.");
         availableSeatsModel.clear();
         btnBookTicket.setEnabled(false);
@@ -243,72 +289,97 @@ public class TicketsPanel extends JPanel { // Зроблено public для д�
 
     private void updateFlightDetailsAndSeats(Flight flight) {
         if (flight == null) {
+            logger.warn("Спроба оновити деталі для null рейсу. Викликається очищення.");
             clearFlightDetailsAndSeats();
             return;
         }
+        logger.info("Оновлення деталей та доступних місць для рейсу ID: {}", flight.getId());
 
-        // Перевірка, чи маршрут не null перед тим, як його використовувати
-        String departureCity = flight.getRoute() != null && flight.getRoute().getDepartureStop() != null ? flight.getRoute().getDepartureStop().getCity() : "N/A";
-        String destinationCity = flight.getRoute() != null && flight.getRoute().getDestinationStop() != null ? flight.getRoute().getDestinationStop().getCity() : "N/A";
+        String departureCity = (flight.getRoute() != null && flight.getRoute().getDepartureStop() != null && flight.getRoute().getDepartureStop().getCity() != null) ? flight.getRoute().getDepartureStop().getCity() : "N/A";
+        String destinationCity = (flight.getRoute() != null && flight.getRoute().getDestinationStop() != null && flight.getRoute().getDestinationStop().getCity() != null) ? flight.getRoute().getDestinationStop().getCity() : "N/A";
+        String departureTime = (flight.getDepartureDateTime() != null) ? flight.getDepartureDateTime().format(DIALOG_DATE_TIME_FORMATTER) : "N/A";
+        String arrivalTime = (flight.getArrivalDateTime() != null) ? flight.getArrivalDateTime().format(DIALOG_DATE_TIME_FORMATTER) : "N/A";
+        String price = (flight.getPricePerSeat() != null) ? String.format("%.2f грн", flight.getPricePerSeat()) : "N/A";
+        String status = (flight.getStatus() != null && flight.getStatus().getDisplayName() != null) ? flight.getStatus().getDisplayName() : "N/A";
 
 
-        lblSelectedFlightInfo.setText(String.format("Обрано: %s -> %s, Відпр: %s, Приб: %s, Ціна: %.2f грн, Статус: %s",
-                departureCity,
-                destinationCity,
-                flight.getDepartureDateTime().format(DIALOG_DATE_TIME_FORMATTER), // Змінено на DIALOG_DATE_TIME_FORMATTER
-                flight.getArrivalDateTime().format(DIALOG_DATE_TIME_FORMATTER),   // Змінено на DIALOG_DATE_TIME_FORMATTER
-                flight.getPricePerSeat(),
-                flight.getStatus().getDisplayName()));
+        lblSelectedFlightInfo.setText(String.format("Обрано: %s -> %s, Відпр: %s, Приб: %s, Ціна: %s, Статус: %s",
+                departureCity, destinationCity, departureTime, arrivalTime, price, status));
+        logger.debug("Інформація про рейс встановлена: {}", lblSelectedFlightInfo.getText());
 
         availableSeatsModel.clear();
         btnBookTicket.setEnabled(false);
 
         if (flight.getStatus() != FlightStatus.PLANNED && flight.getStatus() != FlightStatus.DELAYED) {
-            lblSelectedFlightInfo.setText(lblSelectedFlightInfo.getText() + " | Бронювання неможливе (рейс не запланований).");
+            String unavailableMsg = " | Бронювання неможливе (рейс не запланований або не відкладений).";
+            lblSelectedFlightInfo.setText(lblSelectedFlightInfo.getText() + unavailableMsg);
+            logger.info("Бронювання для рейсу ID {} неможливе. Статус: {}.", flight.getId(), flight.getStatus());
             return;
         }
 
-        try { // Обробка SQLException від ticketDAO.getOccupiedSeatsForFlight
+        logger.debug("Завантаження зайнятих місць для рейсу ID: {}", flight.getId());
+        try {
             List<String> occupiedSeats = ticketDAO.getOccupiedSeatsForFlight(flight.getId());
             int totalSeats = flight.getTotalSeats();
+            logger.trace("Рейс ID {}: Всього місць={}, Зайнято місць={}", flight.getId(), totalSeats, occupiedSeats.size());
 
+            int availableCount = 0;
             for (int i = 1; i <= totalSeats; i++) {
                 String seatNumber = String.valueOf(i);
                 if (!occupiedSeats.contains(seatNumber)) {
                     availableSeatsModel.addElement(seatNumber);
+                    availableCount++;
                 }
             }
+            logger.info("Знайдено {} доступних місць для рейсу ID {}.", availableCount, flight.getId());
             if (availableSeatsModel.isEmpty()){
                 lblSelectedFlightInfo.setText(lblSelectedFlightInfo.getText() + " | Вільних місць немає.");
+                logger.info("Вільних місць для рейсу ID {} немає.", flight.getId());
             }
         } catch (SQLException e) {
-            System.err.println("Помилка отримання зайнятих місць: " + e.getMessage());
-            // e.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Не вдалося завантажити інформацію про місця: " + e.getMessage(),
-                    "Помилка бази даних",
-                    JOptionPane.ERROR_MESSAGE);
+            handleSqlException("Помилка отримання зайнятих місць для рейсу ID: " + flight.getId(), e);
+        } catch (Exception e) {
+            handleGenericException("Непередбачена помилка при оновленні деталей місць для рейсу ID: " + flight.getId(), e);
         }
     }
 
     private void bookTicketAction(ActionEvent e) {
+        logger.info("Натиснуто кнопку 'Забронювати обране місце'.");
         if (selectedFlightForBooking == null || listAvailableSeats.isSelectionEmpty()) {
+            logger.warn("Спроба забронювати квиток, але рейс або місце не вибрано.");
             JOptionPane.showMessageDialog(this, "Будь ласка, оберіть рейс та вільне місце для бронювання.", "Помилка", JOptionPane.WARNING_MESSAGE);
             return;
         }
         if (selectedFlightForBooking.getStatus() != FlightStatus.PLANNED && selectedFlightForBooking.getStatus() != FlightStatus.DELAYED) {
+            logger.warn("Спроба забронювати квиток на рейс ID {}, який не має статусу PLANNED або DELAYED. Поточний статус: {}",
+                    selectedFlightForBooking.getId(), selectedFlightForBooking.getStatus());
             JOptionPane.showMessageDialog(this, "Неможливо забронювати квиток на цей рейс. Статус рейсу: " + selectedFlightForBooking.getStatus().getDisplayName(), "Помилка", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         String selectedSeat = listAvailableSeats.getSelectedValue();
-        // Переконайтеся, що конструктор BookingDialog є public
+        logger.info("Відкриття діалогу бронювання для рейсу ID: {} та місця: {}", selectedFlightForBooking.getId(), selectedSeat);
         BookingDialog bookingDialog = new BookingDialog((Frame) SwingUtilities.getWindowAncestor(this),
                 selectedFlightForBooking, selectedSeat, passengerDAO, ticketDAO);
         bookingDialog.setVisible(true);
 
         if (bookingDialog.isBookingConfirmed()) {
+            logger.info("Бронювання для рейсу ID {} та місця {} підтверджено. Оновлення деталей рейсу.",
+                    selectedFlightForBooking.getId(), selectedSeat);
             updateFlightDetailsAndSeats(selectedFlightForBooking);
+        } else {
+            logger.debug("Бронювання для рейсу ID {} та місця {} було скасовано або закрито без підтвердження.",
+                    selectedFlightForBooking.getId(), selectedSeat);
         }
+    }
+
+    private void handleSqlException(String userMessage, SQLException e) {
+        logger.error("{}: {}", userMessage, e.getMessage(), e);
+        JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private void handleGenericException(String userMessage, Exception e) {
+        logger.error("{}: {}", userMessage, e.getMessage(), e);
+        JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);
     }
 }
