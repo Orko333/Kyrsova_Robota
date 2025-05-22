@@ -28,7 +28,7 @@ import java.util.ArrayList;
  * @author [Ваше ім'я або назва команди]
  * @version 1.1
  */
-class BookingsManagementPanel extends JPanel {
+public class BookingsManagementPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
 
     private JTable bookingsTable;
@@ -177,7 +177,7 @@ class BookingsManagementPanel extends JPanel {
      * та оновлює таблицю.
      * @param filterStatus Статус для фільтрації квитків. Якщо {@code null}, завантажуються всі квитки.
      */
-    private void loadBookingsData(TicketStatus filterStatus) {
+    public void loadBookingsData(TicketStatus filterStatus) {
         String statusForLog = (filterStatus != null) ? filterStatus.getDisplayName() : "Всі статуси";
         logger.info("Завантаження даних про бронювання/квитки. Фільтр за статусом: {}", statusForLog);
         try {
