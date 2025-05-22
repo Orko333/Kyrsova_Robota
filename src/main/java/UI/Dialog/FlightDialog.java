@@ -4,27 +4,26 @@ import DAO.FlightDAO;
 import DAO.RouteDAO;
 import Models.Flight;
 import Models.Enums.FlightStatus;
-import Models.Route; // Переконайтесь, що Models.Route імпортовано
+import Models.Route;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder; // Для відступів
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.math.BigDecimal;
-import java.sql.SQLException; // Важливий імпорт
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Діалогове вікно для створення нового або редагування існуючого рейсу.
  */
-public class FlightDialog extends JDialog { // Зроблено public
+public class FlightDialog extends JDialog {
     private static final Logger logger = LogManager.getLogger("insurance.log");
     private static final DateTimeFormatter INPUT_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -32,10 +31,10 @@ public class FlightDialog extends JDialog { // Зроблено public
     private JComboBox<Route> cmbRoute;
     private JComboBox<FlightStatus> cmbStatus;
 
-    private Flight currentFlight; // Рейс для редагування; null для нового рейсу
-    private final FlightDAO flightDAO; // Тепер точно буде ініціалізовано або конструктор не завершиться успішно
-    private final RouteDAO routeDAO;   // Тепер точно буде ініціалізовано або конструктор не завершиться успішно
-    private boolean saved = false; // Прапорець, що вказує, чи було збережено дані
+    private Flight currentFlight;
+    private final FlightDAO flightDAO;
+    private final RouteDAO routeDAO;
+    private boolean saved = false;
 
     /**
      * Конструктор діалогового вікна.
@@ -53,7 +52,6 @@ public class FlightDialog extends JDialog { // Зроблено public
 
         if (flightDAO == null) {
             logger.fatal("Критична помилка: FlightDAO є null при ініціалізації FlightDialog.");
-            // Негайно показуємо помилку і кидаємо виняток, щоб зупинити створення діалогу
             JOptionPane.showMessageDialog(null, "Помилка ініціалізації діалогу: відсутній FlightDAO.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
             throw new IllegalArgumentException("FlightDAO не може бути null.");
         }
@@ -68,14 +66,14 @@ public class FlightDialog extends JDialog { // Зроблено public
         this.currentFlight = flightToEdit;
 
         initComponents();
-        loadRoutesIntoComboBox(); // Завантаження маршрутів (обробляє SQLException всередині)
+        loadRoutesIntoComboBox();
 
         if (currentFlight != null) {
             logger.debug("Заповнення полів для редагування рейсу ID: {}", currentFlight.getId());
             populateFields(currentFlight);
         } else {
             logger.debug("Встановлення статусу за замовчуванням 'PLANNED' для нового рейсу.");
-            cmbStatus.setSelectedItem(FlightStatus.PLANNED); // Статус за замовчуванням для нового рейсу
+            cmbStatus.setSelectedItem(FlightStatus.PLANNED);
         }
 
         pack();
@@ -84,19 +82,17 @@ public class FlightDialog extends JDialog { // Зроблено public
         logger.debug("Діалог FlightDialog успішно ініціалізовано та відображено.");
     }
 
-    // ... решта коду класу залишається без змін ...
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для FlightDialog.");
-        setLayout(new BorderLayout(10, 10)); // Відступи між BorderLayout областями
+        setLayout(new BorderLayout(10, 10));
 
         JPanel formPanel = new JPanel(new GridBagLayout());
-        formPanel.setBorder(new EmptyBorder(10, 10, 10, 10)); // Відступи всередині панелі
+        formPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Маршрут
         gbc.gridx = 0; gbc.gridy = 0; formPanel.add(new JLabel("Маршрут:"), gbc);
         gbc.gridx = 1; gbc.gridy = 0; gbc.gridwidth = 2;
         cmbRoute = new JComboBox<>();
@@ -106,51 +102,45 @@ public class FlightDialog extends JDialog { // Зроблено public
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (value instanceof Route) {
                     setText(((Route) value).getFullRouteDescription());
-                } else if (value == null && index == -1) { // Placeholder for JComboBox when no item is selected or items are null
+                } else if (value == null && index == -1) {
                     setText("Оберіть маршрут...");
                 }
                 return this;
             }
         });
         formPanel.add(cmbRoute, gbc);
-        gbc.gridwidth = 1; // Скинути gridwidth
+        gbc.gridwidth = 1;
 
-        // Відправлення
         gbc.gridx = 0; gbc.gridy = 1; formPanel.add(new JLabel("Відправлення (РРРР-ММ-ДД ГГ:ХХ):"), gbc);
         gbc.gridx = 1; gbc.gridy = 1; gbc.gridwidth = 2;
         txtDepartureDateTime = new JTextField(16);
         formPanel.add(txtDepartureDateTime, gbc);
         gbc.gridwidth = 1;
 
-        // Прибуття
         gbc.gridx = 0; gbc.gridy = 2; formPanel.add(new JLabel("Прибуття (РРРР-ММ-ДД ГГ:ХХ):"), gbc);
         gbc.gridx = 1; gbc.gridy = 2; gbc.gridwidth = 2;
         txtArrivalDateTime = new JTextField(16);
         formPanel.add(txtArrivalDateTime, gbc);
         gbc.gridwidth = 1;
 
-        // Кількість місць
         gbc.gridx = 0; gbc.gridy = 3; formPanel.add(new JLabel("Кількість місць:"), gbc);
         gbc.gridx = 1; gbc.gridy = 3; gbc.gridwidth = 2;
         txtTotalSeats = new JTextField(5);
         formPanel.add(txtTotalSeats, gbc);
         gbc.gridwidth = 1;
 
-        // Модель автобуса
         gbc.gridx = 0; gbc.gridy = 4; formPanel.add(new JLabel("Модель автобуса:"), gbc);
         gbc.gridx = 1; gbc.gridy = 4; gbc.gridwidth = 2;
         txtBusModel = new JTextField(15);
         formPanel.add(txtBusModel, gbc);
         gbc.gridwidth = 1;
 
-        // Ціна за місце
         gbc.gridx = 0; gbc.gridy = 5; formPanel.add(new JLabel("Ціна за місце (грн):"), gbc);
         gbc.gridx = 1; gbc.gridy = 5; gbc.gridwidth = 2;
         txtPricePerSeat = new JTextField(8);
         formPanel.add(txtPricePerSeat, gbc);
         gbc.gridwidth = 1;
 
-        // Статус
         gbc.gridx = 0; gbc.gridy = 6; formPanel.add(new JLabel("Статус:"), gbc);
         gbc.gridx = 1; gbc.gridy = 6; gbc.gridwidth = 2;
         cmbStatus = new JComboBox<>(FlightStatus.values());
@@ -166,7 +156,6 @@ public class FlightDialog extends JDialog { // Зроблено public
         });
         formPanel.add(cmbStatus, gbc);
 
-        // Панель кнопок
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton btnSave = new JButton("Зберегти");
         JButton btnCancel = new JButton("Скасувати");
@@ -214,7 +203,6 @@ public class FlightDialog extends JDialog { // Зроблено public
 
     private void populateFields(Flight flight) {
         logger.debug("Заповнення полів діалогу даними рейсу ID: {}", flight.getId());
-        // Вибір маршруту в JComboBox
         boolean routeFound = false;
         for (int i = 0; i < cmbRoute.getItemCount(); i++) {
             Route item = cmbRoute.getItemAt(i);
@@ -228,11 +216,7 @@ public class FlightDialog extends JDialog { // Зроблено public
         if (!routeFound && flight.getRoute() != null) {
             logger.warn("Маршрут ID: {} для рейсу ID: {} не знайдено в списку JComboBox. Можливо, маршрут було видалено.",
                     flight.getRoute().getId(), flight.getId());
-            // Можна додати поточний маршрут рейсу до списку, якщо його там немає, або показати попередження
-            // cmbRoute.addItem(flight.getRoute()); // Обережно, це може порушити логіку, якщо список маршрутів має бути фіксованим
-            // cmbRoute.setSelectedItem(flight.getRoute());
         }
-
 
         txtDepartureDateTime.setText(flight.getDepartureDateTime().format(INPUT_DATE_TIME_FORMATTER));
         txtArrivalDateTime.setText(flight.getArrivalDateTime().format(INPUT_DATE_TIME_FORMATTER));
@@ -243,6 +227,12 @@ public class FlightDialog extends JDialog { // Зроблено public
         logger.debug("Поля діалогу заповнені даними рейсу.");
     }
 
+    /**
+     * Обробляє подію натискання кнопки "Зберегти".
+     * Валідує дані та зберігає/оновлює рейс у базі даних.
+     * Обробляє SQLException всередині.
+     * @param event Подія натискання кнопки.
+     */
     private void saveFlightAction(ActionEvent event) {
         logger.info("Спроба зберегти дані рейсу.");
         Route selectedRoute = (Route) cmbRoute.getSelectedItem();
@@ -311,7 +301,7 @@ public class FlightDialog extends JDialog { // Зроблено public
         logger.trace("Модель автобуса: '{}', Статус: {}", busModel, status);
 
         try {
-            if (currentFlight == null) { // Створення нового рейсу
+            if (currentFlight == null) {
                 logger.debug("Створення нового рейсу.");
                 if (selectedRoute == null) {
                     logger.error("Критична помилка: Маршрут не обрано для нового рейсу, хоча валідація мала це перехопити.");
@@ -319,7 +309,7 @@ public class FlightDialog extends JDialog { // Зроблено public
                     return;
                 }
                 Flight newFlight = new Flight(0, selectedRoute, departureDateTime, arrivalDateTime, totalSeats, status, busModel, pricePerSeat);
-                logger.debug("Створено об'єкт нового рейсу: {}", newFlight);
+                logger.debug("Створено об'єкт нового рейсу.");
                 if (flightDAO.addFlight(newFlight)) {
                     saved = true;
                     logger.info("Новий рейс ID: {} успішно додано.", newFlight.getId());
@@ -328,7 +318,7 @@ public class FlightDialog extends JDialog { // Зроблено public
                     logger.warn("Не вдалося додати новий рейс (flightDAO.addFlight повернув false).");
                     JOptionPane.showMessageDialog(this, "Не вдалося додати рейс (DAO повернув false).", "Помилка збереження", JOptionPane.ERROR_MESSAGE);
                 }
-            } else { // Оновлення існуючого рейсу
+            } else {
                 logger.debug("Оновлення існуючого рейсу ID: {}", currentFlight.getId());
                 Route routeToSet = (selectedRoute != null) ? selectedRoute : currentFlight.getRoute();
                 if (routeToSet == null) {
@@ -344,7 +334,7 @@ public class FlightDialog extends JDialog { // Зроблено public
                 currentFlight.setBusModel(busModel);
                 currentFlight.setPricePerSeat(pricePerSeat);
                 currentFlight.setStatus(status);
-                logger.debug("Об'єкт рейсу ID: {} підготовлено до оновлення: {}", currentFlight.getId(), currentFlight);
+                logger.debug("Об'єкт рейсу ID: {} підготовлено до оновлення.", currentFlight.getId());
                 if (flightDAO.updateFlight(currentFlight)) {
                     saved = true;
                     logger.info("Рейс ID: {} успішно оновлено.", currentFlight.getId());
@@ -369,6 +359,10 @@ public class FlightDialog extends JDialog { // Зроблено public
         }
     }
 
+    /**
+     * Повертає {@code true}, якщо дані були успішно збережені в діалозі.
+     * @return {@code true} якщо збережено, інакше {@code false}.
+     */
     public boolean isSaved() {
         logger.trace("Перевірка статусу збереження: {}", saved);
         return saved;

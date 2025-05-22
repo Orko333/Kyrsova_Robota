@@ -1,8 +1,8 @@
 package UI.Model;
 
 import Models.Flight;
-import Models.Route; // Необхідний імпорт для getFullRouteDescription
-import Models.Enums.FlightStatus; // Необхідний імпорт для getDisplayName
+import Models.Route;
+import Models.Enums.FlightStatus;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,7 +30,7 @@ public class FlightsTableModel extends AbstractTableModel {
             logger.debug("Ініціалізація FlightsTableModel з null списком рейсів. Створюється порожній список.");
             this.flights = new ArrayList<>();
         } else {
-            this.flights = new ArrayList<>(flights); // Створюємо копію
+            this.flights = new ArrayList<>(flights);
             logger.debug("Ініціалізація FlightsTableModel з {} рейсами.", this.flights.size());
         }
     }
@@ -45,11 +45,11 @@ public class FlightsTableModel extends AbstractTableModel {
             logger.warn("Спроба встановити null список рейсів в FlightsTableModel. Список буде очищено.");
             this.flights = new ArrayList<>();
         } else {
-            this.flights = new ArrayList<>(flights); // Створюємо копію
+            this.flights = new ArrayList<>(flights);
             logger.info("Встановлено новий список з {} рейсів в FlightsTableModel.", this.flights.size());
         }
         logger.debug("Дані таблиці рейсів оновлено.");
-        fireTableDataChanged(); // Сповіщає JTable про зміну даних
+        fireTableDataChanged();
     }
 
     /**
@@ -71,13 +71,11 @@ public class FlightsTableModel extends AbstractTableModel {
     @Override
     public int getRowCount() {
         int count = flights.size();
-        // logger.trace("Запит кількості рядків для рейсів: {}", count);
         return count;
     }
 
     @Override
     public int getColumnCount() {
-        // logger.trace("Запит кількості стовпців для рейсів: {}", columnNames.length);
         return columnNames.length;
     }
 
@@ -92,8 +90,6 @@ public class FlightsTableModel extends AbstractTableModel {
 
     @Override
     public Class<?> getColumnClass(int columnIndex) {
-        // Це допомагає JTable правильно сортувати числові та датові стовпці
-        // logger.trace("Запит класу стовпця {} для рейсів", columnIndex);
         switch (columnIndex) {
             case 0: // ID
                 return Long.class;
@@ -108,7 +104,6 @@ public class FlightsTableModel extends AbstractTableModel {
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        // logger.trace("Запит значення для комірки рейсів [{}, {}]", rowIndex, columnIndex);
         if (rowIndex < 0 || rowIndex >= flights.size()) {
             logger.error("Недійсний індекс рядка {} при запиті значення для таблиці рейсів. Кількість рядків: {}", rowIndex, flights.size());
             return "ПОМИЛКА ІНДЕКСУ РЯДКА";
@@ -135,7 +130,7 @@ public class FlightsTableModel extends AbstractTableModel {
                 case 5: // Автобус
                     return (flight.getBusModel() != null && !flight.getBusModel().isEmpty()) ? flight.getBusModel() : "-";
                 case 6: // Ціна
-                    return flight.getPricePerSeat(); // BigDecimal може бути null, таблиця це обробить
+                    return flight.getPricePerSeat();
                 case 7: // Статус
                     FlightStatus status = flight.getStatus();
                     return (status != null && status.getDisplayName() != null) ? status.getDisplayName() : "Статус невідомий";

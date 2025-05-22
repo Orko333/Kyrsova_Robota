@@ -20,8 +20,6 @@ import java.util.Comparator;
  * відображаючи деталі кожного квитка, такі як ID, рейс, маршрут, пасажир, місце,
  * дати бронювання та продажу, ціну та статус.
  *
- * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.1 // Версія оновлена для відображення змін
  */
 public class BookingsTableModel extends AbstractTableModel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
@@ -49,10 +47,9 @@ public class BookingsTableModel extends AbstractTableModel {
             logger.debug("Ініціалізація BookingsTableModel з null списком квитків. Створюється порожній список.");
             this.tickets = new ArrayList<>();
         } else {
-            this.tickets = new ArrayList<>(tickets); // Створюємо копію для уникнення зовнішніх модифікацій
+            this.tickets = new ArrayList<>(tickets);
             logger.debug("Ініціалізація BookingsTableModel з {} квитками.", this.tickets.size());
         }
-        // Сортування при ініціалізації також може бути корисним
         sortTickets();
     }
 
@@ -68,12 +65,12 @@ public class BookingsTableModel extends AbstractTableModel {
             logger.warn("Спроба встановити null список квитків в BookingsTableModel. Список буде очищено.");
             this.tickets = new ArrayList<>();
         } else {
-            this.tickets = new ArrayList<>(tickets); // Створюємо копію
+            this.tickets = new ArrayList<>(tickets);
             logger.info("Встановлено новий список з {} квитків в BookingsTableModel.", this.tickets.size());
         }
         sortTickets();
         logger.debug("Дані таблиці оновлено та відсортовано.");
-        fireTableDataChanged(); // Сповіщення таблиці про оновлення даних
+        fireTableDataChanged();
     }
 
     private void sortTickets() {
@@ -108,7 +105,6 @@ public class BookingsTableModel extends AbstractTableModel {
     @Override
     public int getRowCount() {
         int count = tickets.size();
-        // logger.trace("Запит кількості рядків: {}", count); // Може бути занадто багато логів
         return count;
     }
 
@@ -120,7 +116,6 @@ public class BookingsTableModel extends AbstractTableModel {
      */
     @Override
     public int getColumnCount() {
-        // logger.trace("Запит кількості стовпців: {}", columnNames.length); // Може бути занадто багато логів
         return columnNames.length;
     }
 
@@ -136,7 +131,7 @@ public class BookingsTableModel extends AbstractTableModel {
             return columnNames[column];
         }
         logger.warn("Запит назви стовпця за недійсним індексом: {}", column);
-        return ""; // Або кинути виняток
+        return "";
     }
 
     /**
@@ -152,7 +147,6 @@ public class BookingsTableModel extends AbstractTableModel {
      */
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        // logger.trace("Запит значення для комірки [{}, {}]", rowIndex, columnIndex); // Може бути занадто багато логів
         if (rowIndex < 0 || rowIndex >= tickets.size()) {
             logger.error("Недійсний індекс рядка {} при запиті значення. Кількість рядків: {}", rowIndex, tickets.size());
             return "ПОМИЛКА ІНДЕКСУ РЯДКА";
@@ -166,14 +160,12 @@ public class BookingsTableModel extends AbstractTableModel {
         Flight flight = ticket.getFlight();
         Passenger passenger = ticket.getPassenger();
 
-        // Перевірка на null для flight та passenger, щоб уникнути NullPointerException
         if (flight == null) {
             logger.warn("Об'єкт Flight є null для квитка ID {} (рядок {}). Стовпець: {}", ticket.getId(), rowIndex, columnIndex);
-            // Можна повернути спеціальне значення або порожній рядок для таких випадків
             if (columnIndex == 0) return ticket.getId();
-            if (columnIndex == 4) return ticket.getSeatNumber(); // Місце не залежить від рейсу
+            if (columnIndex == 4) return ticket.getSeatNumber();
             if (columnIndex == 8 && ticket.getStatus() != null) return ticket.getStatus().getDisplayName();
-            return "Рейс N/A"; // "Not Available" або інший плейсхолдер
+            return "Рейс N/A";
         }
         if (passenger == null) {
             logger.warn("Об'єкт Passenger є null для квитка ID {} (рядок {}). Стовпець: {}", ticket.getId(), rowIndex, columnIndex);
@@ -187,23 +179,23 @@ public class BookingsTableModel extends AbstractTableModel {
 
         try {
             switch (columnIndex) {
-                case 0: // ID Квитка
+                case 0:
                     return ticket.getId();
-                case 1: // Рейс (ID)
+                case 1:
                     return flight.getId();
-                case 2: // Маршрут
+                case 2:
                     return route != null && route.getFullRouteDescription() != null ? route.getFullRouteDescription() : "Маршрут не вказано";
-                case 3: // Пасажир
+                case 3:
                     return passenger.getFullName() != null ? passenger.getFullName() : "Ім'я не вказано";
-                case 4: // Місце
+                case 4:
                     return ticket.getSeatNumber() != null ? ticket.getSeatNumber() : "Місце не вказано";
-                case 5: // Дата бронюв.
+                case 5:
                     return ticket.getBookingDateTime() != null ? ticket.getBookingDateTime().format(TABLE_DATE_FORMATTER) : "-";
-                case 6: // Дата продажу
+                case 6:
                     return ticket.getPurchaseDateTime() != null ? ticket.getPurchaseDateTime().format(TABLE_DATE_FORMATTER) : "-";
-                case 7: // Ціна
+                case 7:
                     return ticket.getPricePaid() != null ? ticket.getPricePaid() : "Ціна не вказана";
-                case 8: // Статус
+                case 8:
                     return ticket.getStatus() != null && ticket.getStatus().getDisplayName() != null ? ticket.getStatus().getDisplayName() : "Статус невідомий";
                 default:
                     logger.warn("Запит значення для невідомого індексу стовпця: {} (рядок {})", columnIndex, rowIndex);
