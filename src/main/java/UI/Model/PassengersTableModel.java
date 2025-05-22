@@ -3,6 +3,9 @@ package UI.Model;
 import Models.Passenger;
 import Models.Enums.BenefitType; // Необхідно імпортувати, якщо getBenefitType() повертає цей тип
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,9 +17,11 @@ import java.util.List;
  * контактні дані та тип пільги.
  *
  * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.0 // Додайте версію, якщо потрібно
+ * @version 1.1 // Версія оновлена для відображення змін
  */
 public class PassengersTableModel extends AbstractTableModel {
+    private static final Logger logger = LogManager.getLogger("insurance.log");
+
     /**
      * Список об'єктів {@link Passenger}, що відображаються в таблиці.
      */
@@ -34,7 +39,13 @@ public class PassengersTableModel extends AbstractTableModel {
      * @param passengers список об'єктів {@link Passenger} для відображення.
      */
     public PassengersTableModel(List<Passenger> passengers) {
-        this.passengers = passengers != null ? new ArrayList<>(passengers) : new ArrayList<>();
+        if (passengers == null) {
+            logger.debug("Ініціалізація PassengersTableModel з null списком пасажирів. Створюється порожній список.");
+            this.passengers = new ArrayList<>();
+        } else {
+            this.passengers = new ArrayList<>(passengers); // Створюємо копію
+            logger.debug("Ініціалізація PassengersTableModel з {} пасажирами.", this.passengers.size());
+        }
     }
 
     /**
@@ -45,7 +56,14 @@ public class PassengersTableModel extends AbstractTableModel {
      * @param passengers новий список об'єктів {@link Passenger}.
      */
     public void setPassengers(List<Passenger> passengers) {
-        this.passengers = passengers != null ? new ArrayList<>(passengers) : new ArrayList<>();
+        if (passengers == null) {
+            logger.warn("Спроба встановити null список пасажирів в PassengersTableModel. Список буде очищено.");
+            this.passengers = new ArrayList<>();
+        } else {
+            this.passengers = new ArrayList<>(passengers); // Створюємо копію
+            logger.info("Встановлено новий список з {} пасажирами.", this.passengers.size());
+        }
+        logger.debug("Дані таблиці пасажирів оновлено.");
         fireTableDataChanged(); // Сповіщення таблиці про оновлення даних
     }
 
@@ -57,8 +75,11 @@ public class PassengersTableModel extends AbstractTableModel {
      */
     public Passenger getPassengerAt(int rowIndex) {
         if (rowIndex >= 0 && rowIndex < passengers.size()) {
-            return passengers.get(rowIndex);
+            Passenger passenger = passengers.get(rowIndex);
+            logger.trace("Отримання пасажира за індексом {}: ID {}", rowIndex, (passenger != null ? passenger.getId() : "null"));
+            return passenger;
         }
+        logger.warn("Спроба отримати пасажира за недійсним індексом рядка: {}. Розмір списку: {}", rowIndex, passengers.size());
         return null;
     }
 
@@ -70,7 +91,9 @@ public class PassengersTableModel extends AbstractTableModel {
      */
     @Override
     public int getRowCount() {
-        return passengers.size();
+        int count = passengers.size();
+        // logger.trace("Запит кількості рядків для таблиці пасажирів: {}", count);
+        return count;
     }
 
     /**
@@ -81,6 +104,7 @@ public class PassengersTableModel extends AbstractTableModel {
      */
     @Override
     public int getColumnCount() {
+        // logger.trace("Запит кількості стовпців для таблиці пасажирів: {}", columnNames.length);
         return columnNames.length;
     }
 
@@ -92,7 +116,11 @@ public class PassengersTableModel extends AbstractTableModel {
      */
     @Override
     public String getColumnName(int column) {
-        return columnNames[column];
+        if (column >= 0 && column < columnNames.length) {
+            return columnNames[column];
+        }
+        logger.warn("Запит назви стовпця для таблиці пасажирів за недійсним індексом: {}", column);
+        return "";
     }
 
     /**
@@ -102,34 +130,45 @@ public class PassengersTableModel extends AbstractTableModel {
      * @param rowIndex індекс рядка.
      * @param columnIndex індекс стовпця.
      * @return об'єкт, що представляє значення комірки.
-     *         Повертає {@code null}, якщо індекс стовпця невідомий або дані відсутні.
+     *         Повертає {@code "N/A"} або інший плейсхолдер у випадку помилки або відсутності даних.
      */
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
+        // logger.trace("Запит значення для комірки пасажирів [{}, {}]", rowIndex, columnIndex);
+        if (rowIndex < 0 || rowIndex >= passengers.size()) {
+            logger.error("Недійсний індекс рядка {} при запиті значення для таблиці пасажирів. Кількість рядків: {}", rowIndex, passengers.size());
+            return "ПОМИЛКА ІНДЕКСУ РЯДКА";
+        }
         Passenger p = passengers.get(rowIndex);
-        if (p == null) { // Додаткова перевірка, хоча get() з ArrayList зазвичай не повертає null для існуючих індексів
-            return "N/A"; // або інший плейсхолдер
+        if (p == null) {
+            logger.error("Об'єкт Passenger є null для рядка {} при запиті значення для таблиці пасажирів.", rowIndex);
+            return "ПОМИЛКА: NULL ПАСАЖИР";
         }
 
-        switch (columnIndex) {
-            case 0: // ID
-                return p.getId();
-            case 1: // ПІБ
-                return p.getFullName();
-            case 2: // Документ (тип)
-                return p.getDocumentType();
-            case 3: // Номер документа
-                return p.getDocumentNumber();
-            case 4: // Телефон
-                return p.getPhoneNumber();
-            case 5: // Email
-                return p.getEmail() != null ? p.getEmail() : "-"; // Відображаємо "-" якщо email відсутній
-            case 6: // Пільга
-                BenefitType benefitType = p.getBenefitType();
-                // Передбачається, що Enum BenefitType має метод getDisplayName()
-                return benefitType != null ? benefitType.getDisplayName() : "Без пільг";
-            default:
-                return null; // Для невідомих індексів стовпців
+        try {
+            switch (columnIndex) {
+                case 0: // ID
+                    return p.getId();
+                case 1: // ПІБ
+                    return p.getFullName() != null ? p.getFullName() : "ПІБ не вказано";
+                case 2: // Документ (тип)
+                    return p.getDocumentType() != null ? p.getDocumentType() : "Тип не вказано";
+                case 3: // Номер документа
+                    return p.getDocumentNumber() != null ? p.getDocumentNumber() : "Номер не вказано";
+                case 4: // Телефон
+                    return p.getPhoneNumber() != null ? p.getPhoneNumber() : "Телефон не вказано";
+                case 5: // Email
+                    return p.getEmail() != null ? p.getEmail() : "-"; // Відображаємо "-" якщо email відсутній
+                case 6: // Пільга
+                    BenefitType benefitType = p.getBenefitType();
+                    return (benefitType != null && benefitType.getDisplayName() != null) ? benefitType.getDisplayName() : "Без пільг";
+                default:
+                    logger.warn("Запит значення для невідомого індексу стовпця для пасажирів: {} (рядок {})", columnIndex, rowIndex);
+                    return "НЕВІДОМИЙ СТОВПЕЦЬ";
+            }
+        } catch (Exception e) {
+            logger.error("Помилка при отриманні значення для комірки пасажирів [{}, {}], пасажир ID {}", rowIndex, columnIndex, p.getId(), e);
+            return "ПОМИЛКА ДАНИХ";
         }
     }
 }

@@ -5,6 +5,9 @@ import Models.Route; // Потрібно імпортувати, якщо getRou
 import Models.Ticket;
 import Models.Enums.TicketStatus; // Потрібно імпортувати, якщо getStatus() повертає Models.Enums.TicketStatus
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import javax.swing.table.AbstractTableModel;
 import java.time.LocalDateTime; // Потрібно імпортувати, якщо getDepartureDateTime() повертає LocalDateTime
 import java.time.format.DateTimeFormatter;
@@ -18,9 +21,12 @@ import java.util.List;
  * маршрут, дата відправлення, місце, сплачена ціна та статус квитка.
  *
  * @author [Ваше ім'я або назва команди] // Додайте автора, якщо потрібно
- * @version 1.0 // Додайте версію, якщо потрібно
+ * @version 1.1 // Версія оновлена для відображення змін
  */
 public class PassengerHistoryTableModel extends AbstractTableModel {
+    private static final Logger logger = LogManager.getLogger("insurance.log");
+    private static final DateTimeFormatter HISTORY_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
     /**
      * Список об'єктів {@link Ticket}, що представляють історію поїздок пасажира.
      */
@@ -29,10 +35,7 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
      * Масив назв стовпців таблиці історії поїздок.
      */
     private final String[] columnNames = {"ID Квитка", "Рейс (ID)", "Маршрут", "Дата відпр.", "Місце", "Ціна", "Статус квитка"};
-    /**
-     * Форматер для відображення дати та часу відправлення в таблиці у форматі "dd.MM.yyyy HH:mm".
-     */
-    private static final DateTimeFormatter HISTORY_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
 
     /**
      * Конструктор для створення моделі таблиці історії поїздок.
@@ -42,7 +45,13 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
      * @param tickets список об'єктів {@link Ticket}, що становлять історію поїздок.
      */
     public PassengerHistoryTableModel(List<Ticket> tickets) {
-        this.tickets = tickets != null ? new ArrayList<>(tickets) : new ArrayList<>();
+        if (tickets == null) {
+            logger.debug("Ініціалізація PassengerHistoryTableModel з null списком квитків. Створюється порожній список.");
+            this.tickets = new ArrayList<>();
+        } else {
+            this.tickets = new ArrayList<>(tickets); // Створюємо копію
+            logger.debug("Ініціалізація PassengerHistoryTableModel з {} квитками.", this.tickets.size());
+        }
     }
 
     /**
@@ -53,7 +62,14 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
      * @param tickets новий список об'єктів {@link Ticket}.
      */
     public void setTickets(List<Ticket> tickets) {
-        this.tickets = tickets != null ? new ArrayList<>(tickets) : new ArrayList<>();
+        if (tickets == null) {
+            logger.warn("Спроба встановити null список квитків в PassengerHistoryTableModel. Список буде очищено.");
+            this.tickets = new ArrayList<>();
+        } else {
+            this.tickets = new ArrayList<>(tickets); // Створюємо копію
+            logger.info("Встановлено новий список з {} квитків для історії пасажира.", this.tickets.size());
+        }
+        logger.debug("Дані таблиці історії пасажира оновлено.");
         fireTableDataChanged(); // Сповіщення таблиці про оновлення даних
     }
 
@@ -65,7 +81,9 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
      */
     @Override
     public int getRowCount() {
-        return tickets.size();
+        int count = tickets.size();
+        // logger.trace("Запит кількості рядків для історії пасажира: {}", count);
+        return count;
     }
 
     /**
@@ -76,6 +94,7 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
      */
     @Override
     public int getColumnCount() {
+        // logger.trace("Запит кількості стовпців для історії пасажира: {}", columnNames.length);
         return columnNames.length;
     }
 
@@ -87,7 +106,11 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
      */
     @Override
     public String getColumnName(int column) {
-        return columnNames[column];
+        if (column >= 0 && column < columnNames.length) {
+            return columnNames[column];
+        }
+        logger.warn("Запит назви стовпця для історії пасажира за недійсним індексом: {}", column);
+        return "";
     }
 
     /**
@@ -99,40 +122,63 @@ public class PassengerHistoryTableModel extends AbstractTableModel {
      * @param rowIndex індекс рядка.
      * @param columnIndex індекс стовпця.
      * @return об'єкт, що представляє значення комірки.
-     *         Повертає {@code null}, якщо індекс стовпця невідомий або дані відсутні.
+     *         Повертає {@code "N/A"} або інший плейсхолдер у випадку помилки або відсутності даних.
      */
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
+        // logger.trace("Запит значення для комірки історії пасажира [{}, {}]", rowIndex, columnIndex);
+        if (rowIndex < 0 || rowIndex >= tickets.size()) {
+            logger.error("Недійсний індекс рядка {} при запиті значення для таблиці історії пасажира. Кількість рядків: {}", rowIndex, tickets.size());
+            return "ПОМИЛКА ІНДЕКСУ РЯДКА";
+        }
         Ticket ticket = tickets.get(rowIndex);
-        Flight flight = ticket.getFlight(); // Може бути null, якщо дані неповні
+        if (ticket == null) {
+            logger.error("Об'єкт Ticket є null для рядка {} при запиті значення для таблиці історії пасажира.", rowIndex);
+            return "ПОМИЛКА: NULL КВИТОК";
+        }
+
+        Flight flight = ticket.getFlight();
 
         // Перевірка на null для flight, щоб уникнути NullPointerException
         // у випадках, коли доступ до flight потрібен.
         if (flight == null && (columnIndex == 1 || columnIndex == 2 || columnIndex == 3)) {
-            // Для стовпців, що залежать від flight, повертаємо плейсхолдер, якщо flight відсутній
-            return "N/A";
+            logger.warn("Об'єкт Flight є null для квитка ID {} (рядок {}). Стовпець: {}. Дані рейсу будуть недоступні.",
+                    ticket.getId(), rowIndex, columnIndex);
+            return "Рейс N/A"; // "Not Available" або інший плейсхолдер
         }
 
-        switch (columnIndex) {
-            case 0: // ID Квитка
-                return ticket.getId();
-            case 1: // Рейс (ID)
-                return flight.getId();
-            case 2: // Маршрут
-                Route route = flight.getRoute();
-                return route != null ? route.getFullRouteDescription() : "Маршрут не вказано";
-            case 3: // Дата відпр.
-                LocalDateTime departureDateTime = flight.getDepartureDateTime();
-                return departureDateTime != null ? departureDateTime.format(HISTORY_DATE_FORMATTER) : "-";
-            case 4: // Місце
-                return ticket.getSeatNumber();
-            case 5: // Ціна
-                return ticket.getPricePaid();
-            case 6: // Статус квитка
-                TicketStatus status = ticket.getStatus();
-                return status != null ? status.getDisplayName() : "Статус невідомий";
-            default:
-                return null; // Для невідомих індексів стовпців
+        try {
+            switch (columnIndex) {
+                case 0: // ID Квитка
+                    return ticket.getId();
+                case 1: // Рейс (ID)
+                    return flight != null ? flight.getId() : "ID Рейсу N/A";
+                case 2: // Маршрут
+                    if (flight != null) {
+                        Route route = flight.getRoute();
+                        return (route != null && route.getFullRouteDescription() != null) ? route.getFullRouteDescription() : "Маршрут не вказано";
+                    }
+                    return "Маршрут N/A";
+                case 3: // Дата відпр.
+                    if (flight != null) {
+                        LocalDateTime departureDateTime = flight.getDepartureDateTime();
+                        return (departureDateTime != null) ? departureDateTime.format(HISTORY_DATE_FORMATTER) : "Дата не вказана";
+                    }
+                    return "Дата N/A";
+                case 4: // Місце
+                    return ticket.getSeatNumber() != null ? ticket.getSeatNumber() : "Місце не вказано";
+                case 5: // Ціна
+                    return ticket.getPricePaid(); // BigDecimal може бути null, таблиця це обробить
+                case 6: // Статус квитка
+                    TicketStatus status = ticket.getStatus();
+                    return (status != null && status.getDisplayName() != null) ? status.getDisplayName() : "Статус невідомий";
+                default:
+                    logger.warn("Запит значення для невідомого індексу стовпця для історії пасажира: {} (рядок {})", columnIndex, rowIndex);
+                    return "НЕВІДОМИЙ СТОВПЕЦЬ";
+            }
+        } catch (Exception e) {
+            logger.error("Помилка при отриманні значення для комірки історії пасажира [{}, {}], квиток ID {}", rowIndex, columnIndex, ticket.getId(), e);
+            return "ПОМИЛКА ДАНИХ";
         }
     }
 }

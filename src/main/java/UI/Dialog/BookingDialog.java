@@ -6,6 +6,9 @@ import Models.*; // Flight, Passenger, Ticket, BenefitType, TicketStatus
 import Models.Enums.BenefitType;
 import Models.Enums.TicketStatus;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -21,6 +24,9 @@ import java.util.Locale; // Для NumberFormat
  * Діалогове вікно для бронювання квитка.
  */
 public class BookingDialog extends JDialog { // Зроблено public
+    private static final Logger logger = LogManager.getLogger("insurance.log");
+    private static final DateTimeFormatter DIALOG_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
     private final Flight selectedFlight;
     private final String selectedSeat;
 
@@ -33,7 +39,6 @@ public class BookingDialog extends JDialog { // Зроблено public
     private final TicketDAO ticketDAO;
     private boolean bookingConfirmed = false;
 
-    private static final DateTimeFormatter DIALOG_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     /**
      * Конструктор діалогу бронювання.
@@ -45,10 +50,23 @@ public class BookingDialog extends JDialog { // Зроблено public
      */
     public BookingDialog(Frame owner, Flight flight, String seat, PassengerDAO passengerDAO, TicketDAO ticketDAO) {
         super(owner, "Бронювання квитка", true); // Модальне вікно
+        logger.info("Ініціалізація діалогу бронювання для рейсу ID: {} та місця: {}",
+                (flight != null ? flight.getId() : "N/A"), seat);
+
         this.selectedFlight = flight;
         this.selectedSeat = seat;
         this.passengerDAO = passengerDAO;
         this.ticketDAO = ticketDAO;
+
+        if (flight == null || seat == null || passengerDAO == null || ticketDAO == null) {
+            logger.error("Критична помилка: Один з параметрів конструктора BookingDialog є null. Flight: {}, Seat: {}, PassengerDAO: {}, TicketDAO: {}",
+                    flight, seat, passengerDAO, ticketDAO);
+            // Можна кинути виняток або показати помилку і закрити діалог
+            JOptionPane.showMessageDialog(null, "Помилка ініціалізації діалогу. Недостатньо даних.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
+            // Не викликати initComponents, якщо дані неповні, щоб уникнути NPE
+            SwingUtilities.invokeLater(this::dispose); // Закрити діалог безпечно
+            return;
+        }
 
         initComponents();
         setFlightAndSeatInfo();
@@ -56,9 +74,11 @@ public class BookingDialog extends JDialog { // Зроблено public
         pack(); // Автоматично підбирає розмір вікна
         setLocationRelativeTo(owner); // Центрує відносно батьківського вікна
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE); // Закриття вікна звільняє ресурси
+        logger.debug("Діалог бронювання успішно ініціалізовано та відображено.");
     }
 
     private void initComponents() {
+        logger.debug("Ініціалізація компонентів UI для діалогу бронювання.");
         setLayout(new BorderLayout(10, 10)); // Головний менеджер розмітки з відступами
 
         // --- Інформаційна панель ---
@@ -115,6 +135,8 @@ public class BookingDialog extends JDialog { // Зроблено public
         });
         cmbBenefitType.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
+                BenefitType selectedBenefit = (BenefitType) e.getItem();
+                logger.trace("Обрано пільгу: {}", selectedBenefit.getDisplayName());
                 updatePriceInfo();
             }
         });
@@ -126,7 +148,10 @@ public class BookingDialog extends JDialog { // Зроблено public
         btnCancel = new JButton("Скасувати");
 
         btnConfirmBooking.addActionListener(this::confirmBookingAction); // Посилання на метод
-        btnCancel.addActionListener(e -> dispose()); // Лямбда для простого закриття
+        btnCancel.addActionListener(e -> {
+            logger.debug("Натиснуто кнопку 'Скасувати'. Закриття діалогу бронювання.");
+            dispose();
+        });
 
         buttonPanel.add(btnConfirmBooking);
         buttonPanel.add(btnCancel);
@@ -135,19 +160,24 @@ public class BookingDialog extends JDialog { // Зроблено public
         add(infoPanel, BorderLayout.NORTH);
         add(passengerPanel, BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
+        logger.debug("Компоненти UI успішно створені та додані до діалогу.");
     }
 
     /**
      * Встановлює інформацію про рейс, місце та початкову ціну.
      */
     private void setFlightAndSeatInfo() {
+        logger.debug("Встановлення інформації про рейс та місце.");
         String routeDesc = (selectedFlight.getRoute() != null) ? selectedFlight.getRoute().getFullRouteDescription() : "N/A";
-        lblFlightInfo.setText(String.format("Рейс: %s (%s - %s)",
+        String flightInfoText = String.format("Рейс: %s (%s - %s)",
                 routeDesc,
                 selectedFlight.getDepartureDateTime().format(DIALOG_DATE_TIME_FORMATTER),
                 selectedFlight.getArrivalDateTime().format(DIALOG_DATE_TIME_FORMATTER)
-        ));
+        );
+        lblFlightInfo.setText(flightInfoText);
         lblSeatInfo.setText("Обране місце: " + selectedSeat);
+        logger.trace("Інформація про рейс встановлена: {}", flightInfoText);
+        logger.trace("Інформація про місце встановлена: {}", lblSeatInfo.getText());
         updatePriceInfo(); // Розрахувати та відобразити ціну
     }
 
@@ -156,9 +186,15 @@ public class BookingDialog extends JDialog { // Зроблено public
      */
     private void updatePriceInfo() {
         BenefitType benefit = (BenefitType) cmbBenefitType.getSelectedItem();
+        if (benefit == null) {
+            logger.warn("Не вдалося отримати обрану пільгу з JComboBox, можливо, вона ще не ініціалізована.");
+            benefit = BenefitType.NONE; // Значення за замовчуванням
+        }
         BigDecimal finalPrice = calculatePriceWithBenefit(selectedFlight.getPricePerSeat(), benefit);
         NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("uk", "UA")); // Український формат валюти
-        lblPriceInfo.setText("Ціна до сплати: " + currencyFormat.format(finalPrice));
+        String priceText = "Ціна до сплати: " + currencyFormat.format(finalPrice);
+        lblPriceInfo.setText(priceText);
+        logger.debug("Ціну оновлено. Обрана пільга: {}, Кінцева ціна: {}", benefit.getDisplayName(), finalPrice);
     }
 
     /**
@@ -168,8 +204,13 @@ public class BookingDialog extends JDialog { // Зроблено public
      * @return Кінцева ціна квитка.
      */
     private BigDecimal calculatePriceWithBenefit(BigDecimal basePrice, BenefitType benefitType) {
-        if (basePrice == null) return BigDecimal.ZERO; // Захист від null
+        logger.trace("Розрахунок ціни. Базова ціна: {}, Пільга: {}", basePrice, benefitType.getDisplayName());
+        if (basePrice == null) {
+            logger.warn("Базова ціна для розрахунку є null. Повертається 0.");
+            return BigDecimal.ZERO;
+        }
         if (benefitType == null || benefitType == BenefitType.NONE) {
+            logger.trace("Пільга не застосовується. Ціна: {}", basePrice);
             return basePrice;
         }
         double discountPercentage = 0.0;
@@ -179,8 +220,10 @@ public class BookingDialog extends JDialog { // Зроблено public
             case COMBATANT: discountPercentage = 0.50; break;
             // default: // Не потрібно, оскільки NONE вже оброблено
         }
-        return basePrice.multiply(BigDecimal.valueOf(1.0 - discountPercentage))
+        BigDecimal finalPrice = basePrice.multiply(BigDecimal.valueOf(1.0 - discountPercentage))
                 .setScale(2, BigDecimal.ROUND_HALF_UP); // Округлення до 2 знаків після коми
+        logger.trace("Застосовано знижку {}%. Кінцева ціна: {}", (int)(discountPercentage*100), finalPrice);
+        return finalPrice;
     }
 
     /**
@@ -189,6 +232,7 @@ public class BookingDialog extends JDialog { // Зроблено public
      * @param event Подія натискання кнопки (не використовується безпосередньо, але потрібна для сигнатури ActionListener).
      */
     private void confirmBookingAction(ActionEvent event) {
+        logger.info("Спроба підтвердити бронювання.");
         String fullName = txtFullName.getText().trim();
         String docType = txtDocumentType.getText().trim();
         String docNumber = txtDocumentNumber.getText().trim();
@@ -196,46 +240,63 @@ public class BookingDialog extends JDialog { // Зроблено public
         String email = txtEmail.getText().trim();
         BenefitType benefit = (BenefitType) cmbBenefitType.getSelectedItem();
 
+        logger.debug("Дані пасажира: ПІБ='{}', ТипДок='{}', НомерДок='{}', Телефон='{}', Email='{}', Пільга='{}'",
+                fullName, docType, docNumber, phone, email, benefit.getDisplayName());
+
         if (fullName.isEmpty() || docType.isEmpty() || docNumber.isEmpty() || phone.isEmpty()) {
+            logger.warn("Помилка валідації даних пасажира: не заповнені обов'язкові поля.");
             JOptionPane.showMessageDialog(this, "Будь ласка, заповніть всі обов'язкові поля пасажира (ПІБ, Тип та Номер документа, Телефон).", "Помилка валідації", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         try {
+            logger.debug("Створення об'єкта Passenger.");
             Passenger passenger = new Passenger(0, fullName, docNumber, docType, phone, email.isEmpty() ? null : email, benefit);
+            logger.debug("Додавання або отримання пасажира з DAO.");
             long passengerId = passengerDAO.addOrGetPassenger(passenger); // Може кинути SQLException
             passenger.setId(passengerId); // Встановлюємо отриманий ID
+            logger.info("Пасажир успішно оброблений. ID пасажира: {}", passengerId);
 
             BigDecimal finalPrice = calculatePriceWithBenefit(selectedFlight.getPricePerSeat(), benefit);
+            logger.debug("Розрахована кінцева ціна квитка: {}", finalPrice);
+
+            LocalDateTime bookingTime = LocalDateTime.now();
+            LocalDateTime expiryTime = bookingTime.plusHours(24);
+            logger.debug("Час бронювання: {}, Термін дії броні: {}", bookingTime, expiryTime);
+
             Ticket newTicket = new Ticket(
                     0,
                     selectedFlight,
                     passenger,
                     selectedSeat,
-                    LocalDateTime.now(),
+                    bookingTime,
                     finalPrice,
                     TicketStatus.BOOKED
             );
-            newTicket.setBookingExpiryDateTime(LocalDateTime.now().plusHours(24));
+            newTicket.setBookingExpiryDateTime(expiryTime);
+            logger.debug("Створено об'єкт Ticket для бронювання: {}", newTicket);
 
+            logger.debug("Спроба додати квиток через TicketDAO.");
             if (ticketDAO.addTicket(newTicket)) { // Може кинути SQLException або повернути false
                 bookingConfirmed = true;
+                logger.info("Квиток успішно заброньовано. ID квитка: {}. Місце: {}, Рейс ID: {}", newTicket.getId(), selectedSeat, selectedFlight.getId());
                 JOptionPane.showMessageDialog(this, "Місце " + selectedSeat + " успішно заброньовано!\nТермін дії броні: " + newTicket.getBookingExpiryDateTime().format(DIALOG_DATE_TIME_FORMATTER), "Бронювання успішне", JOptionPane.INFORMATION_MESSAGE);
                 dispose(); // Закрити діалог
             } else {
                 // Цей блок може бути досягнутий, якщо addTicket() повертає false (наприклад, через конфлікт місця, який DAO обробляє без кидання SQLException)
+                logger.warn("Не вдалося забронювати місце (ticketDAO.addTicket повернув false). Місце: {}, Рейс ID: {}", selectedSeat, selectedFlight.getId());
                 JOptionPane.showMessageDialog(this, "Не вдалося забронювати місце. Можливо, воно вже зайняте або сталася помилка збереження.", "Помилка бронювання", JOptionPane.ERROR_MESSAGE);
             }
         } catch (SQLException ex) {
-            System.err.println("Помилка бази даних під час підтвердження бронювання: " + ex.getMessage());
-            ex.printStackTrace();
+            logger.error("Помилка бази даних під час підтвердження бронювання. Рейс ID: {}, Місце: {}",
+                    (selectedFlight != null ? selectedFlight.getId() : "N/A"), selectedSeat, ex);
             JOptionPane.showMessageDialog(this,
                     "Помилка під час взаємодії з базою даних: " + ex.getMessage(),
                     "Помилка бази даних",
                     JOptionPane.ERROR_MESSAGE);
         } catch (Exception exGeneral) {
-            System.err.println("Непередбачена помилка під час підтвердження бронювання: " + exGeneral.getMessage());
-            exGeneral.printStackTrace();
+            logger.error("Непередбачена помилка під час підтвердження бронювання. Рейс ID: {}, Місце: {}",
+                    (selectedFlight != null ? selectedFlight.getId() : "N/A"), selectedSeat, exGeneral);
             JOptionPane.showMessageDialog(this,
                     "Сталася непередбачена помилка: " + exGeneral.getMessage(),
                     "Внутрішня помилка",
@@ -248,6 +309,7 @@ public class BookingDialog extends JDialog { // Зроблено public
      * @return {@code true} якщо бронювання підтверджено, інакше {@code false}.
      */
     public boolean isBookingConfirmed() {
+        logger.trace("Перевірка статусу підтвердження бронювання: {}", bookingConfirmed);
         return bookingConfirmed;
     }
 }
