@@ -74,7 +74,7 @@ public class BookingDialog extends JDialog {
         logger.debug("Діалог бронювання успішно ініціалізовано та відображено.");
     }
 
-    private void initComponents() {
+    public void initComponents() {
         logger.debug("Ініціалізація компонентів UI для діалогу бронювання.");
         setLayout(new BorderLayout(10, 10));
 
@@ -190,7 +190,7 @@ public class BookingDialog extends JDialog {
      * @param benefitType Тип пільги.
      * @return Кінцева ціна квитка.
      */
-    private BigDecimal calculatePriceWithBenefit(BigDecimal basePrice, BenefitType benefitType) {
+    public BigDecimal calculatePriceWithBenefit(BigDecimal basePrice, BenefitType benefitType) {
         logger.trace("Розрахунок ціни. Базова ціна: {}, Пільга: {}", basePrice, benefitType.getDisplayName());
         if (basePrice == null) {
             logger.warn("Базова ціна для розрахунку є null. Повертається 0.");
