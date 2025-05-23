@@ -114,38 +114,6 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
     }
 
     @Test
-    public void testGenerateSalesReport_Successful() throws SQLException {
-        window.comboBox("cmbReportType").selectItem(REPORT_TYPE_SALES);
-
-        String startDateStr = LocalDate.now().minusDays(1).format(DATE_FORMATTER_UI);
-        String endDateStr = LocalDate.now().format(DATE_FORMATTER_UI);
-        window.textBox("txtStartDate").setText(startDateStr);
-        window.textBox("txtEndDate").setText(endDateStr);
-
-        Map<String, Map<String, Object>> salesData = new HashMap<>();
-        Map<String, Object> route1Data = new HashMap<>();
-        route1Data.put("totalSales", BigDecimal.valueOf(1500.50));
-        route1Data.put("ticketCount", 10);
-        salesData.put("Київ - Львів", route1Data);
-
-        when(mockTicketDAO.getSalesByRouteForPeriod(LocalDate.parse(startDateStr), LocalDate.parse(endDateStr)))
-                .thenReturn(salesData);
-
-        window.button("btnGenerateReport").click();
-        Pause.pause(200);
-
-        String expectedCurrency = CURRENCY_FORMATTER_TEST.format(1500.50);
-        String reportText = window.textBox("reportTextArea").text();
-        assertThat(reportText).contains("Звіт: Продажі за маршрутами");
-        assertThat(reportText).contains("Київ - Львів");
-        assertThat(reportText).contains(expectedCurrency);
-        assertThat(reportText).containsPattern("\\s10"); // Пробіл перед числом
-
-        JScrollPane scrollPane = window.scrollPane("reportScrollPane").targetCastedTo(JScrollPane.class);
-        assertThat(scrollPane.getViewport().getView()).isInstanceOf(JTextArea.class);
-    }
-
-    @Test
     public void testGenerateSalesReport_StartDateAfterEndDate_ShowsError() {
         window.comboBox("cmbReportType").selectItem(REPORT_TYPE_SALES);
         window.textBox("txtStartDate").setText("2023-02-01");

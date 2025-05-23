@@ -11,13 +11,14 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Діалогове вікно для редагування інформації про пасажира.
  * Дозволяє змінювати персональні дані пасажира, такі як ПІБ, номер та тип документа,
  * контактну інформацію та тип пільги. Зміни зберігаються в базі даних.
  *
- * @version 1.1
+ * @version 1.2
  */
 public class PassengerDialog extends JDialog {
     private static final Logger logger = LogManager.getLogger("insurance.log");
@@ -32,6 +33,42 @@ public class PassengerDialog extends JDialog {
     private JTextField txtPhoneNumber;
     private JTextField txtEmail;
     private JComboBox<BenefitType> cmbBenefitType;
+    private JButton btnSave; // Зроблено полем класу
+    private JButton btnCancel; // Зроблено полем класу
+
+    // Прапорець для придушення повідомлень під час тестів
+    private static final AtomicBoolean suppressMessagesForTesting = new AtomicBoolean(false);
+
+    /**
+     * Встановлює режим придушення повідомлень JOptionPane для тестування.
+     * УВАГА: Використовуйте тільки в тестовому середовищі!
+     * @param suppress true, щоб придушити повідомлення, false - щоб показувати.
+     */
+    public static void setSuppressMessagesForTesting(boolean suppress) {
+        suppressMessagesForTesting.set(suppress);
+        if (suppress) {
+            logger.warn("УВАГА: Повідомлення JOptionPane придушені для тестування в PassengerDialog!");
+        } else {
+            logger.info("Режим придушення повідомлень JOptionPane вимкнено в PassengerDialog.");
+        }
+    }
+
+    // Приватний метод для відображення повідомлень, який враховує прапорець
+    private void showDialogMessage(Component parentComponent, Object message, String title, int messageType) {
+        if (!suppressMessagesForTesting.get()) {
+            JOptionPane.showMessageDialog(parentComponent, message, title, messageType);
+        } else {
+            String typeStr = "";
+            switch (messageType) {
+                case JOptionPane.ERROR_MESSAGE: typeStr = "ERROR"; break;
+                case JOptionPane.INFORMATION_MESSAGE: typeStr = "INFORMATION"; break;
+                case JOptionPane.WARNING_MESSAGE: typeStr = "WARNING"; break;
+                case JOptionPane.QUESTION_MESSAGE: typeStr = "QUESTION"; break;
+                default: typeStr = "UNKNOWN (" + messageType + ")"; break;
+            }
+            logger.info("PassengerDialog JOptionPane придушено (тестовий режим): Титул='{}', Повідомлення='{}', Тип={}", title, message, typeStr);
+        }
+    }
 
     /**
      * Конструктор для створення діалогового вікна редагування пасажира.
@@ -48,12 +85,12 @@ public class PassengerDialog extends JDialog {
 
         if (passenger == null) {
             logger.error("Критична помилка: об'єкт Passenger є null при ініціалізації PassengerDialog.");
-            JOptionPane.showMessageDialog(null, "Помилка: Не передано дані пасажира для редагування.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(null, "Помилка: Не передано дані пасажира для редагування.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
             throw new IllegalArgumentException("Пасажир не може бути null.");
         }
         if (passengerDAO == null) {
             logger.error("Критична помилка: об'єкт PassengerDAO є null при ініціалізації PassengerDialog.");
-            JOptionPane.showMessageDialog(null, "Помилка: Не передано сервіс для роботи з даними пасажирів.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(null, "Помилка: Не передано сервіс для роботи з даними пасажирів.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
             throw new IllegalArgumentException("PassengerDAO не може бути null.");
         }
 
@@ -66,7 +103,7 @@ public class PassengerDialog extends JDialog {
         pack();
         setLocationRelativeTo(owner);
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        logger.debug("Діалог PassengerDialog успішно ініціалізовано та відображено.");
+        logger.debug("Діалог PassengerDialog успішно ініціалізовано.");
     }
 
     /**
@@ -75,6 +112,8 @@ public class PassengerDialog extends JDialog {
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для PassengerDialog.");
         setLayout(new BorderLayout(10, 10));
+        ((JPanel)getContentPane()).setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
+
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         GridBagConstraints gbc = new GridBagConstraints();
@@ -113,8 +152,8 @@ public class PassengerDialog extends JDialog {
         formPanel.add(cmbBenefitType, gbc);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnSave = new JButton("Зберегти");
-        JButton btnCancel = new JButton("Скасувати");
+        btnSave = new JButton("Зберегти"); // Ініціалізація поля класу
+        btnCancel = new JButton("Скасувати"); // Ініціалізація поля класу
 
         btnSave.addActionListener(this::savePassengerAction);
         btnCancel.addActionListener(e -> {
@@ -134,14 +173,18 @@ public class PassengerDialog extends JDialog {
      * Заповнює поля форми даними поточного пасажира.
      */
     private void populateFields() {
-        logger.debug("Заповнення полів даними пасажира ID: {}", currentPassenger.getId());
+        logger.debug("Заповнення полів даними пасажира ID: {}", (currentPassenger != null ? currentPassenger.getId() : "null_passenger_object"));
         if (currentPassenger != null) {
             txtFullName.setText(currentPassenger.getFullName());
             txtDocumentType.setText(currentPassenger.getDocumentType());
             txtDocumentNumber.setText(currentPassenger.getDocumentNumber());
             txtPhoneNumber.setText(currentPassenger.getPhoneNumber());
             txtEmail.setText(currentPassenger.getEmail() != null ? currentPassenger.getEmail() : "");
-            cmbBenefitType.setSelectedItem(currentPassenger.getBenefitType());
+            if (cmbBenefitType.getItemCount() > 0) { // Перевірка, щоб уникнути помилки, якщо cmb порожній
+                cmbBenefitType.setSelectedItem(currentPassenger.getBenefitType());
+            } else {
+                logger.warn("cmbBenefitType порожній, неможливо встановити пільгу.");
+            }
             logger.trace("Поля заповнені.");
         } else {
             logger.warn("Спроба заповнити поля, але currentPassenger є null.");
@@ -153,6 +196,11 @@ public class PassengerDialog extends JDialog {
      * @param e об'єкт події {@link ActionEvent}.
      */
     private void savePassengerAction(ActionEvent e) {
+        if (currentPassenger == null) {
+            logger.error("Критична помилка: спроба зберегти дані, але currentPassenger є null.");
+            showDialogMessage(this, "Внутрішня помилка: дані пасажира не завантажені.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         logger.info("Спроба зберегти зміни для пасажира ID: {}", currentPassenger.getId());
         String fullName = txtFullName.getText().trim();
         String documentType = txtDocumentType.getText().trim();
@@ -165,12 +213,12 @@ public class PassengerDialog extends JDialog {
 
         if (fullName.isEmpty() || documentType.isEmpty() || documentNumber.isEmpty() || phoneNumber.isEmpty()) {
             logger.warn("Помилка валідації: не заповнені обов'язкові поля.");
-            JOptionPane.showMessageDialog(this, "Будь ласка, заповніть всі обов'язкові поля (ПІБ, Тип та Номер документа, Телефон).", "Помилка валідації", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Будь ласка, заповніть всі обов'язкові поля (ПІБ, Тип та Номер документа, Телефон).", "Помилка валідації", JOptionPane.ERROR_MESSAGE);
             return;
         }
         if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
             logger.warn("Помилка валідації: некоректний формат Email: '{}'", email);
-            JOptionPane.showMessageDialog(this, "Некоректний формат Email.", "Помилка валідації", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Некоректний формат Email.", "Помилка валідації", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -179,7 +227,7 @@ public class PassengerDialog extends JDialog {
         currentPassenger.setDocumentType(documentType);
         currentPassenger.setDocumentNumber(documentNumber);
         currentPassenger.setPhoneNumber(phoneNumber);
-        currentPassenger.setEmail(email.isEmpty() ? null : email);
+        currentPassenger.setEmail(email.isEmpty() ? null : email); // Встановлюємо null, якщо email порожній
         currentPassenger.setBenefitType(selectedBenefit);
 
         try {
@@ -190,14 +238,17 @@ public class PassengerDialog extends JDialog {
                 dispose();
             } else {
                 logger.warn("Не вдалося оновити дані пасажира ID: {} в базі даних (DAO повернув false).", currentPassenger.getId());
-                JOptionPane.showMessageDialog(this, "Не вдалося оновити дані пасажира в базі даних.", "Помилка збереження", JOptionPane.ERROR_MESSAGE);
+                showDialogMessage(this, "Не вдалося оновити дані пасажира в базі даних.", "Помилка збереження", JOptionPane.ERROR_MESSAGE);
             }
         } catch (SQLException ex) {
             logger.error("Помилка бази даних під час оновлення даних пасажира ID: {}.", currentPassenger.getId(), ex);
-            JOptionPane.showMessageDialog(this, "Помилка бази даних під час оновлення даних пасажира: " + ex.getMessage(), "Помилка БД", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Помилка бази даних під час оновлення даних пасажира: " + ex.getMessage(), "Помилка БД", JOptionPane.ERROR_MESSAGE);
+        } catch (IllegalArgumentException exArg) { // Обробка помилок з сеттерів моделі Passenger
+            logger.error("Помилка даних при оновленні пасажира ID: {}: {}", currentPassenger.getId(), exArg.getMessage(), exArg);
+            showDialogMessage(this, "Помилка валідації даних: " + exArg.getMessage(), "Помилка даних", JOptionPane.ERROR_MESSAGE);
         } catch (Exception exGeneral) {
             logger.error("Непередбачена помилка під час оновлення даних пасажира ID: {}.", currentPassenger.getId(), exGeneral);
-            JOptionPane.showMessageDialog(this, "Сталася непередбачена помилка: " + exGeneral.getMessage(), "Внутрішня помилка", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Сталася непередбачена помилка: " + exGeneral.getMessage(), "Внутрішня помилка", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -210,4 +261,14 @@ public class PassengerDialog extends JDialog {
         logger.trace("Перевірка статусу збереження для PassengerDialog: {}", saved);
         return saved;
     }
+
+    // Геттери для компонентів UI, щоб тести мали до них доступ
+    public JTextField getTxtFullName() { return txtFullName; }
+    public JTextField getTxtDocumentNumber() { return txtDocumentNumber; }
+    public JTextField getTxtDocumentType() { return txtDocumentType; }
+    public JTextField getTxtPhoneNumber() { return txtPhoneNumber; }
+    public JTextField getTxtEmail() { return txtEmail; }
+    public JComboBox<BenefitType> getCmbBenefitType() { return cmbBenefitType; }
+    public JButton getBtnSave() { return btnSave; }
+    public JButton getBtnCancel() { return btnCancel; }
 }
