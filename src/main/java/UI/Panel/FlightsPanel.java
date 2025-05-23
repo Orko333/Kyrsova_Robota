@@ -14,6 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder; // Імпорт для EmptyBorder
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -34,93 +35,136 @@ public class FlightsPanel extends JPanel {
 
     private JTable flightsTable;
     private FlightsTableModel flightsTableModel;
-    private JButton btnAddFlight, btnEditFlight, btnCancelFlight, btnRefreshFlights, btnAddNewRoute; // Додано кнопку btnAddNewRoute
+    private JButton btnAddFlight, btnEditFlight, btnCancelFlight, btnRefreshFlights, btnAddNewRoute;
 
     private final FlightDAO flightDAO;
     private final RouteDAO routeDAO;
     private final StopDAO stopDAO;
 
     /**
-     * Конструктор панелі управління рейсами.
-     * Ініціалізує DAO для рейсів, маршрутів та зупинок,
-     * компоненти користувацького інтерфейсу та завантажує початкові дані про рейси.
+     * Конструктор панелі управління рейсами для використання в програмі.
+     * Ініціалізує DAO через new, компоненти UI та завантажує початкові дані про рейси.
      *
-     * @throws RuntimeException якщо не вдалося ініціалізувати один з DAO (FlightDAO, RouteDAO, StopDAO).
+     * @throws RuntimeException якщо не вдалося ініціалізувати один з DAO.
      */
     public FlightsPanel() {
-        logger.info("Ініціалізація FlightsPanel.");
+        // Цей конструктор викликає інший, який ініціалізує DAO.
+        this(createFlightDAOInternal(), createRouteDAOInternal(), createStopDAOInternal());
+        logger.info("FlightsPanel створено з DAO за замовчуванням.");
+    }
+
+    // Допоміжні методи для створення DAO з обробкою помилок
+    private static FlightDAO createFlightDAOInternal() {
         try {
-            this.flightDAO = new FlightDAO();
-            logger.debug("FlightDAO успішно створено.");
+            return new FlightDAO();
         } catch (Exception e) {
-            logger.fatal("Не вдалося створити FlightDAO в FlightsPanel.", e);
-            JOptionPane.showMessageDialog(null, "Критична помилка: не вдалося ініціалізувати сервіс даних рейсів.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
+            logger.fatal("Критична помилка при створенні FlightDAO в конструкторі за замовчуванням.", e);
             throw new RuntimeException("Не вдалося ініціалізувати FlightDAO", e);
         }
+    }
 
+    private static RouteDAO createRouteDAOInternal() {
         try {
-            this.routeDAO = new RouteDAO();
-            logger.debug("RouteDAO успішно створено.");
+            return new RouteDAO();
         } catch (Exception e) {
-            logger.fatal("Не вдалося створити RouteDAO в FlightsPanel.", e);
-            JOptionPane.showMessageDialog(null, "Критична помилка: не вдалося ініціалізувати сервіс даних маршрутів.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
+            logger.fatal("Критична помилка при створенні RouteDAO в конструкторі за замовчуванням.", e);
             throw new RuntimeException("Не вдалося ініціалізувати RouteDAO", e);
         }
+    }
 
+    private static StopDAO createStopDAOInternal() {
         try {
-            this.stopDAO = new StopDAO();
-            logger.debug("StopDAO успішно створено.");
+            return new StopDAO();
         } catch (Exception e) {
-            logger.fatal("Не вдалося створити StopDAO в FlightsPanel.", e);
-            JOptionPane.showMessageDialog(null, "Критична помилка: не вдалося ініціалізувати сервіс даних зупинок.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
+            logger.fatal("Критична помилка при створенні StopDAO в конструкторі за замовчуванням.", e);
             throw new RuntimeException("Не вдалося ініціалізувати StopDAO", e);
         }
+    }
 
+
+    /**
+     * Конструктор панелі управління рейсами для тестування та ін'єкції залежностей.
+     * Ініціалізує компоненти UI та завантажує початкові дані про рейси, використовуючи надані DAO.
+     *
+     * @param flightDAO DAO для роботи з рейсами.
+     * @param routeDAO DAO для роботи з маршрутами.
+     * @param stopDAO DAO для роботи із зупинками.
+     * @throws IllegalArgumentException якщо будь-який з наданих DAO є null.
+     */
+    public FlightsPanel(FlightDAO flightDAO, RouteDAO routeDAO, StopDAO stopDAO) {
+        logger.info("Ініціалізація FlightsPanel з наданими DAO.");
+        if (flightDAO == null || routeDAO == null || stopDAO == null) {
+            logger.fatal("Надані DAO не можуть бути null при створенні FlightsPanel.");
+            throw new IllegalArgumentException("FlightDAO, RouteDAO та StopDAO не можуть бути null.");
+        }
+        this.flightDAO = flightDAO;
+        this.routeDAO = routeDAO;
+        this.stopDAO = stopDAO;
+        logger.debug("DAO успішно присвоєні.");
 
         setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setBorder(new EmptyBorder(10, 10, 10, 10)); // Використовуємо імпортований EmptyBorder
 
         initComponents();
-        loadFlightsData();
+        loadFlightsData(); // Завантажуємо дані після ініціалізації компонентів
         logger.info("FlightsPanel успішно ініціалізовано.");
     }
+
 
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для FlightsPanel.");
         flightsTableModel = new FlightsTableModel(new ArrayList<>());
         flightsTable = new JTable(flightsTableModel);
+        flightsTable.setName("flightsTable"); // ВАЖЛИВО: Ім'я для тестів
         flightsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         flightsTable.setAutoCreateRowSorter(true);
         flightsTable.setFillsViewportHeight(true);
 
-        DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
-        rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-        if (flightsTable.getColumnModel().getColumnCount() > 6) {
-            logger.trace("Налаштування рендерера для стовпців ID, Місць, Ціна.");
-            flightsTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer);
-            flightsTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
-            flightsTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer);
-        } else {
-            logger.warn("Кількість стовпців ({}) менша за 7, рендерер для деяких стовпців може бути не встановлено.", flightsTable.getColumnModel().getColumnCount());
-        }
+        // Налаштування рендерера та ширини стовпців
+        // Краще робити це після того, як таблиця гарантовано має модель стовпців
+        SwingUtilities.invokeLater(() -> {
+            if (flightsTable.getColumnModel().getColumnCount() > 0) { // Перевірка, чи є стовпці
+                DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
+                rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
+                if (flightsTable.getColumnModel().getColumnCount() > 6) {
+                    logger.trace("Налаштування рендерера для стовпців ID, Місць, Ціна.");
+                    try {
+                        flightsTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer); // ID
+                        flightsTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer); // Total Seats
+                        flightsTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); // Price
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        logger.warn("Помилка при налаштуванні рендерера: індекс стовпця поза межами.", e);
+                    }
+                } else {
+                    logger.warn("Кількість стовпців ({}) менша за 7, рендерер для деяких стовпців може бути не встановлено.", flightsTable.getColumnModel().getColumnCount());
+                }
 
-        if (flightsTable.getColumnModel().getColumnCount() > 7) {
-            logger.trace("Налаштування ширини стовпців.");
-            flightsTable.getColumnModel().getColumn(0).setPreferredWidth(40);
-            flightsTable.getColumnModel().getColumn(1).setPreferredWidth(250);
-            flightsTable.getColumnModel().getColumn(2).setPreferredWidth(120);
-            flightsTable.getColumnModel().getColumn(3).setPreferredWidth(120);
-            flightsTable.getColumnModel().getColumn(4).setPreferredWidth(60);
-            flightsTable.getColumnModel().getColumn(5).setPreferredWidth(100);
-            flightsTable.getColumnModel().getColumn(6).setPreferredWidth(80);
-            flightsTable.getColumnModel().getColumn(7).setPreferredWidth(100);
-        } else {
-            logger.warn("Кількість стовпців ({}) менша за 8, ширина деяких стовпців може бути не встановлена.", flightsTable.getColumnModel().getColumnCount());
-        }
+                if (flightsTable.getColumnModel().getColumnCount() > 7) {
+                    logger.trace("Налаштування ширини стовпців.");
+                    try {
+                        flightsTable.getColumnModel().getColumn(0).setPreferredWidth(40);  // ID
+                        flightsTable.getColumnModel().getColumn(1).setPreferredWidth(250); // Маршрут
+                        flightsTable.getColumnModel().getColumn(2).setPreferredWidth(120); // Відправлення
+                        flightsTable.getColumnModel().getColumn(3).setPreferredWidth(120); // Прибуття
+                        flightsTable.getColumnModel().getColumn(4).setPreferredWidth(60);  // Місць
+                        flightsTable.getColumnModel().getColumn(5).setPreferredWidth(100); // Статус
+                        flightsTable.getColumnModel().getColumn(6).setPreferredWidth(80);  // Ціна
+                        flightsTable.getColumnModel().getColumn(7).setPreferredWidth(100); // Автобус
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        logger.warn("Помилка при налаштуванні ширини стовпців: індекс стовпця поза межами.", e);
+                    }
+                } else {
+                    logger.warn("Кількість стовпців ({}) менша за 8, ширина деяких стовпців може бути не встановлена.", flightsTable.getColumnModel().getColumnCount());
+                }
+            } else {
+                logger.warn("Модель стовпців для flightsTable ще не ініціалізована або порожня, налаштування рендерера та ширини відкладено.");
+            }
+        });
+
 
         flightsTable.addMouseListener(new MouseAdapter() {
             public void mousePressed(MouseEvent mouseEvent) {
-                JTable table =(JTable) mouseEvent.getSource();
+                JTable table = (JTable) mouseEvent.getSource();
                 Point point = mouseEvent.getPoint();
                 int row = table.rowAtPoint(point);
                 if (row != -1 && mouseEvent.getClickCount() == 2) {
@@ -138,14 +182,26 @@ public class FlightsPanel extends JPanel {
         });
 
         JScrollPane scrollPane = new JScrollPane(flightsTable);
+        scrollPane.setName("flightsScrollPane"); // Опціонально
         add(scrollPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        // buttonPanel.setName("flightsButtonPanel"); // Опціонально
+
         btnAddFlight = new JButton("Додати рейс");
+        btnAddFlight.setName("btnAddFlight"); // ВАЖЛИВО
+
         btnEditFlight = new JButton("Редагувати рейс");
+        btnEditFlight.setName("btnEditFlight"); // ВАЖЛИВО
+
         btnCancelFlight = new JButton("Скасувати рейс");
+        btnCancelFlight.setName("btnCancelFlight"); // ВАЖЛИВО
+
         btnRefreshFlights = new JButton("Оновити список");
-        btnAddNewRoute = new JButton("Створити маршрут"); // Ініціалізація нової кнопки
+        btnRefreshFlights.setName("btnRefreshFlights"); // ВАЖЛИВО
+
+        btnAddNewRoute = new JButton("Створити маршрут");
+        btnAddNewRoute.setName("btnAddNewRoute"); // ВАЖЛИВО
 
         btnAddFlight.addActionListener(this::addFlightAction);
         btnEditFlight.addActionListener(this::editFlightAction);
@@ -154,13 +210,13 @@ public class FlightsPanel extends JPanel {
             logger.info("Натиснуто кнопку 'Оновити список' рейсів.");
             loadFlightsData();
         });
-        btnAddNewRoute.addActionListener(this::addNewRouteAction); // Додавання слухача подій для нової кнопки
+        btnAddNewRoute.addActionListener(this::addNewRouteAction);
 
         buttonPanel.add(btnAddFlight);
         buttonPanel.add(btnEditFlight);
         buttonPanel.add(btnCancelFlight);
         buttonPanel.add(btnRefreshFlights);
-        buttonPanel.add(btnAddNewRoute); // Додавання нової кнопки на панель
+        buttonPanel.add(btnAddNewRoute);
 
         add(buttonPanel, BorderLayout.SOUTH);
         logger.debug("Компоненти UI для FlightsPanel успішно створені та додані.");
@@ -191,11 +247,18 @@ public class FlightsPanel extends JPanel {
             return;
         }
         logger.debug("Відкриття FlightDialog для редагування рейсу ID: {}", flightToEdit.getId());
+
+        Window topLevelAncestor = SwingUtilities.getWindowAncestor(this);
+        Frame ownerFrame = (topLevelAncestor instanceof Frame) ? (Frame) topLevelAncestor : null;
+        if (ownerFrame == null) {
+            logger.warn("Батьківське вікно не є JFrame, FlightDialog може не мати коректного власника.");
+        }
+
         FlightDialog dialog = new FlightDialog(
-                (Frame) SwingUtilities.getWindowAncestor(this),
+                ownerFrame,
                 "Редагувати рейс ID: " + flightToEdit.getId(),
                 flightDAO,
-                routeDAO,
+                routeDAO, // Передаємо routeDAO
                 flightToEdit
         );
         dialog.setVisible(true);
@@ -209,11 +272,17 @@ public class FlightsPanel extends JPanel {
 
     private void addFlightAction(ActionEvent e) {
         logger.info("Натиснуто кнопку 'Додати рейс'. Відкриття FlightDialog для створення нового рейсу.");
-        FlightDialog dialog = new FlightDialog((Frame) SwingUtilities.getWindowAncestor(this),
+        Window topLevelAncestor = SwingUtilities.getWindowAncestor(this);
+        Frame ownerFrame = (topLevelAncestor instanceof Frame) ? (Frame) topLevelAncestor : null;
+        if (ownerFrame == null) {
+            logger.warn("Батьківське вікно не є JFrame, FlightDialog може не мати коректного власника.");
+        }
+
+        FlightDialog dialog = new FlightDialog(ownerFrame,
                 "Новий рейс",
                 flightDAO,
-                routeDAO,
-                null);
+                routeDAO, // Передаємо routeDAO
+                null); // null для нового рейсу
         dialog.setVisible(true);
         if (dialog.isSaved()) {
             logger.info("Новий рейс було створено та збережено. Оновлення списку рейсів.");
@@ -270,7 +339,7 @@ public class FlightsPanel extends JPanel {
             String routeDescription = (flightToCancel.getRoute() != null && flightToCancel.getRoute().getFullRouteDescription() != null) ? flightToCancel.getRoute().getFullRouteDescription() : "N/A";
             int confirmation = JOptionPane.showConfirmDialog(this,
                     "Ви впевнені, що хочете скасувати рейс ID " + flightToCancel.getId() + " (" + routeDescription + ")?",
-                    "Підтвердження скасування", JOptionPane.YES_NO_OPTION);
+                    "Підтвердження скасування", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE); // Додано тип повідомлення
 
             if (confirmation == JOptionPane.YES_OPTION) {
                 logger.debug("Користувач підтвердив скасування рейсу ID: {}", flightToCancel.getId());
@@ -305,9 +374,15 @@ public class FlightsPanel extends JPanel {
      */
     private void addNewRouteAction(ActionEvent e) {
         logger.info("Натиснуто кнопку 'Створити маршрут'. Відкриття RouteCreationDialog.");
+        Window topLevelAncestor = SwingUtilities.getWindowAncestor(this);
+        Frame ownerFrame = (topLevelAncestor instanceof Frame) ? (Frame) topLevelAncestor : null;
+        if (ownerFrame == null) {
+            logger.warn("Батьківське вікно не є JFrame, RouteCreationDialog може не мати коректного власника.");
+        }
+
         RouteCreationDialog routeDialog = new RouteCreationDialog(
-                (Frame) SwingUtilities.getWindowAncestor(this),
-                stopDAO
+                ownerFrame,
+                stopDAO // Передаємо stopDAO
         );
         routeDialog.setVisible(true);
 
@@ -340,11 +415,20 @@ public class FlightsPanel extends JPanel {
 
     private void handleSqlException(String userMessage, SQLException e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
-        JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
+        // Перевірка, чи компонент видимий, перед показом діалогу
+        if (this.isShowing()) {
+            JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
+        } else {
+            logger.warn("FlightsPanel не видима, JOptionPane для SQLException не буде показано: {}", userMessage);
+        }
     }
 
     private void handleGenericException(String userMessage, Exception e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
-        JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);
+        if (this.isShowing()) {
+            JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);
+        } else {
+            logger.warn("FlightsPanel не видима, JOptionPane для GenericException не буде показано: {}", userMessage);
+        }
     }
 }
