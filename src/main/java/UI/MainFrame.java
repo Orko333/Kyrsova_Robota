@@ -4,6 +4,7 @@ import UI.Panel.FlightsPanel;
 import UI.Panel.PassengersPanel;
 import UI.Panel.ReportsPanel;
 import UI.Panel.TicketsPanel;
+import DB.DatabaseConnectionManager; // Переконайтеся, що цей імпорт правильний
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,13 +13,41 @@ import javax.swing.*;
 import java.awt.*;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Головне вікно програми.
  * Використовує JTabbedPane для організації різних функціональних модулів.
  */
-class MainFrame extends JFrame { // Клас вже існує, ми його доповнюємо
-    private static final Logger logger = LogManager.getLogger("insurance.log"); // Використання логера "insurance.log"
+public class MainFrame extends JFrame {
+    private static final Logger logger = LogManager.getLogger("insurance.log");
+
+    private static final AtomicBoolean suppressMessagesForTesting = new AtomicBoolean(false);
+
+    public static void setSuppressMessagesForTesting(boolean suppress) {
+        suppressMessagesForTesting.set(suppress);
+        if (suppress) {
+            logger.warn("УВАГА: Повідомлення JOptionPane придушені для тестування в MainFrame!");
+        } else {
+            logger.info("Режим придушення повідомлень JOptionPane вимкнено в MainFrame.");
+        }
+    }
+
+    private void showDialogMessage(Component parentComponent, Object message, String title, int messageType) {
+        if (!suppressMessagesForTesting.get()) {
+            JOptionPane.showMessageDialog(parentComponent, message, title, messageType);
+        } else {
+            String typeStr = "";
+            switch (messageType) {
+                case JOptionPane.ERROR_MESSAGE: typeStr = "ERROR"; break;
+                case JOptionPane.INFORMATION_MESSAGE: typeStr = "INFORMATION"; break;
+                case JOptionPane.WARNING_MESSAGE: typeStr = "WARNING"; break;
+                case JOptionPane.QUESTION_MESSAGE: typeStr = "QUESTION"; break;
+                default: typeStr = "UNKNOWN (" + messageType + ")"; break;
+            }
+            logger.info("MainFrame JOptionPane придушено (тестовий режим): Титул='{}', Повідомлення='{}', Тип={}", title, message, typeStr);
+        }
+    }
 
     public MainFrame() {
         logger.info("Ініціалізація головного вікна програми (MainFrame).");
@@ -28,7 +57,6 @@ class MainFrame extends JFrame { // Клас вже існує, ми його д
         JTabbedPane tabbedPane = new JTabbedPane();
         logger.debug("Створено JTabbedPane.");
 
-        // Вкладка "Управління рейсами"
         try {
             logger.debug("Створення FlightsPanel...");
             FlightsPanel flightsPanel = new FlightsPanel();
@@ -36,11 +64,9 @@ class MainFrame extends JFrame { // Клас вже існує, ми його д
             logger.info("Вкладку 'Управління рейсами' додано.");
         } catch (Exception e) {
             logger.error("Помилка при створенні або додаванні FlightsPanel.", e);
-            JOptionPane.showMessageDialog(this, "Помилка завантаження модуля управління рейсами: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Помилка завантаження модуля управління рейсами: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
         }
 
-
-        // Вкладка "Квитки"
         try {
             logger.debug("Створення TicketsPanel...");
             TicketsPanel ticketsPanel = new TicketsPanel();
@@ -48,9 +74,8 @@ class MainFrame extends JFrame { // Клас вже існує, ми його д
             logger.info("Вкладку 'Квитки' додано.");
         } catch (Exception e) {
             logger.error("Помилка при створенні або додаванні TicketsPanel.", e);
-            JOptionPane.showMessageDialog(this, "Помилка завантаження модуля квитків: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Помилка завантаження модуля квитків: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
         }
-
 
         try {
             logger.debug("Створення PassengersPanel...");
@@ -59,11 +84,9 @@ class MainFrame extends JFrame { // Клас вже існує, ми його д
             logger.info("Вкладку 'Пасажири' додано.");
         } catch (Exception e) {
             logger.error("Помилка при створенні або додаванні PassengersPanel.", e);
-            JOptionPane.showMessageDialog(this, "Помилка завантаження модуля пасажирів: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Помилка завантаження модуля пасажирів: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
         }
 
-
-        // Нова вкладка "Звітність"
         try {
             logger.debug("Створення ReportsPanel...");
             ReportsPanel reportsPanel = new ReportsPanel();
@@ -71,24 +94,17 @@ class MainFrame extends JFrame { // Клас вже існує, ми його д
             logger.info("Вкладку 'Звітність' додано.");
         } catch (Exception e) {
             logger.error("Помилка при створенні або додаванні ReportsPanel.", e);
-            JOptionPane.showMessageDialog(this, "Помилка завантаження модуля звітності: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Помилка завантаження модуля звітності: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
         }
 
-
         add(tabbedPane);
-        pack(); // Підганяє розмір вікна під вміст
-        setMinimumSize(new Dimension(800, 600)); // Мінімальний розмір
-        setLocationRelativeTo(null); // Центрувати вікно на екрані
+        pack();
+        setMinimumSize(new Dimension(800, 600));
+        setLocationRelativeTo(null);
         logger.info("Головне вікно програми успішно налаштовано.");
     }
 
-    /**
-     * Допоміжний метод для завантаження іконки.
-     * Іконки мають бути в каталозі resources/icons (створіть його).
-     * @param path Шлях до файлу іконки відносно classpath (напр., "/icons/my_icon.png").
-     * @return ImageIcon або null, якщо іконку не знайдено.
-     */
-    protected ImageIcon createIcon(String path) {
+    public ImageIcon createIcon(String path) {
         logger.trace("Спроба завантажити іконку за шляхом: {}", path);
         java.net.URL imgURL = getClass().getResource(path);
         if (imgURL != null) {
@@ -100,11 +116,10 @@ class MainFrame extends JFrame { // Клас вже існує, ми його д
         }
     }
 
-    public static void main(String[] args) {
-        logger.info("Запуск програми 'Автоматизована система управління автовокзалом'.");
-
+    // Рефакторизовані методи для кращої тестуємості
+    public static void setupLookAndFeel() {
+        logger.debug("Спроба встановити FlatLaf LookAndFeel.");
         try {
-            logger.debug("Спроба встановити FlatLaf LookAndFeel.");
             UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatIntelliJLaf());
             logger.info("FlatLaf LookAndFeel успішно встановлено.");
         } catch (Exception ex) {
@@ -121,39 +136,61 @@ class MainFrame extends JFrame { // Клас вже існує, ми його д
                 logger.error("Не вдалося встановити Nimbus LookAndFeel. Буде використано стандартний L&F.", e);
             }
         }
+    }
 
-        SwingUtilities.invokeLater(() -> {
-            logger.debug("Перевірка підключення до бази даних перед запуском GUI.");
-            try (Connection conn = DB.DatabaseConnectionManager.getConnection()) {
-                if (conn == null || conn.isClosed()) {
-                    logger.fatal("Критична помилка: не вдалося підключитися до бази даних (з'єднання null або закрите). Програма завершує роботу.");
+    public static boolean checkDatabaseConnection() {
+        logger.debug("Перевірка підключення до бази даних.");
+        try (Connection conn = DatabaseConnectionManager.getConnection()) {
+            if (conn == null || conn.isClosed()) {
+                logger.fatal("Критична помилка: не вдалося підключитися до бази даних (з'єднання null або закрите).");
+                if (!suppressMessagesForTesting.get()) {
                     JOptionPane.showMessageDialog(null,
                             "Не вдалося підключитися до бази даних. Програма не може продовжити роботу.\n" +
                                     "Перевірте налаштування в 'db.properties' та доступність сервера MySQL.",
                             "Критична помилка БД", JOptionPane.ERROR_MESSAGE);
-                    System.exit(1);
                 }
-                logger.info("Підключення до БД успішне. Запускаємо GUI...");
-            } catch (SQLException ex) {
-                logger.fatal("Критична помилка підключення до бази даних. Програма завершує роботу.", ex);
+                return false;
+            }
+            logger.info("Підключення до БД успішне.");
+            return true;
+        } catch (SQLException ex) {
+            logger.fatal("Критична помилка підключення до бази даних.", ex);
+            if (!suppressMessagesForTesting.get()) {
                 JOptionPane.showMessageDialog(null,
                         "Помилка підключення до бази даних: " + ex.getMessage() + "\n" +
                                 "Програма не може продовжити роботу. Перевірте консоль для деталей.",
                         "Критична помилка БД", JOptionPane.ERROR_MESSAGE);
-                System.exit(1); // Завершення програми, якщо немає з'єднання з БД
-            } catch (Exception ex) { // Для інших можливих винятків при отриманні з'єднання
-                logger.fatal("Непередбачена критична помилка під час перевірки з'єднання з БД. Програма завершує роботу.", ex);
+            }
+            return false;
+        } catch (Exception ex) {
+            logger.fatal("Непередбачена критична помилка під час перевірки з'єднання з БД.", ex);
+            if (!suppressMessagesForTesting.get()) {
                 JOptionPane.showMessageDialog(null,
                         "Непередбачена помилка під час ініціалізації з'єднання з БД: " + ex.getMessage() + "\n" +
                                 "Програма не може продовжити роботу.",
                         "Критична помилка", JOptionPane.ERROR_MESSAGE);
-                System.exit(1);
             }
+            return false;
+        }
+    }
 
-            logger.debug("Створення екземпляра MainFrame.");
-            MainFrame mainFrame = new MainFrame();
-            mainFrame.setVisible(true);
-            logger.info("Головне вікно програми відображено.");
-        });
+    // Зроблено package-private або public для тестування
+    static void createAndShowGUI() {
+        if (!checkDatabaseConnection()) {
+            logger.fatal("Завершення роботи програми через помилку підключення до БД.");
+            System.exit(1);
+            return;
+        }
+
+        logger.debug("Створення екземпляра MainFrame.");
+        MainFrame mainFrameInstance = new MainFrame();
+        mainFrameInstance.setVisible(true);
+        logger.info("Головне вікно програми відображено.");
+    }
+
+    public static void main(String[] args) {
+        logger.info("Запуск програми 'Автоматизована система управління автовокзалом'.");
+        setupLookAndFeel();
+        SwingUtilities.invokeLater(MainFrame::createAndShowGUI);
     }
 }
