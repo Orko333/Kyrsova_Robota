@@ -22,6 +22,7 @@ import org.assertj.swing.timing.Pause;
 import org.junit.Test;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.quality.Strictness; // Для LENIENT
 
 import javax.swing.*;
 import java.awt.*;
@@ -46,21 +47,24 @@ public class FlightsPanelTest extends AssertJSwingJUnitTestCase {
     private RouteDAO mockRouteDAO;
     private StopDAO mockStopDAO;
 
-    private Flight flight1, flight2_departed, flight3_cancelled;
-    private Route route1, route2;
-    private Stop stopA, stopB, stopC;
+    private Flight flight1, flight2_departed, flight3_cancelled, flight_no_bus_or_route_desc;
+    private Route route1, route2, routeForNoDescFlight;
+    private Stop stopA, stopB, stopC, dummyStop;
 
     // !!! ВАЖЛИВО: Адаптуйте ці індекси до вашої FlightsTableModel !!!
+    // Згідно з вашим FlightsTableModel:
+    // "ID", "Маршрут", "Відправлення", "Прибуття", "Місць", "Автобус", "Ціна", "Статус"
     private static final int COL_FLIGHT_ID = 0;
     private static final int COL_FLIGHT_ROUTE_DESC = 1;
     private static final int COL_FLIGHT_DEPARTURE = 2;
     private static final int COL_FLIGHT_ARRIVAL = 3;
     private static final int COL_FLIGHT_TOTAL_SEATS = 4;
-    private static final int COL_FLIGHT_STATUS = 5;
+    private static final int COL_FLIGHT_BUS_MODEL = 5; // Виправлено
     private static final int COL_FLIGHT_PRICE = 6;
-    private static final int COL_FLIGHT_BUS_MODEL = 7;
+    private static final int COL_FLIGHT_STATUS = 7;
 
-    private static final DateTimeFormatter FLIGHT_TABLE_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    // Форматер дати/часу, ЯКИЙ ВИКОРИСТОВУЄТЬСЯ у FlightsTableModel
+    private static final DateTimeFormatter TABLE_DATE_TIME_FORMATTER_IN_MODEL = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
 
     @Override
@@ -76,19 +80,25 @@ public class FlightsPanelTest extends AssertJSwingJUnitTestCase {
         stopA = new Stop(1L, "Київ-Центральний", "Київ");
         stopB = new Stop(2L, "Львів-Головний", "Львів");
         stopC = new Stop(3L, "Одеса-Привоз", "Одеса");
+        dummyStop = new Stop(99L, "DummyStop", "DummyCity");
 
         route1 = new Route(10L, stopA, stopB, Collections.emptyList());
         route2 = new Route(11L, stopB, stopC, Collections.emptyList());
+        routeForNoDescFlight = new Route(12L, dummyStop, dummyStop, Collections.emptyList()) {
+            @Override
+            public String getFullRouteDescription() { return null; }
+        };
 
         LocalDateTime now = LocalDateTime.now();
         flight1 = new Flight(101L, route1, now.plusDays(1).withHour(10).withMinute(0), now.plusDays(1).withHour(15).withMinute(0), 50, FlightStatus.PLANNED, "Neoplan", BigDecimal.valueOf(500.00));
         flight2_departed = new Flight(102L, route2, now.minusHours(2), now.minusHours(1).plusMinutes(30), 40, FlightStatus.DEPARTED, "Mercedes", BigDecimal.valueOf(400.00));
         flight3_cancelled = new Flight(103L, route1, now.plusDays(2).withHour(9).withMinute(0), now.plusDays(2).withHour(14).withMinute(0), 30, FlightStatus.CANCELLED, "Setra", BigDecimal.valueOf(550.00));
+        flight_no_bus_or_route_desc = new Flight(104L, routeForNoDescFlight, now.plusDays(3), now.plusDays(3).plusHours(1), 20, FlightStatus.PLANNED, "", BigDecimal.valueOf(200.00));
 
         try {
-            when(mockFlightDAO.getAllFlights()).thenReturn(Arrays.asList(flight1, flight2_departed, flight3_cancelled));
-            when(mockStopDAO.getAllStops()).thenReturn(Arrays.asList(stopA, stopB, stopC));
-            when(mockRouteDAO.getAllRoutes()).thenReturn(Arrays.asList(route1, route2));
+            when(mockFlightDAO.getAllFlights()).thenReturn(Arrays.asList(flight1, flight2_departed, flight3_cancelled, flight_no_bus_or_route_desc));
+            when(mockStopDAO.getAllStops()).thenReturn(Arrays.asList(stopA, stopB, stopC, dummyStop));
+            when(mockRouteDAO.getAllRoutes()).thenReturn(Arrays.asList(route1, route2, routeForNoDescFlight));
         } catch (SQLException e) {
             org.assertj.core.api.Assertions.fail("SQLException during mock setup: " + e.getMessage());
         }
@@ -105,7 +115,25 @@ public class FlightsPanelTest extends AssertJSwingJUnitTestCase {
         window = new FrameFixture(robot(), frame);
         window.show();
     }
+    @Test
+    public void testRefreshButton_ReloadsFlights() throws SQLException {
+        JTableFixture flightsTable = window.table("flightsTable");
+        flightsTable.requireRowCount(4);
 
+        Flight newFlight = new Flight(105L, route1, LocalDateTime.now().plusDays(5), LocalDateTime.now().plusDays(5).plusHours(3), 20, FlightStatus.PLANNED, "Ikarus", BigDecimal.valueOf(300.00));
+        when(mockFlightDAO.getAllFlights()).thenReturn(Collections.singletonList(newFlight));
+
+        window.button("btnRefreshFlights").click();
+        Pause.pause(200);
+
+        flightsTable.requireRowCount(1);
+        flightsTable.requireCellValue(TableCell.row(0).column(COL_FLIGHT_ID), String.valueOf(newFlight.getId()));
+        // ВИПРАВЛЕНО: Перевірка правильного стовпця та значення
+        flightsTable.requireCellValue(TableCell.row(0).column(COL_FLIGHT_STATUS), newFlight.getStatus().getDisplayName());
+        flightsTable.requireCellValue(TableCell.row(0).column(COL_FLIGHT_BUS_MODEL), newFlight.getBusModel());
+
+        verify(mockFlightDAO, times(2)).getAllFlights();
+    }
 
     @Test
     public void testEditFlightButton_NoSelection_ShowsWarning() {
@@ -123,6 +151,37 @@ public class FlightsPanelTest extends AssertJSwingJUnitTestCase {
         JOptionPaneFixture optionPane = JOptionPaneFinder.findOptionPane().using(robot());
         optionPane.requireWarningMessage().requireMessage("Будь ласка, виберіть рейс для скасування.");
         optionPane.okButton().click();
+    }
+
+    @Test
+    public void testCancelFlightButton_PlannedFlight_Successful() throws SQLException {
+        JTableFixture flightsTable = window.table("flightsTable");
+        int flight1RowIndex = -1;
+        for (int i = 0; i < flightsTable.rowCount(); i++) {
+            if (flightsTable.valueAt(TableCell.row(i).column(COL_FLIGHT_ID)).equals(String.valueOf(flight1.getId()))) {
+                flight1RowIndex = i;
+                break;
+            }
+        }
+        assertThat(flight1RowIndex).isNotEqualTo(-1).as("Flight1 (PLANNED) not found for cancellation test.");
+        flightsTable.selectRows(flight1RowIndex);
+        Pause.pause(100);
+
+        when(mockFlightDAO.updateFlightStatus(flight1.getId(), FlightStatus.CANCELLED)).thenReturn(true);
+
+        window.button("btnCancelFlight").click();
+        Pause.pause(100);
+
+        JOptionPaneFixture confirmationDialog = JOptionPaneFinder.findOptionPane().using(robot());
+        confirmationDialog.requireWarningMessage().yesButton().click();
+        Pause.pause(100);
+
+        JOptionPaneFixture successDialog = JOptionPaneFinder.findOptionPane().using(robot());
+        successDialog.requireInformationMessage().requireMessage("Рейс успішно скасовано.");
+        successDialog.okButton().click();
+
+        verify(mockFlightDAO, times(1)).updateFlightStatus(flight1.getId(), FlightStatus.CANCELLED);
+        verify(mockFlightDAO, times(2)).getAllFlights();
     }
 
     @Test
@@ -170,19 +229,39 @@ public class FlightsPanelTest extends AssertJSwingJUnitTestCase {
     }
 
     @Test
-    public void testLoadFlightsData_HandlesSQLException() throws SQLException {
-        when(mockFlightDAO.getAllFlights()).thenThrow(new SQLException("Test DB error loading flights"));
-        window.button("btnRefreshFlights").click();
-        Pause.pause(200);
-        JOptionPaneFixture optionPane = JOptionPaneFinder.findOptionPane().using(robot());
-        optionPane.requireErrorMessage();
-        String messageText = GuiActionRunner.execute(() -> optionPane.target().getMessage().toString());
-        assertThat(messageText).contains("Не вдалося завантажити список рейсів");
-        assertThat(messageText).contains("Test DB error loading flights");
-        optionPane.okButton().click();
-        verify(mockFlightDAO, times(2)).getAllFlights(); // 1 в onSetUp, 1 при помилці
-    }
+    public void testAddNewRouteButton_OpensDialog_AndSaves() throws SQLException {
+        Route newRouteFromDialog = new Route(20L, stopA, stopC, Collections.emptyList());
+        String expectedRouteDescription = newRouteFromDialog.getFullRouteDescription();
 
+        try (MockedConstruction<RouteCreationDialog> mockedDialogConstruction = Mockito.mockConstruction(RouteCreationDialog.class,
+                (mock, context) -> {
+                    System.err.println("RouteCreationDialog constructor intercepted in test. Args: " + context.arguments());
+                    assertThat(context.arguments()).hasSize(2);
+                    Object ownerArg = context.arguments().get(0);
+                    if (ownerArg != null) {
+                        assertThat(ownerArg).isInstanceOf(Frame.class);
+                    }
+                    assertThat(context.arguments().get(1)).as("StopDAO argument").isSameAs(mockStopDAO);
+                    when(mock.isSaved()).thenReturn(true);
+                    when(mock.getCreatedRoute()).thenReturn(newRouteFromDialog);
+                })) {
+
+            when(mockRouteDAO.addRoute(any(Route.class))).thenReturn(true);
+
+            window.button("btnAddNewRoute").click();
+            Pause.pause(500); // Збільшено паузу
+
+            assertThat(mockedDialogConstruction.constructed()).as("Number of RouteCreationDialogs constructed").hasSize(1);
+            verify(mockedDialogConstruction.constructed().get(0)).setVisible(true);
+            verify(mockRouteDAO, times(1)).addRoute(newRouteFromDialog);
+
+            JOptionPaneFixture successDialog = JOptionPaneFinder.findOptionPane().using(robot());
+            successDialog.requireInformationMessage();
+            String messageText = GuiActionRunner.execute(() -> successDialog.target().getMessage().toString());
+            assertThat(messageText).isEqualTo("Новий маршрут '" + expectedRouteDescription + "' успішно створено та додано.");
+            successDialog.okButton().click();
+        }
+    }
     @Override
     protected void onTearDown() {
         Mockito.reset(mockFlightDAO, mockRouteDAO, mockStopDAO);

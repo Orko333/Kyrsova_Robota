@@ -10,23 +10,21 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 
 import java.awt.*;
-import java.util.List;
 import java.awt.event.ActionEvent;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Панель для управління бронюваннями та продажем квитків.
  * Надає користувацький інтерфейс для перегляду списку квитків,
  * їх фільтрації за статусом, а також для виконання операцій продажу
  * та скасування квитків/бронювань.
- *
- * @author [Ваше ім'я або назва команди]
- * @version 1.1
  */
 public class BookingsManagementPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
@@ -36,7 +34,7 @@ public class BookingsManagementPanel extends JPanel {
     private JComboBox<TicketStatus> cmbStatusFilter;
     private JButton btnSellTicket, btnCancelBookingTicket, btnRefresh;
 
-    private TicketDAO ticketDAO;
+    private final TicketDAO ticketDAO;
 
     /**
      * Конструктор панелі управління бронюваннями.
@@ -44,38 +42,58 @@ public class BookingsManagementPanel extends JPanel {
      * У разі критичної помилки ініціалізації DAO, робота панелі припиняється.
      */
     public BookingsManagementPanel() {
-        logger.info("Ініціалізація BookingsManagementPanel.");
+        this(createTicketDAOInternal());
+        logger.info("BookingsManagementPanel створено з DAO за замовчуванням.");
+    }
+
+    private static TicketDAO createTicketDAOInternal() {
         try {
-            this.ticketDAO = new TicketDAO();
-            logger.debug("TicketDAO успішно створено.");
+            return new TicketDAO();
         } catch (Exception e) {
-            logger.fatal("Не вдалося створити TicketDAO в BookingsManagementPanel.", e);
-            JOptionPane.showMessageDialog(this, "Критична помилка: не вдалося ініціалізувати сервіс даних квитків.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
-            return;
+            // Логування вже є в конструкторі, що приймає DAO
+            // JOptionPane.showMessageDialog не може бути тут, оскільки це статичний метод
+            throw new RuntimeException("Не вдалося ініціалізувати TicketDAO для BookingsManagementPanel", e);
         }
+    }
+
+    /**
+     * Конструктор панелі управління бронюваннями для тестування та ін'єкції залежностей.
+     * @param ticketDAO DAO для роботи з квитками.
+     * @throws IllegalArgumentException якщо наданий ticketDAO є null.
+     */
+    public BookingsManagementPanel(TicketDAO ticketDAO) {
+        logger.info("Ініціалізація BookingsManagementPanel з наданим DAO.");
+        if (ticketDAO == null) {
+            logger.fatal("Наданий TicketDAO не може бути null при створенні BookingsManagementPanel.");
+            JOptionPane.showMessageDialog(this, "Критична помилка: не вдалося ініціалізувати сервіс даних квитків.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
+            throw new IllegalArgumentException("TicketDAO не може бути null.");
+        }
+        this.ticketDAO = ticketDAO;
+        logger.debug("TicketDAO успішно присвоєно.");
 
         setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setBorder(new EmptyBorder(10, 10, 10, 10));
         initComponents();
         loadBookingsData(null);
         logger.info("BookingsManagementPanel успішно ініціалізовано.");
     }
 
+
     /**
      * Ініціалізує та розміщує компоненти користувацького інтерфейсу панелі.
-     * Створює фільтр за статусом, таблицю для відображення квитків,
-     * та кнопки для виконання операцій "Продати квиток", "Скасувати бронювання/квиток"
-     * та "Оновити".
      */
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для BookingsManagementPanel.");
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        filterPanel.setName("filterPanel");
         filterPanel.add(new JLabel("Фільтр за статусом:"));
+
         TicketStatus[] statusesWithAll = new TicketStatus[TicketStatus.values().length + 1];
-        statusesWithAll[0] = null; // Для опції "Всі"
+        statusesWithAll[0] = null;
         System.arraycopy(TicketStatus.values(), 0, statusesWithAll, 1, TicketStatus.values().length);
 
         cmbStatusFilter = new JComboBox<>(statusesWithAll);
+        cmbStatusFilter.setName("cmbStatusFilter");
         cmbStatusFilter.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
@@ -96,6 +114,7 @@ public class BookingsManagementPanel extends JPanel {
         filterPanel.add(cmbStatusFilter);
 
         btnRefresh = new JButton("Оновити");
+        btnRefresh.setName("btnRefresh");
         btnRefresh.addActionListener(e -> {
             TicketStatus selectedStatus = (TicketStatus) cmbStatusFilter.getSelectedItem();
             logger.info("Натиснуто кнопку 'Оновити'. Поточний фільтр: {}", (selectedStatus != null ? selectedStatus.getDisplayName() : "Всі статуси"));
@@ -105,21 +124,39 @@ public class BookingsManagementPanel extends JPanel {
 
         bookingsTableModel = new BookingsTableModel(new ArrayList<>());
         bookingsTable = new JTable(bookingsTableModel);
+        bookingsTable.setName("bookingsTable");
         bookingsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         bookingsTable.setAutoCreateRowSorter(true);
-        DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
-        rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-        if (bookingsTable.getColumnModel().getColumnCount() > 7) {
-            bookingsTable.getColumnModel().getColumn(7).setCellRenderer(rightRenderer); // Ціна
-        } else {
-            logger.warn("Не вдалося знайти стовпець 'Ціна' (індекс 7) для налаштування рендерера.");
-        }
+
+        SwingUtilities.invokeLater(() -> {
+            if (bookingsTable.getColumnModel().getColumnCount() > 0) {
+                DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
+                rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
+                // Припускаємо, що стовпець "Ціна" має індекс 6 (0-TicketID, 1-FlightID, 2-Passenger, 3-Seat, 4-Route, 5-Departure, 6-Price, 7-Status)
+                // Адаптуйте цей індекс, якщо ваша модель таблиці інша
+                final int priceColumnIndex = 6;
+                if (bookingsTable.getColumnModel().getColumnCount() > priceColumnIndex) {
+                    try {
+                        bookingsTable.getColumnModel().getColumn(priceColumnIndex).setCellRenderer(rightRenderer);
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        logger.warn("Помилка при налаштуванні рендерера для стовпця Ціна (індекс {}): {}", priceColumnIndex, e.getMessage());
+                    }
+                } else {
+                    logger.warn("Не вдалося знайти стовпець 'Ціна' (індекс {}) для налаштування рендерера.", priceColumnIndex);
+                }
+            }
+        });
+
 
         JScrollPane scrollPane = new JScrollPane(bookingsTable);
+        scrollPane.setName("bookingsScrollPane");
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        buttonPanel.setName("bookingsButtonPanel");
         btnSellTicket = new JButton("Продати квиток");
+        btnSellTicket.setName("btnSellTicket");
         btnCancelBookingTicket = new JButton("Скасувати бронювання/квиток");
+        btnCancelBookingTicket.setName("btnCancelBookingTicket");
 
         btnSellTicket.addActionListener(this::sellTicketAction);
         btnCancelBookingTicket.addActionListener(this::cancelTicketAction);
@@ -142,9 +179,7 @@ public class BookingsManagementPanel extends JPanel {
     }
 
     /**
-     * Оновлює стан активності кнопок "Продати квиток" та "Скасувати бронювання/квиток"
-     * залежно від статусу обраного квитка в таблиці.
-     * Якщо жоден квиток не обрано, кнопки деактивуються.
+     * Оновлює стан активності кнопок "Продати квиток" та "Скасувати бронювання/квиток".
      */
     private void updateButtonStates() {
         int selectedRow = bookingsTable.getSelectedRow();
@@ -168,7 +203,25 @@ public class BookingsManagementPanel extends JPanel {
 
         logger.debug("Оновлення стану кнопок для квитка ID: {}, Статус: {}", selectedTicket.getId(), selectedTicket.getStatus());
         btnSellTicket.setEnabled(selectedTicket.getStatus() == TicketStatus.BOOKED);
-        btnCancelBookingTicket.setEnabled(selectedTicket.getStatus() == TicketStatus.BOOKED || selectedTicket.getStatus() == TicketStatus.SOLD);
+        // Дозволяємо скасування, якщо квиток заброньований або проданий (і рейс ще не відбувся)
+        boolean canCancel = selectedTicket.getStatus() == TicketStatus.BOOKED || selectedTicket.getStatus() == TicketStatus.SOLD;
+        if (canCancel && selectedTicket.getFlight() != null && selectedTicket.getFlight().getDepartureDateTime() != null) {
+            // Додатково перевіряємо, чи рейс не відбувся і чи він не має статусу, що забороняє скасування
+            boolean flightNotDepartedOrArrived = selectedTicket.getFlight().getStatus() != FlightStatus.DEPARTED &&
+                    selectedTicket.getFlight().getStatus() != FlightStatus.ARRIVED;
+            boolean flightIsCancellable = selectedTicket.getFlight().getStatus() == FlightStatus.PLANNED ||
+                    selectedTicket.getFlight().getStatus() == FlightStatus.DELAYED;
+
+            // Квиток можна скасувати, якщо рейс ще не відбувся і він запланований/відкладений, АБО якщо час відправлення ще не настав
+            // Ця логіка дублюється в cancelTicketAction, можливо, варто винести в окремий метод
+            canCancel = (selectedTicket.getFlight().getDepartureDateTime().isAfter(LocalDateTime.now()) && flightIsCancellable) ||
+                    (selectedTicket.getStatus() == TicketStatus.BOOKED); // Бронювання можна скасувати до оплати незалежно від статусу рейсу, якщо він не відбувся
+        } else if (selectedTicket.getFlight() == null) {
+            canCancel = false; // Немає інформації про рейс, не можна визначити можливість скасування
+        }
+
+
+        btnCancelBookingTicket.setEnabled(canCancel);
         logger.trace("Стан кнопок: Продати={}, Скасувати={}", btnSellTicket.isEnabled(), btnCancelBookingTicket.isEnabled());
     }
 
@@ -185,33 +238,29 @@ public class BookingsManagementPanel extends JPanel {
             bookingsTableModel.setTickets(tickets);
             logger.info("Успішно завантажено {} квитків.", tickets.size());
         } catch (SQLException e) {
-            logger.error("Помилка завантаження списку квитків. Фільтр: {}.", statusForLog, e);
-            JOptionPane.showMessageDialog(this, "Помилка завантаження списку квитків: " + e.getMessage(), "Помилка БД", JOptionPane.ERROR_MESSAGE);
+            handleSqlException("Помилка завантаження списку квитків. Фільтр: " + statusForLog, e);
         } catch (Exception e) {
-            logger.error("Непередбачена помилка при завантаженні списку квитків. Фільтр: {}.", statusForLog, e);
-            JOptionPane.showMessageDialog(this, "Непередбачена помилка: " + e.getMessage(), "Помилка", JOptionPane.ERROR_MESSAGE);
+            handleGenericException("Непередбачена помилка при завантаженні списку квитків. Фільтр: " + statusForLog, e);
         }
-        updateButtonStates();
+        updateButtonStates(); // Оновлюємо стан кнопок після завантаження даних
     }
 
     /**
      * Обробляє дію продажу обраного квитка.
-     * Змінює статус квитка на {@link TicketStatus#SOLD} та встановлює поточну дату як дату продажу.
-     * Попередньо запитує підтвердження у користувача.
      * @param e Об'єкт події {@link ActionEvent}.
      */
     private void sellTicketAction(ActionEvent e) {
         int selectedRow = bookingsTable.getSelectedRow();
         if (selectedRow == -1) {
             logger.warn("Спроба продати квиток, але жоден рядок не вибрано.");
+            // JOptionPane не потрібен, бо кнопка має бути неактивна
             return;
         }
         int modelRow = bookingsTable.convertRowIndexToModel(selectedRow);
         Ticket ticketToSell = bookingsTableModel.getTicketAt(modelRow);
 
         if (ticketToSell == null) {
-            logger.error("Не вдалося отримати квиток для продажу. Модельний індекс: {}", modelRow);
-            JOptionPane.showMessageDialog(this, "Помилка: не вдалося отримати дані вибраного квитка.", "Помилка", JOptionPane.ERROR_MESSAGE);
+            handleGenericException("Не вдалося отримати дані вибраного квитка для продажу.", new IllegalStateException("Selected ticket is null at model row " + modelRow));
             return;
         }
 
@@ -221,7 +270,7 @@ public class BookingsManagementPanel extends JPanel {
         if (ticketToSell.getStatus() == TicketStatus.BOOKED) {
             int confirmation = JOptionPane.showConfirmDialog(this,
                     "Продати квиток ID " + ticketToSell.getId() + " пасажиру " + ticketToSell.getPassenger().getFullName() + "?",
-                    "Підтвердження продажу", JOptionPane.YES_NO_OPTION);
+                    "Підтвердження продажу", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
             if (confirmation == JOptionPane.YES_OPTION) {
                 logger.debug("Користувач підтвердив продаж квитка ID: {}", ticketToSell.getId());
                 try {
@@ -230,15 +279,12 @@ public class BookingsManagementPanel extends JPanel {
                         JOptionPane.showMessageDialog(this, "Квиток успішно продано.", "Успіх", JOptionPane.INFORMATION_MESSAGE);
                         loadBookingsData((TicketStatus) cmbStatusFilter.getSelectedItem());
                     } else {
-                        logger.warn("Не вдалося продати квиток ID: {} (DAO повернув false).", ticketToSell.getId());
-                        JOptionPane.showMessageDialog(this, "Не вдалося продати квиток.", "Помилка", JOptionPane.ERROR_MESSAGE);
+                        handleGenericException("Не вдалося продати квиток (операція DAO не вдалася).", new SQLException("DAO returned false for ticket sale."));
                     }
                 } catch (SQLException ex) {
-                    logger.error("Помилка БД при продажу квитка ID: {}.", ticketToSell.getId(), ex);
-                    JOptionPane.showMessageDialog(this, "Помилка БД при продажу: " + ex.getMessage(), "Помилка БД", JOptionPane.ERROR_MESSAGE);
+                    handleSqlException("Помилка БД при продажу квитка ID: " + ticketToSell.getId(), ex);
                 } catch (Exception exGeneral) {
-                    logger.error("Непередбачена помилка при продажу квитка ID: {}.", ticketToSell.getId(), exGeneral);
-                    JOptionPane.showMessageDialog(this, "Непередбачена помилка: " + exGeneral.getMessage(), "Помилка", JOptionPane.ERROR_MESSAGE);
+                    handleGenericException("Непередбачена помилка при продажу квитка ID: " + ticketToSell.getId(), exGeneral);
                 }
             } else {
                 logger.debug("Користувач скасував продаж квитка ID: {}", ticketToSell.getId());
@@ -251,9 +297,6 @@ public class BookingsManagementPanel extends JPanel {
 
     /**
      * Обробляє дію скасування обраного квитка або бронювання.
-     * Змінює статус квитка на {@link TicketStatus#CANCELLED}.
-     * Забороняє скасування квитків на рейси, що вже відбулися або мають статус, який не дозволяє скасування.
-     * Попередньо запитує підтвердження у користувача.
      * @param e Об'єкт події {@link ActionEvent}.
      */
     private void cancelTicketAction(ActionEvent e) {
@@ -266,8 +309,7 @@ public class BookingsManagementPanel extends JPanel {
         Ticket ticketToCancel = bookingsTableModel.getTicketAt(modelRow);
 
         if (ticketToCancel == null) {
-            logger.error("Не вдалося отримати квиток для скасування. Модельний індекс: {}", modelRow);
-            JOptionPane.showMessageDialog(this, "Помилка: не вдалося отримати дані вибраного квитка.", "Помилка", JOptionPane.ERROR_MESSAGE);
+            handleGenericException("Не вдалося отримати дані вибраного квитка для скасування.", new IllegalStateException("Selected ticket for cancellation is null at model row " + modelRow));
             return;
         }
 
@@ -277,24 +319,35 @@ public class BookingsManagementPanel extends JPanel {
 
         if (ticketToCancel.getStatus() == TicketStatus.BOOKED || ticketToCancel.getStatus() == TicketStatus.SOLD) {
             if (ticketToCancel.getFlight() == null || ticketToCancel.getFlight().getDepartureDateTime() == null) {
-                logger.error("Не вдалося перевірити час відправлення рейсу для квитка ID: {} - дані рейсу неповні.", ticketToCancel.getId());
-                JOptionPane.showMessageDialog(this, "Помилка даних рейсу. Неможливо перевірити час відправлення.", "Помилка даних", JOptionPane.ERROR_MESSAGE);
+                handleGenericException("Помилка даних рейсу. Неможливо перевірити час відправлення.", new IllegalStateException("Flight data incomplete for ticket ID: " + ticketToCancel.getId()));
+                return;
+            }
+            // Скасувати можна, якщо рейс ще не відбувся АБО якщо він запланований/відкладений
+            // і ще не відбувся
+            boolean flightDepartedOrArrived = ticketToCancel.getFlight().getStatus() == FlightStatus.DEPARTED ||
+                    ticketToCancel.getFlight().getStatus() == FlightStatus.ARRIVED;
+
+            if (flightDepartedOrArrived) {
+                logger.warn("Спроба скасувати {} ID: {} на рейс, який вже відбувся/відправлений. Статус рейсу: {}",
+                        actionType, ticketToCancel.getId(), ticketToCancel.getFlight().getStatus());
+                JOptionPane.showMessageDialog(this, "Неможливо скасувати квиток на рейс, який вже відправлений або прибув.", "Помилка", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (ticketToCancel.getFlight().getDepartureDateTime().isBefore(LocalDateTime.now()) &&
+                    ticketToCancel.getStatus() == TicketStatus.SOLD) {
+                // Якщо рейс мав відбутися в минулому, але його статус ще не DEPARTED/ARRIVED (наприклад, затримка не оновлена)
+                // то скасування проданого квитка може бути заборонене.
+                // Тут потрібна більш чітка бізнес-логіка. Припустимо, що якщо час пройшов, то проданий не можна скасувати.
+                logger.warn("Спроба скасувати проданий квиток ID: {} на рейс, час відправлення якого минув.",
+                        ticketToCancel.getId());
+                JOptionPane.showMessageDialog(this, "Неможливо скасувати проданий квиток на рейс, час відправлення якого вже минув.", "Помилка", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
-            if (ticketToCancel.getFlight().getDepartureDateTime().isBefore(LocalDateTime.now()) &&
-                    ticketToCancel.getFlight().getStatus() != null &&
-                    ticketToCancel.getFlight().getStatus() != FlightStatus.PLANNED &&
-                    ticketToCancel.getFlight().getStatus() != FlightStatus.DELAYED) {
-                logger.warn("Спроба скасувати {} ID: {} на рейс, який вже відбувся або скасований. Час відправлення: {}, Статус рейсу: {}",
-                        actionType, ticketToCancel.getId(), ticketToCancel.getFlight().getDepartureDateTime(), ticketToCancel.getFlight().getStatus());
-                JOptionPane.showMessageDialog(this, "Неможливо скасувати квиток на рейс, який вже відбувся або має статус, що не дозволяє скасування.", "Помилка", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
 
             int confirmation = JOptionPane.showConfirmDialog(this,
                     "Скасувати " + actionType + " ID " + ticketToCancel.getId() + "?",
-                    "Підтвердження скасування", JOptionPane.YES_NO_OPTION);
+                    "Підтвердження скасування", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
 
             if (confirmation == JOptionPane.YES_OPTION) {
                 logger.debug("Користувач підтвердив скасування {} ID: {}", actionType, ticketToCancel.getId());
@@ -304,26 +357,41 @@ public class BookingsManagementPanel extends JPanel {
                         JOptionPane.showMessageDialog(this, actionType.substring(0, 1).toUpperCase() + actionType.substring(1) + " успішно скасовано.", "Успіх", JOptionPane.INFORMATION_MESSAGE);
                         loadBookingsData((TicketStatus) cmbStatusFilter.getSelectedItem());
                     } else {
-                        logger.warn("Не вдалося скасувати {} ID: {} (DAO повернув false).", actionType, ticketToCancel.getId());
-                        JOptionPane.showMessageDialog(this, "Не вдалося скасувати " + actionType + ".", "Помилка", JOptionPane.ERROR_MESSAGE);
+                        handleGenericException("Не вдалося скасувати " + actionType + " (операція DAO не вдалася).", new SQLException("DAO returned false for ticket cancellation."));
                     }
                 } catch (SQLException ex) {
-                    logger.error("Помилка БД при скасуванні {} ID: {}.", actionType, ticketToCancel.getId(), ex);
-                    JOptionPane.showMessageDialog(this, "Помилка БД при скасуванні: " + ex.getMessage(), "Помилка БД", JOptionPane.ERROR_MESSAGE);
+                    handleSqlException("Помилка БД при скасуванні " + actionType + " ID: " + ticketToCancel.getId(), ex);
                 } catch (Exception exGeneral) {
-                    logger.error("Непередбачена помилка при скасуванні {} ID: {}.", actionType, ticketToCancel.getId(), exGeneral);
-                    JOptionPane.showMessageDialog(this, "Непередбачена помилка: " + exGeneral.getMessage(), "Помилка", JOptionPane.ERROR_MESSAGE);
+                    handleGenericException("Непередбачена помилка при скасуванні " + actionType + " ID: " + ticketToCancel.getId(), exGeneral);
                 }
             } else {
                 logger.debug("Користувач скасував операцію скасування {} ID: {}", actionType, ticketToCancel.getId());
             }
         } else {
             logger.warn("Спроба скасувати квиток ID: {}, який не має статусу BOOKED або SOLD. Поточний статус: {}", ticketToCancel.getId(), ticketToCancel.getStatus());
-            if (ticketToCancel.getStatus() != null) { // Додаткова перевірка, щоб уникнути NPE
+            if (ticketToCancel.getStatus() != null) {
                 JOptionPane.showMessageDialog(this, "Цей квиток/бронювання не може бути скасовано (поточний статус: " + ticketToCancel.getStatus().getDisplayName() + ").", "Помилка", JOptionPane.WARNING_MESSAGE);
             } else {
                 JOptionPane.showMessageDialog(this, "Цей квиток/бронювання не може бути скасовано (статус невідомий).", "Помилка", JOptionPane.WARNING_MESSAGE);
             }
+        }
+    }
+
+    private void handleSqlException(String userMessage, SQLException e) {
+        logger.error("{}: {}", userMessage, e.getMessage(), e);
+        if (this.isShowing()) {
+            JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
+        } else {
+            logger.warn("BookingsManagementPanel не видима, JOptionPane для SQLException не буде показано: {}", userMessage);
+        }
+    }
+
+    private void handleGenericException(String userMessage, Exception e) {
+        logger.error("{}: {}", userMessage, e.getMessage(), e);
+        if (this.isShowing()) {
+            JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);
+        } else {
+            logger.warn("BookingsManagementPanel не видима, JOptionPane для GenericException не буде показано: {}", userMessage);
         }
     }
 }
