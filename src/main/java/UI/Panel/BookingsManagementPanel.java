@@ -29,10 +29,12 @@ import java.util.List;
 public class BookingsManagementPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
 
-    private JTable bookingsTable;
-    private BookingsTableModel bookingsTableModel;
-    private JComboBox<TicketStatus> cmbStatusFilter;
-    private JButton btnSellTicket, btnCancelBookingTicket, btnRefresh;
+    public JTable bookingsTable;
+    public BookingsTableModel bookingsTableModel;
+    public JComboBox<TicketStatus> cmbStatusFilter;
+    public JButton btnSellTicket;
+    public JButton btnCancelBookingTicket;
+    public JButton btnRefresh;
 
     private final TicketDAO ticketDAO;
 
