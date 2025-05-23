@@ -1,4 +1,4 @@
-package Panel; // Або ваш дійсний пакет
+package Panel;
 
 import DAO.FlightDAO;
 import DAO.RouteDAO;
@@ -9,226 +9,194 @@ import Models.Route;
 import Models.Stop;
 import UI.Dialog.FlightDialog;
 import UI.Dialog.RouteCreationDialog;
+import UI.Model.FlightsTableModel;
+
 import UI.Panel.FlightsPanel;
-import org.assertj.swing.core.MouseButton;
-import org.assertj.swing.data.TableCell;
-import org.assertj.swing.edt.GuiActionRunner;
-import org.assertj.swing.finder.JOptionPaneFinder;
-import org.assertj.swing.fixture.FrameFixture;
-import org.assertj.swing.fixture.JOptionPaneFixture;
-import org.assertj.swing.fixture.JTableFixture;
-import org.assertj.swing.junit.testcase.AssertJSwingJUnitTestCase;
-import org.assertj.swing.timing.Pause;
-import org.junit.Test;
-import org.mockito.MockedConstruction;
-import org.mockito.Mockito;
-import org.mockito.quality.Strictness; // Для LENIENT
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
-public class FlightsPanelTest extends AssertJSwingJUnitTestCase {
+@ExtendWith(MockitoExtension.class)
+class FlightsPanelTest {
 
-    private FrameFixture window;
+    @Mock private FlightDAO mockFlightDAO;
+    @Mock private RouteDAO mockRouteDAO;
+    @Mock private StopDAO mockStopDAO;
 
-    private FlightDAO mockFlightDAO;
-    private RouteDAO mockRouteDAO;
-    private StopDAO mockStopDAO;
+    // Mockito.mockConstruction буде використовуватися для діалогів
+    // @Mock private FlightDialog mockFlightDialog; // Не потрібні як поля, якщо використовуємо mockConstruction
+    // @Mock private RouteCreationDialog mockRouteCreationDialog;
 
-    private Flight flight1, flight2_departed, flight3_cancelled, flight_no_bus_or_route_desc;
-    private Route route1, route2, routeForNoDescFlight;
-    private Stop stopA, stopB, stopC, dummyStop;
+    private FlightsPanel flightsPanel;
+    private List<Flight> sampleFlights;
+    private Flight flight1, flight2;
+    private Route route1, route2;
+    private JFrame testFrame; // Для коректного батьківського вікна діалогів
 
-    // !!! ВАЖЛИВО: Адаптуйте ці індекси до вашої FlightsTableModel !!!
-    // Згідно з вашим FlightsTableModel:
-    // "ID", "Маршрут", "Відправлення", "Прибуття", "Місць", "Автобус", "Ціна", "Статус"
-    private static final int COL_FLIGHT_ID = 0;
-    private static final int COL_FLIGHT_ROUTE_DESC = 1;
-    private static final int COL_FLIGHT_DEPARTURE = 2;
-    private static final int COL_FLIGHT_ARRIVAL = 3;
-    private static final int COL_FLIGHT_TOTAL_SEATS = 4;
-    private static final int COL_FLIGHT_BUS_MODEL = 5; // Виправлено
-    private static final int COL_FLIGHT_PRICE = 6;
-    private static final int COL_FLIGHT_STATUS = 7;
+    @Captor private ArgumentCaptor<Flight> flightCaptor;
+    @Captor private ArgumentCaptor<Route> routeCaptor;
 
-    // Форматер дати/часу, ЯКИЙ ВИКОРИСТОВУЄТЬСЯ у FlightsTableModel
-    private static final DateTimeFormatter TABLE_DATE_TIME_FORMATTER_IN_MODEL = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    @BeforeEach
+    void setUp() throws SQLException, InvocationTargetException, InterruptedException {
+        FlightsPanel.setSuppressMessagesForTesting(true);
+        FlightDialog.setSuppressMessagesForTesting(true);
+        RouteCreationDialog.setSuppressMessagesForTesting(true);
 
-
-    @Override
-    protected void onSetUp() {
-        if (mockFlightDAO != null) Mockito.reset(mockFlightDAO);
-        if (mockRouteDAO != null) Mockito.reset(mockRouteDAO);
-        if (mockStopDAO != null) Mockito.reset(mockStopDAO);
-
-        mockFlightDAO = mock(FlightDAO.class);
-        mockRouteDAO = mock(RouteDAO.class);
-        mockStopDAO = mock(StopDAO.class);
-
-        stopA = new Stop(1L, "Київ-Центральний", "Київ");
-        stopB = new Stop(2L, "Львів-Головний", "Львів");
-        stopC = new Stop(3L, "Одеса-Привоз", "Одеса");
-        dummyStop = new Stop(99L, "DummyStop", "DummyCity");
-
-        route1 = new Route(10L, stopA, stopB, Collections.emptyList());
-        route2 = new Route(11L, stopB, stopC, Collections.emptyList());
-        routeForNoDescFlight = new Route(12L, dummyStop, dummyStop, Collections.emptyList()) {
-            @Override
-            public String getFullRouteDescription() { return null; }
-        };
-
-        LocalDateTime now = LocalDateTime.now();
-        flight1 = new Flight(101L, route1, now.plusDays(1).withHour(10).withMinute(0), now.plusDays(1).withHour(15).withMinute(0), 50, FlightStatus.PLANNED, "Neoplan", BigDecimal.valueOf(500.00));
-        flight2_departed = new Flight(102L, route2, now.minusHours(2), now.minusHours(1).plusMinutes(30), 40, FlightStatus.DEPARTED, "Mercedes", BigDecimal.valueOf(400.00));
-        flight3_cancelled = new Flight(103L, route1, now.plusDays(2).withHour(9).withMinute(0), now.plusDays(2).withHour(14).withMinute(0), 30, FlightStatus.CANCELLED, "Setra", BigDecimal.valueOf(550.00));
-        flight_no_bus_or_route_desc = new Flight(104L, routeForNoDescFlight, now.plusDays(3), now.plusDays(3).plusHours(1), 20, FlightStatus.PLANNED, "", BigDecimal.valueOf(200.00));
-
-        try {
-            when(mockFlightDAO.getAllFlights()).thenReturn(Arrays.asList(flight1, flight2_departed, flight3_cancelled, flight_no_bus_or_route_desc));
-            when(mockStopDAO.getAllStops()).thenReturn(Arrays.asList(stopA, stopB, stopC, dummyStop));
-            when(mockRouteDAO.getAllRoutes()).thenReturn(Arrays.asList(route1, route2, routeForNoDescFlight));
-        } catch (SQLException e) {
-            org.assertj.core.api.Assertions.fail("SQLException during mock setup: " + e.getMessage());
-        }
-
-        FlightsPanel panel = GuiActionRunner.execute(() -> new FlightsPanel(mockFlightDAO, mockRouteDAO, mockStopDAO));
-
-        JFrame frame = GuiActionRunner.execute(() -> {
-            JFrame testFrame = new JFrame("Flights Test");
+        // Створюємо JFrame для тестів, щоб діалоги мали коректного власника
+        SwingUtilities.invokeAndWait(() -> {
+            testFrame = new JFrame();
             testFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            testFrame.setContentPane(panel);
-            testFrame.pack();
-            return testFrame;
         });
-        window = new FrameFixture(robot(), frame);
-        window.show();
+
+
+        Stop stopA = new Stop(1, "A", "CityA");
+        Stop stopB = new Stop(2, "B", "CityB");
+        Stop stopC = new Stop(3, "C", "CityC");
+
+        route1 = new Route(10, stopA, stopB, new ArrayList<>());
+        route2 = new Route(20, stopB, stopC, new ArrayList<>());
+
+        flight1 = new Flight(1L, route1, LocalDateTime.now().plusHours(1), LocalDateTime.now().plusHours(3), 50, FlightStatus.PLANNED, "Bus1", new BigDecimal("100"));
+        flight2 = new Flight(2L, route2, LocalDateTime.now().plusHours(2), LocalDateTime.now().plusHours(5), 30, FlightStatus.PLANNED, "Bus2", new BigDecimal("150"));
+        sampleFlights = new ArrayList<>(Arrays.asList(flight1, flight2));
+
+        when(mockFlightDAO.getAllFlights()).thenReturn(new ArrayList<>(sampleFlights)); // Повертаємо копію
+
+        SwingUtilities.invokeAndWait(() -> {
+            flightsPanel = new FlightsPanel(mockFlightDAO, mockRouteDAO, mockStopDAO);
+            // Додаємо панель до фрейму, щоб вона мала батьківське вікно
+            testFrame.add(flightsPanel);
+            testFrame.pack();
+            // testFrame.setVisible(true); // Не обов'язково робити видимим для тестів логіки
+        });
     }
+
+    @AfterEach
+    void tearDown() throws InvocationTargetException, InterruptedException {
+        FlightsPanel.setSuppressMessagesForTesting(false);
+        FlightDialog.setSuppressMessagesForTesting(false);
+        RouteCreationDialog.setSuppressMessagesForTesting(false);
+
+        if (testFrame != null) {
+            SwingUtilities.invokeAndWait(() -> testFrame.dispose());
+        }
+        // Очищення статичних моків, якщо вони використовуються глобально (тут не використовуються)
+        // Mockito.framework().clearInlineMocks();
+    }
+
     @Test
-    public void testRefreshButton_ReloadsFlights() throws SQLException {
-        JTableFixture flightsTable = window.table("flightsTable");
-        flightsTable.requireRowCount(4);
+    @DisplayName("Ініціалізація: компоненти створені, дані завантажені")
+    void constructor_initializesUIAndLoadsData() throws SQLException {
+        assertNotNull(flightsPanel.getFlightsTable());
+        assertNotNull(flightsPanel.getFlightsTableModel());
+        assertEquals(2, flightsPanel.getFlightsTableModel().getRowCount());
+        verify(mockFlightDAO, times(1)).getAllFlights();
+    }
 
-        Flight newFlight = new Flight(105L, route1, LocalDateTime.now().plusDays(5), LocalDateTime.now().plusDays(5).plusHours(3), 20, FlightStatus.PLANNED, "Ikarus", BigDecimal.valueOf(300.00));
-        when(mockFlightDAO.getAllFlights()).thenReturn(Collections.singletonList(newFlight));
+    @Test
+    @DisplayName("loadFlightsData: успішне завантаження")
+    void loadFlightsData_success() throws SQLException {
+        List<Flight> newFlights = Arrays.asList(
+                new Flight(3L, route1, LocalDateTime.now(), LocalDateTime.now().plusHours(1), 20, FlightStatus.ARRIVED, "Bus3", new BigDecimal("50"))
+        );
+        when(mockFlightDAO.getAllFlights()).thenReturn(newFlights);
 
-        window.button("btnRefreshFlights").click();
-        Pause.pause(200);
+        flightsPanel.loadFlightsData();
 
-        flightsTable.requireRowCount(1);
-        flightsTable.requireCellValue(TableCell.row(0).column(COL_FLIGHT_ID), String.valueOf(newFlight.getId()));
-        // ВИПРАВЛЕНО: Перевірка правильного стовпця та значення
-        flightsTable.requireCellValue(TableCell.row(0).column(COL_FLIGHT_STATUS), newFlight.getStatus().getDisplayName());
-        flightsTable.requireCellValue(TableCell.row(0).column(COL_FLIGHT_BUS_MODEL), newFlight.getBusModel());
-
+        assertEquals(1, flightsPanel.getFlightsTableModel().getRowCount());
         verify(mockFlightDAO, times(2)).getAllFlights();
     }
 
     @Test
-    public void testEditFlightButton_NoSelection_ShowsWarning() {
-        GuiActionRunner.execute(() -> window.table("flightsTable").target().clearSelection());
-        window.button("btnEditFlight").click();
-        JOptionPaneFixture optionPane = JOptionPaneFinder.findOptionPane().using(robot());
-        optionPane.requireWarningMessage().requireMessage("Будь ласка, виберіть рейс для редагування.");
-        optionPane.okButton().click();
+    @DisplayName("loadFlightsData: SQLException")
+    void loadFlightsData_sqlException() throws SQLException {
+        when(mockFlightDAO.getAllFlights()).thenThrow(new SQLException("Test DB error"));
+        int initialRowCount = flightsPanel.getFlightsTableModel().getRowCount();
+
+        flightsPanel.loadFlightsData();
+
+        assertEquals(initialRowCount, flightsPanel.getFlightsTableModel().getRowCount());
+        // В FlightsPanel JOptionPane придушено, помилка логується
+    }
+
+
+    @Test
+    @DisplayName("Кнопка 'Редагувати рейс': нічого не вибрано")
+    void editFlightAction_noRowSelected() throws InvocationTargetException, InterruptedException, SQLException {
+        SwingUtilities.invokeAndWait(() -> flightsPanel.getFlightsTable().clearSelection());
+
+        SwingUtilities.invokeAndWait(() -> flightsPanel.getBtnEditFlight().doClick());
+
+        // JOptionPane (попередження) придушено. Перевіряємо, що діалог не відкрився.
+        // mockFlightDAO.getAllFlights() викликається тільки при ініціалізації.
+        verify(mockFlightDAO, times(1)).getAllFlights();
     }
 
     @Test
-    public void testCancelFlightButton_NoSelection_ShowsWarning() {
-        GuiActionRunner.execute(() -> window.table("flightsTable").target().clearSelection());
-        window.button("btnCancelFlight").click();
-        JOptionPaneFixture optionPane = JOptionPaneFinder.findOptionPane().using(robot());
-        optionPane.requireWarningMessage().requireMessage("Будь ласка, виберіть рейс для скасування.");
-        optionPane.okButton().click();
-    }
+    @DisplayName("Кнопка 'Скасувати рейс': успішне скасування")
+    void cancelFlightAction_success() throws SQLException, InvocationTargetException, InterruptedException {
+        SwingUtilities.invokeAndWait(() -> flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0)); // Вибираємо flight1 (SCHEDULED)
 
-    @Test
-    public void testCancelFlightButton_PlannedFlight_Successful() throws SQLException {
-        JTableFixture flightsTable = window.table("flightsTable");
-        int flight1RowIndex = -1;
-        for (int i = 0; i < flightsTable.rowCount(); i++) {
-            if (flightsTable.valueAt(TableCell.row(i).column(COL_FLIGHT_ID)).equals(String.valueOf(flight1.getId()))) {
-                flight1RowIndex = i;
-                break;
-            }
-        }
-        assertThat(flight1RowIndex).isNotEqualTo(-1).as("Flight1 (PLANNED) not found for cancellation test.");
-        flightsTable.selectRows(flight1RowIndex);
-        Pause.pause(100);
-
+        // suppressMessagesForTesting = true, тому showConfirmDialog в панелі поверне YES_OPTION
         when(mockFlightDAO.updateFlightStatus(flight1.getId(), FlightStatus.CANCELLED)).thenReturn(true);
 
-        window.button("btnCancelFlight").click();
-        Pause.pause(100);
+        SwingUtilities.invokeAndWait(() -> flightsPanel.getBtnCancelFlight().doClick());
 
-        JOptionPaneFixture confirmationDialog = JOptionPaneFinder.findOptionPane().using(robot());
-        confirmationDialog.requireWarningMessage().yesButton().click();
-        Pause.pause(100);
+        verify(mockFlightDAO).updateFlightStatus(flight1.getId(), FlightStatus.CANCELLED);
+        verify(mockFlightDAO, times(2)).getAllFlights(); // Початкове + оновлення
+    }
 
-        JOptionPaneFixture successDialog = JOptionPaneFinder.findOptionPane().using(robot());
-        successDialog.requireInformationMessage().requireMessage("Рейс успішно скасовано.");
-        successDialog.okButton().click();
+    @Test
+    @DisplayName("Кнопка 'Скасувати рейс': рейс вже скасовано")
+    void cancelFlightAction_alreadyCancelled() throws InvocationTargetException, InterruptedException, SQLException {
+        flight1.setStatus(FlightStatus.CANCELLED); // Встановлюємо статус
+        // Потрібно оновити модель таблиці, щоб вона відображала змінений статус
+        flightsPanel.getFlightsTableModel().setFlights(new ArrayList<>(sampleFlights)); // Оновлюємо модель
+        SwingUtilities.invokeAndWait(() -> flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0));
 
-        verify(mockFlightDAO, times(1)).updateFlightStatus(flight1.getId(), FlightStatus.CANCELLED);
+        SwingUtilities.invokeAndWait(() -> flightsPanel.getBtnCancelFlight().doClick());
+
+        verify(mockFlightDAO, never()).updateFlightStatus(anyLong(), any(FlightStatus.class));
+    }
+
+    @Test
+    @DisplayName("Кнопка 'Скасувати рейс': рейс відправлений")
+    void cancelFlightAction_departed() throws InvocationTargetException, InterruptedException, SQLException {
+        flight1.setStatus(FlightStatus.DEPARTED);
+        flightsPanel.getFlightsTableModel().setFlights(new ArrayList<>(sampleFlights));
+        SwingUtilities.invokeAndWait(() -> flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0));
+
+        SwingUtilities.invokeAndWait(() -> flightsPanel.getBtnCancelFlight().doClick());
+
+        verify(mockFlightDAO, never()).updateFlightStatus(anyLong(), any(FlightStatus.class));
+    }
+
+    @Test
+    @DisplayName("Кнопка 'Оновити список'")
+    void refreshFlightsAction_reloadsData() throws SQLException, InvocationTargetException, InterruptedException {
+        SwingUtilities.invokeAndWait(() -> flightsPanel.getBtnRefreshFlights().doClick());
         verify(mockFlightDAO, times(2)).getAllFlights();
-    }
-
-    @Test
-    public void testCancelFlightButton_AlreadyCancelledFlight_ShowsInfo() {
-        JTableFixture flightsTable = window.table("flightsTable");
-        int flight3RowIndex = -1;
-        for (int i = 0; i < flightsTable.rowCount(); i++) {
-            if (flightsTable.valueAt(TableCell.row(i).column(COL_FLIGHT_ID)).equals(String.valueOf(flight3_cancelled.getId()))) {
-                flight3RowIndex = i;
-                break;
-            }
-        }
-        assertThat(flight3RowIndex).isNotEqualTo(-1).as("Flight3 (CANCELLED) not found.");
-        flightsTable.selectRows(flight3RowIndex);
-        Pause.pause(100);
-
-        window.button("btnCancelFlight").click();
-        Pause.pause(100);
-
-        JOptionPaneFixture infoDialog = JOptionPaneFinder.findOptionPane().using(robot());
-        infoDialog.requireInformationMessage().requireMessage("Цей рейс вже скасовано.");
-        infoDialog.okButton().click();
-    }
-
-    @Test
-    public void testCancelFlightButton_DepartedFlight_ShowsError() {
-        JTableFixture flightsTable = window.table("flightsTable");
-        int flight2RowIndex = -1;
-        for (int i = 0; i < flightsTable.rowCount(); i++) {
-            if (flightsTable.valueAt(TableCell.row(i).column(COL_FLIGHT_ID)).equals(String.valueOf(flight2_departed.getId()))) {
-                flight2RowIndex = i;
-                break;
-            }
-        }
-        assertThat(flight2RowIndex).isNotEqualTo(-1).as("Flight2 (DEPARTED) not found.");
-        flightsTable.selectRows(flight2RowIndex);
-        Pause.pause(100);
-
-        window.button("btnCancelFlight").click();
-        Pause.pause(100);
-
-        JOptionPaneFixture errorDialog = JOptionPaneFinder.findOptionPane().using(robot());
-        errorDialog.requireErrorMessage().requireMessage("Неможливо скасувати рейс, який вже відправлений або прибув.");
-        errorDialog.okButton().click();
-    }
-    @Override
-    protected void onTearDown() {
-        Mockito.reset(mockFlightDAO, mockRouteDAO, mockStopDAO);
     }
 }

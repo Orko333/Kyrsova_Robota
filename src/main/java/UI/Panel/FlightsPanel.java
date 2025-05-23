@@ -5,16 +5,16 @@ import DAO.RouteDAO;
 import DAO.StopDAO;
 import Models.Flight;
 import Models.Enums.FlightStatus;
-import Models.Route; // Потрібно для нового маршруту
+import Models.Route;
 import UI.Dialog.FlightDialog;
-import UI.Dialog.RouteCreationDialog; // Потрібно для діалогу створення маршруту
+import UI.Dialog.RouteCreationDialog;
 import UI.Model.FlightsTableModel;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder; // Імпорт для EmptyBorder
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -23,6 +23,8 @@ import java.awt.event.MouseEvent;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 /**
  * Панель для управління рейсами.
@@ -41,6 +43,53 @@ public class FlightsPanel extends JPanel {
     private final RouteDAO routeDAO;
     private final StopDAO stopDAO;
 
+    // Прапорець для придушення повідомлень під час тестів
+    private static final AtomicBoolean suppressMessagesForTesting = new AtomicBoolean(false);
+
+    /**
+     * Встановлює режим придушення повідомлень JOptionPane для тестування.
+     * УВАГА: Використовуйте тільки в тестовому середовищі!
+     * @param suppress true, щоб придушити повідомлення, false - щоб показувати.
+     */
+    public static void setSuppressMessagesForTesting(boolean suppress) {
+        suppressMessagesForTesting.set(suppress);
+        if (suppress) {
+            logger.warn("УВАГА: Повідомлення JOptionPane придушені для тестування в FlightsPanel!");
+        } else {
+            logger.info("Режим придушення повідомлень JOptionPane вимкнено в FlightsPanel.");
+        }
+    }
+
+    // Приватний метод для відображення повідомлень, який враховує прапорець
+    private void showDialogMessage(Component parentComponent, Object message, String title, int messageType) {
+        if (!suppressMessagesForTesting.get()) {
+            JOptionPane.showMessageDialog(parentComponent, message, title, messageType);
+        } else {
+            String typeStr = "";
+            switch (messageType) {
+                case JOptionPane.ERROR_MESSAGE: typeStr = "ERROR"; break;
+                case JOptionPane.INFORMATION_MESSAGE: typeStr = "INFORMATION"; break;
+                case JOptionPane.WARNING_MESSAGE: typeStr = "WARNING"; break;
+                case JOptionPane.QUESTION_MESSAGE: typeStr = "QUESTION"; break;
+                default: typeStr = "UNKNOWN (" + messageType + ")"; break;
+            }
+            logger.info("FlightsPanel JOptionPane придушено (тестовий режим): Титул='{}', Повідомлення='{}', Тип={}", title, message, typeStr);
+        }
+    }
+
+    // Статичний метод для показу діалогу підтвердження, який враховує прапорець
+    // (потрібен, якщо ми хочемо контролювати showConfirmDialog з тестів без MockedStatic)
+    // Наразі не використовується, але може бути корисним.
+    private static int showConfirmDialogInternal(Component parentComponent, Object message, String title, int optionType, int messageType) {
+        if (!suppressMessagesForTesting.get()) {
+            return JOptionPane.showConfirmDialog(parentComponent, message, title, optionType, messageType);
+        } else {
+            logger.info("FlightsPanel JOptionPane.showConfirmDialog придушено (тестовий режим): Титул='{}', Повідомлення='{}'. Повертаємо YES_OPTION для продовження тесту.", title, message);
+            return JOptionPane.YES_OPTION; // Для тестів часто потрібно симулювати позитивну відповідь
+        }
+    }
+
+
     /**
      * Конструктор панелі управління рейсами для використання в програмі.
      * Ініціалізує DAO через new, компоненти UI та завантажує початкові дані про рейси.
@@ -48,12 +97,10 @@ public class FlightsPanel extends JPanel {
      * @throws RuntimeException якщо не вдалося ініціалізувати один з DAO.
      */
     public FlightsPanel() {
-        // Цей конструктор викликає інший, який ініціалізує DAO.
         this(createFlightDAOInternal(), createRouteDAOInternal(), createStopDAOInternal());
         logger.info("FlightsPanel створено з DAO за замовчуванням.");
     }
 
-    // Допоміжні методи для створення DAO з обробкою помилок
     private static FlightDAO createFlightDAOInternal() {
         try {
             return new FlightDAO();
@@ -81,7 +128,6 @@ public class FlightsPanel extends JPanel {
         }
     }
 
-
     /**
      * Конструктор панелі управління рейсами для тестування та ін'єкції залежностей.
      * Ініціалізує компоненти UI та завантажує початкові дані про рейси, використовуючи надані DAO.
@@ -93,9 +139,17 @@ public class FlightsPanel extends JPanel {
      */
     public FlightsPanel(FlightDAO flightDAO, RouteDAO routeDAO, StopDAO stopDAO) {
         logger.info("Ініціалізація FlightsPanel з наданими DAO.");
-        if (flightDAO == null || routeDAO == null || stopDAO == null) {
-            logger.fatal("Надані DAO не можуть бути null при створенні FlightsPanel.");
-            throw new IllegalArgumentException("FlightDAO, RouteDAO та StopDAO не можуть бути null.");
+        if (flightDAO == null) {
+            logger.fatal("Наданий FlightDAO не може бути null.");
+            throw new IllegalArgumentException("FlightDAO не може бути null.");
+        }
+        if (routeDAO == null) {
+            logger.fatal("Наданий RouteDAO не може бути null.");
+            throw new IllegalArgumentException("RouteDAO не може бути null.");
+        }
+        if (stopDAO == null) {
+            logger.fatal("Наданий StopDAO не може бути null.");
+            throw new IllegalArgumentException("StopDAO не може бути null.");
         }
         this.flightDAO = flightDAO;
         this.routeDAO = routeDAO;
@@ -103,10 +157,10 @@ public class FlightsPanel extends JPanel {
         logger.debug("DAO успішно присвоєні.");
 
         setLayout(new BorderLayout(10, 10));
-        setBorder(new EmptyBorder(10, 10, 10, 10)); // Використовуємо імпортований EmptyBorder
+        setBorder(new EmptyBorder(10, 10, 10, 10));
 
         initComponents();
-        loadFlightsData(); // Завантажуємо дані після ініціалізації компонентів
+        loadFlightsData();
         logger.info("FlightsPanel успішно ініціалізовано.");
     }
 
@@ -115,33 +169,26 @@ public class FlightsPanel extends JPanel {
         logger.debug("Ініціалізація компонентів UI для FlightsPanel.");
         flightsTableModel = new FlightsTableModel(new ArrayList<>());
         flightsTable = new JTable(flightsTableModel);
-        flightsTable.setName("flightsTable"); // ВАЖЛИВО: Ім'я для тестів
+        flightsTable.setName("flightsTable");
         flightsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         flightsTable.setAutoCreateRowSorter(true);
         flightsTable.setFillsViewportHeight(true);
 
-        // Налаштування рендерера та ширини стовпців
-        // Краще робити це після того, як таблиця гарантовано має модель стовпців
+        // Налаштування рендерера та ширини стовпців краще робити після того,
+        // як таблиця була додана до контейнера і мала шанс ініціалізувати свої стовпці,
+        // або принаймні після встановлення моделі.
+        // Виклик через invokeLater - безпечний підхід.
         SwingUtilities.invokeLater(() -> {
-            if (flightsTable.getColumnModel().getColumnCount() > 0) { // Перевірка, чи є стовпці
+            if (flightsTable.getColumnModel().getColumnCount() > 0) {
                 DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
                 rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-                if (flightsTable.getColumnModel().getColumnCount() > 6) {
-                    logger.trace("Налаштування рендерера для стовпців ID, Місць, Ціна.");
-                    try {
+                try {
+                    if (flightsTable.getColumnCount() > 6) { // Перевірка кількості стовпців
                         flightsTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer); // ID
                         flightsTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer); // Total Seats
                         flightsTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); // Price
-                    } catch (ArrayIndexOutOfBoundsException e) {
-                        logger.warn("Помилка при налаштуванні рендерера: індекс стовпця поза межами.", e);
                     }
-                } else {
-                    logger.warn("Кількість стовпців ({}) менша за 7, рендерер для деяких стовпців може бути не встановлено.", flightsTable.getColumnModel().getColumnCount());
-                }
-
-                if (flightsTable.getColumnModel().getColumnCount() > 7) {
-                    logger.trace("Налаштування ширини стовпців.");
-                    try {
+                    if (flightsTable.getColumnCount() > 7) {
                         flightsTable.getColumnModel().getColumn(0).setPreferredWidth(40);  // ID
                         flightsTable.getColumnModel().getColumn(1).setPreferredWidth(250); // Маршрут
                         flightsTable.getColumnModel().getColumn(2).setPreferredWidth(120); // Відправлення
@@ -150,14 +197,12 @@ public class FlightsPanel extends JPanel {
                         flightsTable.getColumnModel().getColumn(5).setPreferredWidth(100); // Статус
                         flightsTable.getColumnModel().getColumn(6).setPreferredWidth(80);  // Ціна
                         flightsTable.getColumnModel().getColumn(7).setPreferredWidth(100); // Автобус
-                    } catch (ArrayIndexOutOfBoundsException e) {
-                        logger.warn("Помилка при налаштуванні ширини стовпців: індекс стовпця поза межами.", e);
                     }
-                } else {
-                    logger.warn("Кількість стовпців ({}) менша за 8, ширина деяких стовпців може бути не встановлена.", flightsTable.getColumnModel().getColumnCount());
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    logger.warn("Помилка при налаштуванні рендерера/ширини стовпців: індекс поза межами. Кількість стовпців: {}", flightsTable.getColumnModel().getColumnCount(), e);
                 }
             } else {
-                logger.warn("Модель стовпців для flightsTable ще не ініціалізована або порожня, налаштування рендерера та ширини відкладено.");
+                logger.warn("Модель стовпців для flightsTable ще не ініціалізована або порожня.");
             }
         });
 
@@ -182,26 +227,19 @@ public class FlightsPanel extends JPanel {
         });
 
         JScrollPane scrollPane = new JScrollPane(flightsTable);
-        scrollPane.setName("flightsScrollPane"); // Опціонально
         add(scrollPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        // buttonPanel.setName("flightsButtonPanel"); // Опціонально
-
         btnAddFlight = new JButton("Додати рейс");
-        btnAddFlight.setName("btnAddFlight"); // ВАЖЛИВО
-
+        btnAddFlight.setName("btnAddFlight");
         btnEditFlight = new JButton("Редагувати рейс");
-        btnEditFlight.setName("btnEditFlight"); // ВАЖЛИВО
-
+        btnEditFlight.setName("btnEditFlight");
         btnCancelFlight = new JButton("Скасувати рейс");
-        btnCancelFlight.setName("btnCancelFlight"); // ВАЖЛИВО
-
+        btnCancelFlight.setName("btnCancelFlight");
         btnRefreshFlights = new JButton("Оновити список");
-        btnRefreshFlights.setName("btnRefreshFlights"); // ВАЖЛИВО
-
+        btnRefreshFlights.setName("btnRefreshFlights");
         btnAddNewRoute = new JButton("Створити маршрут");
-        btnAddNewRoute.setName("btnAddNewRoute"); // ВАЖЛИВО
+        btnAddNewRoute.setName("btnAddNewRoute");
 
         btnAddFlight.addActionListener(this::addFlightAction);
         btnEditFlight.addActionListener(this::editFlightAction);
@@ -222,17 +260,12 @@ public class FlightsPanel extends JPanel {
         logger.debug("Компоненти UI для FlightsPanel успішно створені та додані.");
     }
 
-    /**
-     * Завантажує або оновлює список рейсів у таблиці.
-     * Дані отримуються з {@link FlightDAO}. У випадку помилки SQL або іншої непередбаченої помилки,
-     * виводиться відповідне повідомлення користувачу.
-     */
     public void loadFlightsData() {
         logger.info("Завантаження даних про рейси.");
         try {
             List<Flight> flights = flightDAO.getAllFlights();
-            flightsTableModel.setFlights(flights);
-            logger.info("Успішно завантажено {} рейсів.", flights.size());
+            flightsTableModel.setFlights(flights != null ? flights : new ArrayList<>()); // Захист від null
+            logger.info("Успішно завантажено {} рейсів.", (flights != null ? flights.size() : 0));
         } catch (SQLException e) {
             handleSqlException("Не вдалося завантажити список рейсів", e);
         } catch (Exception e) {
@@ -240,27 +273,23 @@ public class FlightsPanel extends JPanel {
         }
     }
 
+    private Frame getOwnerFrame() {
+        Window topLevelAncestor = SwingUtilities.getWindowAncestor(this);
+        if (topLevelAncestor instanceof Frame) {
+            return (Frame) topLevelAncestor;
+        }
+        logger.warn("Батьківське вікно не є JFrame, діалоги можуть не мати коректного власника.");
+        return null; // Або new JFrame(), якщо власник обов'язковий і це безпечно
+    }
+
     private void openEditFlightDialog(Flight flightToEdit) {
         if (flightToEdit == null) {
             logger.error("Спроба відкрити діалог редагування для null рейсу.");
-            JOptionPane.showMessageDialog(this, "Не вдалося отримати дані обраного рейсу для редагування.", "Помилка", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Не вдалося отримати дані обраного рейсу для редагування.", "Помилка", JOptionPane.ERROR_MESSAGE);
             return;
         }
         logger.debug("Відкриття FlightDialog для редагування рейсу ID: {}", flightToEdit.getId());
-
-        Window topLevelAncestor = SwingUtilities.getWindowAncestor(this);
-        Frame ownerFrame = (topLevelAncestor instanceof Frame) ? (Frame) topLevelAncestor : null;
-        if (ownerFrame == null) {
-            logger.warn("Батьківське вікно не є JFrame, FlightDialog може не мати коректного власника.");
-        }
-
-        FlightDialog dialog = new FlightDialog(
-                ownerFrame,
-                "Редагувати рейс ID: " + flightToEdit.getId(),
-                flightDAO,
-                routeDAO, // Передаємо routeDAO
-                flightToEdit
-        );
+        FlightDialog dialog = new FlightDialog(getOwnerFrame(), "Редагувати рейс ID: " + flightToEdit.getId(), flightDAO, routeDAO, flightToEdit);
         dialog.setVisible(true);
         if (dialog.isSaved()) {
             logger.info("Рейс ID: {} було відредаговано та збережено. Оновлення списку рейсів.", flightToEdit.getId());
@@ -272,17 +301,7 @@ public class FlightsPanel extends JPanel {
 
     private void addFlightAction(ActionEvent e) {
         logger.info("Натиснуто кнопку 'Додати рейс'. Відкриття FlightDialog для створення нового рейсу.");
-        Window topLevelAncestor = SwingUtilities.getWindowAncestor(this);
-        Frame ownerFrame = (topLevelAncestor instanceof Frame) ? (Frame) topLevelAncestor : null;
-        if (ownerFrame == null) {
-            logger.warn("Батьківське вікно не є JFrame, FlightDialog може не мати коректного власника.");
-        }
-
-        FlightDialog dialog = new FlightDialog(ownerFrame,
-                "Новий рейс",
-                flightDAO,
-                routeDAO, // Передаємо routeDAO
-                null); // null для нового рейсу
+        FlightDialog dialog = new FlightDialog(getOwnerFrame(), "Новий рейс", flightDAO, routeDAO, null);
         dialog.setVisible(true);
         if (dialog.isSaved()) {
             logger.info("Новий рейс було створено та збережено. Оновлення списку рейсів.");
@@ -297,7 +316,7 @@ public class FlightsPanel extends JPanel {
         int selectedRowView = flightsTable.getSelectedRow();
         if (selectedRowView == -1) {
             logger.warn("Спроба редагувати рейс, але жоден рядок не вибрано.");
-            JOptionPane.showMessageDialog(this, "Будь ласка, виберіть рейс для редагування.", "Рейс не вибрано", JOptionPane.WARNING_MESSAGE);
+            showDialogMessage(this, "Будь ласка, виберіть рейс для редагування.", "Рейс не вибрано", JOptionPane.WARNING_MESSAGE);
             return;
         }
         int modelRow = flightsTable.convertRowIndexToModel(selectedRowView);
@@ -308,7 +327,7 @@ public class FlightsPanel extends JPanel {
             openEditFlightDialog(flightToEdit);
         } else {
             logger.error("Не вдалося отримати рейс для редагування. Обраний рядок: {}, модельний індекс: {}.", selectedRowView, modelRow);
-            JOptionPane.showMessageDialog(this, "Помилка: не вдалося отримати дані вибраного рейсу.", "Помилка", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Помилка: не вдалося отримати дані вибраного рейсу.", "Помилка", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -317,7 +336,7 @@ public class FlightsPanel extends JPanel {
         int selectedRowView = flightsTable.getSelectedRow();
         if (selectedRowView == -1) {
             logger.warn("Спроба скасувати рейс, але жоден рядок не вибрано.");
-            JOptionPane.showMessageDialog(this, "Будь ласка, виберіть рейс для скасування.", "Рейс не вибрано", JOptionPane.WARNING_MESSAGE);
+            showDialogMessage(this, "Будь ласка, виберіть рейс для скасування.", "Рейс не вибрано", JOptionPane.WARNING_MESSAGE);
             return;
         }
         int modelRow = flightsTable.convertRowIndexToModel(selectedRowView);
@@ -327,30 +346,38 @@ public class FlightsPanel extends JPanel {
             logger.info("Спроба скасувати рейс ID: {}. Поточний статус: {}", flightToCancel.getId(), flightToCancel.getStatus());
             if (flightToCancel.getStatus() == FlightStatus.CANCELLED) {
                 logger.info("Рейс ID: {} вже скасовано.", flightToCancel.getId());
-                JOptionPane.showMessageDialog(this, "Цей рейс вже скасовано.", "Інформація", JOptionPane.INFORMATION_MESSAGE);
+                showDialogMessage(this, "Цей рейс вже скасовано.", "Інформація", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
             if (flightToCancel.getStatus() == FlightStatus.DEPARTED || flightToCancel.getStatus() == FlightStatus.ARRIVED) {
                 logger.warn("Спроба скасувати рейс ID: {}, який вже відправлений/прибув. Статус: {}", flightToCancel.getId(), flightToCancel.getStatus());
-                JOptionPane.showMessageDialog(this, "Неможливо скасувати рейс, який вже відправлений або прибув.", "Помилка", JOptionPane.ERROR_MESSAGE);
+                showDialogMessage(this, "Неможливо скасувати рейс, який вже відправлений або прибув.", "Помилка", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
             String routeDescription = (flightToCancel.getRoute() != null && flightToCancel.getRoute().getFullRouteDescription() != null) ? flightToCancel.getRoute().getFullRouteDescription() : "N/A";
-            int confirmation = JOptionPane.showConfirmDialog(this,
-                    "Ви впевнені, що хочете скасувати рейс ID " + flightToCancel.getId() + " (" + routeDescription + ")?",
-                    "Підтвердження скасування", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE); // Додано тип повідомлення
+
+            int confirmation;
+            if (!suppressMessagesForTesting.get()) { // Тільки якщо повідомлення НЕ придушені
+                confirmation = JOptionPane.showConfirmDialog(this,
+                        "Ви впевнені, що хочете скасувати рейс ID " + flightToCancel.getId() + " (" + routeDescription + ")?",
+                        "Підтвердження скасування", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            } else {
+                logger.info("FlightsPanel JOptionPane.showConfirmDialog придушено (тестовий режим). Автоматично підтверджуємо YES_OPTION.");
+                confirmation = JOptionPane.YES_OPTION; // Для тестів автоматично підтверджуємо
+            }
+
 
             if (confirmation == JOptionPane.YES_OPTION) {
                 logger.debug("Користувач підтвердив скасування рейсу ID: {}", flightToCancel.getId());
                 try {
                     if (flightDAO.updateFlightStatus(flightToCancel.getId(), FlightStatus.CANCELLED)) {
                         logger.info("Рейс ID: {} успішно скасовано.", flightToCancel.getId());
-                        JOptionPane.showMessageDialog(this, "Рейс успішно скасовано.", "Успіх", JOptionPane.INFORMATION_MESSAGE);
+                        showDialogMessage(this, "Рейс успішно скасовано.", "Успіх", JOptionPane.INFORMATION_MESSAGE);
                         loadFlightsData();
                     } else {
                         logger.warn("Не вдалося скасувати рейс ID: {} (DAO повернув false).", flightToCancel.getId());
-                        JOptionPane.showMessageDialog(this, "Не вдалося скасувати рейс (операція DAO не вдалася).", "Помилка", JOptionPane.ERROR_MESSAGE);
+                        showDialogMessage(this, "Не вдалося скасувати рейс (операція DAO не вдалася).", "Помилка", JOptionPane.ERROR_MESSAGE);
                     }
                 } catch (SQLException ex) {
                     handleSqlException("Помилка бази даних при скасуванні рейсу ID: " + flightToCancel.getId(), ex);
@@ -362,28 +389,13 @@ public class FlightsPanel extends JPanel {
             }
         } else {
             logger.error("Не вдалося отримати рейс для скасування. Обраний рядок: {}, модельний індекс: {}.", selectedRowView, modelRow);
-            JOptionPane.showMessageDialog(this, "Не вдалося отримати дані обраного рейсу для скасування.", "Помилка", JOptionPane.ERROR_MESSAGE);
+            showDialogMessage(this, "Не вдалося отримати дані обраного рейсу для скасування.", "Помилка", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    /**
-     * Обробляє дію кнопки "Створити маршрут".
-     * Відкриває діалогове вікно {@link RouteCreationDialog} для створення нового маршруту.
-     * Якщо маршрут успішно створений та збережений, виводиться повідомлення.
-     * @param e Об'єкт події {@link ActionEvent}.
-     */
     private void addNewRouteAction(ActionEvent e) {
         logger.info("Натиснуто кнопку 'Створити маршрут'. Відкриття RouteCreationDialog.");
-        Window topLevelAncestor = SwingUtilities.getWindowAncestor(this);
-        Frame ownerFrame = (topLevelAncestor instanceof Frame) ? (Frame) topLevelAncestor : null;
-        if (ownerFrame == null) {
-            logger.warn("Батьківське вікно не є JFrame, RouteCreationDialog може не мати коректного власника.");
-        }
-
-        RouteCreationDialog routeDialog = new RouteCreationDialog(
-                ownerFrame,
-                stopDAO // Передаємо stopDAO
-        );
+        RouteCreationDialog routeDialog = new RouteCreationDialog(getOwnerFrame(), stopDAO);
         routeDialog.setVisible(true);
 
         if (routeDialog.isSaved()) {
@@ -393,17 +405,15 @@ public class FlightsPanel extends JPanel {
                 try {
                     if (routeDAO.addRoute(newRoute)) {
                         logger.info("Новий маршрут успішно додано до БД. ID: {}", newRoute.getId());
-                        JOptionPane.showMessageDialog(this, "Новий маршрут '" + newRoute.getFullRouteDescription() + "' успішно створено та додано.", "Успіх", JOptionPane.INFORMATION_MESSAGE);
+                        showDialogMessage(this, "Новий маршрут '" + newRoute.getFullRouteDescription() + "' успішно створено та додано.", "Успіх", JOptionPane.INFORMATION_MESSAGE);
                     } else {
                         logger.warn("Не вдалося додати новий маршрут до БД (DAO повернув false).");
-                        JOptionPane.showMessageDialog(this, "Не вдалося зберегти новий маршрут в базі даних.", "Помилка збереження", JOptionPane.ERROR_MESSAGE);
+                        showDialogMessage(this, "Не вдалося зберегти новий маршрут в базі даних.", "Помилка збереження", JOptionPane.ERROR_MESSAGE);
                     }
                 } catch (SQLException ex) {
-                    logger.error("Помилка SQL при збереженні нового маршруту.", ex);
-                    JOptionPane.showMessageDialog(this, "Помилка бази даних при збереженні нового маршруту: " + ex.getMessage(), "Помилка БД", JOptionPane.ERROR_MESSAGE);
+                    handleSqlException("Помилка SQL при збереженні нового маршруту", ex);
                 } catch (Exception exGeneric) {
-                    logger.error("Непередбачена помилка при збереженні нового маршруту.", exGeneric);
-                    JOptionPane.showMessageDialog(this, "Непередбачена помилка: " + exGeneric.getMessage(), "Помилка", JOptionPane.ERROR_MESSAGE);
+                    handleGenericException("Непередбачена помилка при збереженні нового маршруту", exGeneric);
                 }
             } else {
                 logger.warn("RouteCreationDialog був збережений, але повернув null маршрут.");
@@ -413,22 +423,30 @@ public class FlightsPanel extends JPanel {
         }
     }
 
-    private void handleSqlException(String userMessage, SQLException e) {
-        logger.error("{}: {}", userMessage, e.getMessage(), e);
-        // Перевірка, чи компонент видимий, перед показом діалогу
-        if (this.isShowing()) {
-            JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
+    private void handleSqlException(String userMessagePrefix, SQLException e) {
+        logger.error("{}: {}", userMessagePrefix, e.getMessage(), e);
+        if (this.isShowing()) { // Тільки якщо панель видима
+            showDialogMessage(this, userMessagePrefix + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
         } else {
-            logger.warn("FlightsPanel не видима, JOptionPane для SQLException не буде показано: {}", userMessage);
+            logger.warn("FlightsPanel не видима, JOptionPane для SQLException не буде показано: {}", userMessagePrefix);
         }
     }
 
-    private void handleGenericException(String userMessage, Exception e) {
-        logger.error("{}: {}", userMessage, e.getMessage(), e);
-        if (this.isShowing()) {
-            JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);
+    private void handleGenericException(String userMessagePrefix, Exception e) {
+        logger.error("{}: {}", userMessagePrefix, e.getMessage(), e);
+        if (this.isShowing()) { // Тільки якщо панель видима
+            showDialogMessage(this, userMessagePrefix + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);
         } else {
-            logger.warn("FlightsPanel не видима, JOptionPane для GenericException не буде показано: {}", userMessage);
+            logger.warn("FlightsPanel не видима, JOptionPane для GenericException не буде показано: {}", userMessagePrefix);
         }
     }
+
+    // Геттери для тестів
+    public JTable getFlightsTable() { return flightsTable; }
+    public FlightsTableModel getFlightsTableModel() { return flightsTableModel; }
+    public JButton getBtnAddFlight() { return btnAddFlight; }
+    public JButton getBtnEditFlight() { return btnEditFlight; }
+    public JButton getBtnCancelFlight() { return btnCancelFlight; }
+    public JButton getBtnRefreshFlights() { return btnRefreshFlights; }
+    public JButton getBtnAddNewRoute() { return btnAddNewRoute; }
 }

@@ -1,4 +1,3 @@
-
 import DB.DatabaseConnectionManager;
 import UI.MainFrame;
 import UI.Panel.FlightsPanel;
@@ -54,9 +53,10 @@ class MainFrameTest {
             } catch (Exception e) { /* ігноруємо в tearDown */ }
         }
         mainFrameInstanceForTest = null;
+        // Mockito.framework().clearInlineMocks(); // Розкоментуйте, якщо тести впливають один на одного через статичні моки
     }
 
-    @SuppressWarnings("unused") // Придушуємо попередження про невикористані змінні моків панелей
+    @SuppressWarnings("unused")
     private void initializeMainFrameWithMockedPanels() {
         try (MockedConstruction<FlightsPanel> flightsMock = Mockito.mockConstruction(FlightsPanel.class);
              MockedConstruction<TicketsPanel> ticketsMock = Mockito.mockConstruction(TicketsPanel.class);
@@ -102,7 +102,6 @@ class MainFrameTest {
         assertTrue(passengersTabFound, "Вкладка 'Пасажири' не знайдена");
         assertTrue(reportsTabFound, "Вкладка 'Звітність' не знайдена");
     }
-
     @Test
     @DisplayName("createIcon: іконку не знайдено")
     void createIcon_notFound() {
@@ -115,7 +114,7 @@ class MainFrameTest {
     @DisplayName("setupLookAndFeel: успішне встановлення FlatLaf")
     void setupLookAndFeel_flatLafSuccess() {
         try (MockedStatic<UIManager> uiManagerMock = Mockito.mockStatic(UIManager.class)) {
-            // Використовуємо thenAnswer(invocation -> null) для void методів
+            // ВИПРАВЛЕНО: Використовуємо thenAnswer для void методів
             uiManagerMock.when(() -> UIManager.setLookAndFeel(any(FlatIntelliJLaf.class))).thenAnswer(invocation -> null);
 
             MainFrame.setupLookAndFeel();
@@ -134,6 +133,7 @@ class MainFrameTest {
 
             UIManager.LookAndFeelInfo nimbusInfo = new UIManager.LookAndFeelInfo("Nimbus", "javax.swing.plaf.nimbus.NimbusLookAndFeel");
             uiManagerMock.when(UIManager::getInstalledLookAndFeels).thenReturn(new UIManager.LookAndFeelInfo[]{nimbusInfo});
+            // ВИПРАВЛЕНО: Використовуємо thenAnswer для void методів
             uiManagerMock.when(() -> UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel")).thenAnswer(invocation -> null);
 
             MainFrame.setupLookAndFeel();
@@ -162,11 +162,13 @@ class MainFrameTest {
              MockedStatic<JOptionPane> optionPaneMock = Mockito.mockStatic(JOptionPane.class) ) {
 
             dbManagerMock.when(DatabaseConnectionManager::getConnection).thenThrow(new SQLException("Test DB Error"));
-            // Використовуємо thenAnswer(invocation -> null) для void методів
+            // ВИПРАВЛЕНО: Використовуємо thenAnswer для void методів
             optionPaneMock.when(() -> JOptionPane.showMessageDialog(any(), any(), anyString(), anyInt())).thenAnswer(invocation -> null);
 
             assertFalse(MainFrame.checkDatabaseConnection());
             dbManagerMock.verify(DatabaseConnectionManager::getConnection);
+            // Оскільки suppressMessagesForTesting=true, JOptionPane.showMessageDialog всередині checkDatabaseConnection
+            // не буде викликати реальний JOptionPane, отже, мок не має фіксувати виклик.
             optionPaneMock.verify(() -> JOptionPane.showMessageDialog(any(), any(), anyString(), anyInt()), never());
         }
     }
@@ -185,22 +187,22 @@ class MainFrameTest {
         }
     }
 
-    @SuppressWarnings("unused") // Придушуємо попередження про невикористані змінні моків панелей
+    @SuppressWarnings("unused")
     @Test
     @DisplayName("main (після рефакторингу): успішний запуск")
     void main_successfulRun_afterRefactor() throws Exception {
         try (MockedStatic<MainFrame> mainFrameStaticSpy = Mockito.mockStatic(MainFrame.class, Mockito.CALLS_REAL_METHODS);
              MockedStatic<SwingUtilities> swingUtilitiesMock = Mockito.mockStatic(SwingUtilities.class);
-             MockedConstruction<FlightsPanel> flightsMock = Mockito.mockConstruction(FlightsPanel.class); // Мокуємо панелі
+             MockedConstruction<FlightsPanel> flightsMock = Mockito.mockConstruction(FlightsPanel.class);
              MockedConstruction<TicketsPanel> ticketsMock = Mockito.mockConstruction(TicketsPanel.class);
              MockedConstruction<PassengersPanel> passengersMock = Mockito.mockConstruction(PassengersPanel.class);
              MockedConstruction<ReportsPanel> reportsMock = Mockito.mockConstruction(ReportsPanel.class);
-             MockedConstruction<MainFrame> mainFrameConstructionMock = Mockito.mockConstruction(MainFrame.class, // Мокуємо сам MainFrame
+             MockedConstruction<MainFrame> mainFrameConstructionMock = Mockito.mockConstruction(MainFrame.class,
                      (mock, context) -> {
                          doNothing().when(mock).setVisible(anyBoolean());
                      })) {
 
-            mainFrameStaticSpy.when(MainFrame::setupLookAndFeel).thenAnswer(invocation -> null); // Для void методів
+            mainFrameStaticSpy.when(MainFrame::setupLookAndFeel).thenAnswer(invocation -> null);
             mainFrameStaticSpy.when(MainFrame::checkDatabaseConnection).thenReturn(true);
 
             swingUtilitiesMock.when(() -> SwingUtilities.invokeLater(any(Runnable.class)))
