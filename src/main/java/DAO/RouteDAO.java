@@ -16,8 +16,7 @@ public class RouteDAO {
     private static final Logger logger = LogManager.getLogger("insurance.log");
     private final StopDAO stopDAO = new StopDAO(); // Make sure StopDAO is properly initialized
 
-    // ... (existing getIntermediateStopsForRoute, getAllRoutes, getRouteById methods) ...
-    // Copy your existing methods here
+
 
     /**
      * Допоміжний метод для завантаження проміжних зупинок для конкретного маршруту.
