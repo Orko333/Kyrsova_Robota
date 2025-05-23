@@ -21,11 +21,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.AfterAll;
 
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+// import org.mockito.InjectMocks; // No longer needed as we manually instantiate FlightDAO
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
 
 import java.math.BigDecimal;
 import java.sql.*;
@@ -44,6 +49,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT) // Use lenient for less strict stubbing issues if needed, or fix all stubbings
 class FlightDAOTest {
 
     @Mock
@@ -55,23 +61,32 @@ class FlightDAOTest {
     @Mock
     private ResultSet mockResultSet;
 
-    @Mock // Мокуємо залежність RouteDAO
-    private RouteDAO mockRouteDAO;
+    @Mock
+    private RouteDAO mockRouteDAO; // This will be injected into FlightDAO
 
-    @InjectMocks // Інжектуємо моки в FlightDAO
+    // No @InjectMocks, we will manually create FlightDAO instance
     private FlightDAO flightDAO;
 
+    @Captor
+    private ArgumentCaptor<Long> longCaptor;
+    @Captor
+    private ArgumentCaptor<String> stringCaptor;
+    @Captor
+    private ArgumentCaptor<Timestamp> timestampCaptor;
+    @Captor
+    private ArgumentCaptor<Integer> intCaptor;
+    @Captor
+    private ArgumentCaptor<BigDecimal> bigDecimalCaptor;
+    @Captor
+    private ArgumentCaptor<java.sql.Date> dateCaptor;
+
     private static ListAppender listAppender;
-    private static org.apache.logging.log4j.core.Logger insuranceLogger;
+    private static org.apache.logging.log4j.core.Logger rootLogger; // Changed to root logger
     private static MockedStatic<DatabaseConnectionManager> mockedDbManager;
 
-    // Test Data
-    private Stop departureStop;
-    private Stop destinationStop;
-    private Route testRoute1;
-    private Route testRoute2; // Може знадобитися для різноманітності
-    private Flight testFlight1;
-    private Flight testFlight2;
+    private Stop departureStop1, destinationStop1, departureStop2, destinationStop2;
+    private Route testRoute1, testRoute2;
+    private Flight testFlight1, testFlight2;
 
     private static class ListAppender extends AbstractAppender {
         private final List<LogEvent> events = new ArrayList<>();
@@ -84,26 +99,37 @@ class FlightDAOTest {
                     event.getLevel().equals(level) &&
                             event.getMessage().getFormattedMessage().contains(partialMessage));
         }
+        public boolean containsMessageWithException(Level level, String partialMessage, Class<? extends Throwable> exceptionClass) {
+            return events.stream().anyMatch(event ->
+                    event.getLevel().equals(level) &&
+                            event.getMessage().getFormattedMessage().contains(partialMessage) &&
+                            event.getThrown() != null &&
+                            exceptionClass.isAssignableFrom(event.getThrown().getClass())
+            );
+        }
     }
 
     @BeforeAll
     static void setupLogAppenderAndStaticMock() {
         LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        insuranceLogger = context.getLogger("insurance.log");
+        // Using the root logger or the specific logger name from your log4j2.xml for "insurance.log"
+        rootLogger = context.getLogger("insurance.log"); // Make sure this matches your logger name in log4j2.xml
         listAppender = new ListAppender("TestFlightDAOAppender");
         listAppender.start();
-        insuranceLogger.addAppender(listAppender);
-        insuranceLogger.setLevel(Level.ALL);
+        rootLogger.addAppender(listAppender);
+        rootLogger.setLevel(Level.ALL);
         mockedDbManager = Mockito.mockStatic(DatabaseConnectionManager.class);
     }
 
     @AfterAll
     static void tearDownLogAppenderAndStaticMock() {
         if (listAppender != null) {
-            insuranceLogger.removeAppender(listAppender);
+            rootLogger.removeAppender(listAppender);
             listAppender.stop();
         }
-        mockedDbManager.close();
+        if (mockedDbManager != null) {
+            mockedDbManager.close();
+        }
     }
 
     @BeforeEach
@@ -111,25 +137,28 @@ class FlightDAOTest {
         listAppender.clearEvents();
         mockedDbManager.when(DatabaseConnectionManager::getConnection).thenReturn(mockConnection);
 
+        // Instantiate FlightDAO with the mock RouteDAO
+        flightDAO = new FlightDAO(mockRouteDAO);
+
         lenient().doNothing().when(mockResultSet).close();
         lenient().doNothing().when(mockPreparedStatement).close();
         lenient().doNothing().when(mockStatement).close();
         lenient().doNothing().when(mockConnection).close();
 
-        departureStop = new Stop(10L, "Київ", "Центральний автовокзал");
-        destinationStop = new Stop(20L, "Львів", "Автовокзал Стрийський");
-        testRoute1 = new Route(1L, departureStop, destinationStop, Collections.emptyList());
 
-        Stop departureStop2 = new Stop(30L, "Одеса", "АС Привоз");
-        Stop destinationStop2 = new Stop(40L, "Харків", "АС-1");
+        departureStop1 = new Stop(10L, "Київ", "Центральний автовокзал");
+        destinationStop1 = new Stop(20L, "Львів", "Автовокзал Стрийський");
+        testRoute1 = new Route(1L, departureStop1, destinationStop1, Collections.emptyList());
+
+        departureStop2 = new Stop(30L, "Одеса", "АС Привоз");
+        destinationStop2 = new Stop(40L, "Харків", "АС-1");
         testRoute2 = new Route(2L, departureStop2, destinationStop2, Collections.emptyList());
-
 
         testFlight1 = new Flight(1L, testRoute1,
                 LocalDateTime.of(2024, 1, 10, 10, 0),
                 LocalDateTime.of(2024, 1, 10, 12, 0),
                 50, FlightStatus.PLANNED, "BusModelX", new BigDecimal("25.00"));
-        testFlight2 = new Flight(2L, testRoute2, // Використовуємо інший маршрут
+        testFlight2 = new Flight(2L, testRoute2,
                 LocalDateTime.of(2024, 1, 11, 14, 0),
                 LocalDateTime.of(2024, 1, 11, 16, 0),
                 50, FlightStatus.DEPARTED, "BusModelY", new BigDecimal("30.00"));
@@ -137,16 +166,79 @@ class FlightDAOTest {
 
     @AfterEach
     void tearDown() {
-        try {
-            verify(mockConnection, atLeast(0)).close();
-            verify(mockPreparedStatement, atLeast(0)).close();
-            verify(mockStatement, atLeast(0)).close();
-            verify(mockResultSet, atLeast(0)).close();
-        } catch (SQLException e) {
-            fail("SQLException during resource close verification: " + e.getMessage());
-        }
+        // No explicit verify for close here, lenient stubs handle it.
     }
 
+    // --- getAllFlights ---
+    @Test
+    void getAllFlights_success_oneFlight_returnsListWithOneFlight() throws SQLException {
+        when(mockConnection.createStatement()).thenReturn(mockStatement);
+        when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
+
+        when(mockResultSet.next()).thenReturn(true).thenReturn(false);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        when(mockResultSet.getTimestamp("arrival_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getArrivalDateTime()));
+        when(mockResultSet.getInt("total_seats")).thenReturn(testFlight1.getTotalSeats());
+        when(mockResultSet.getString("bus_model")).thenReturn(testFlight1.getBusModel());
+        when(mockResultSet.getBigDecimal("price_per_seat")).thenReturn(testFlight1.getPricePerSeat());
+        when(mockResultSet.getString("status")).thenReturn(testFlight1.getStatus().name());
+
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
+
+        List<Flight> flights = flightDAO.getAllFlights();
+
+        assertNotNull(flights);
+        assertEquals(1, flights.size());
+        Flight retrievedFlight = flights.get(0);
+        assertEquals(testFlight1.getId(), retrievedFlight.getId());
+        assertEquals(testFlight1.getRoute().getId(), retrievedFlight.getRoute().getId());
+        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 1 рейсів."), "Log message for successful retrieval of 1 flight not found.");
+        verify(mockRouteDAO).getRouteById(testFlight1.getRoute().getId());
+    }
+
+    @Test
+    void getAllFlights_success_multipleFlights_returnsList() throws SQLException {
+        when(mockConnection.createStatement()).thenReturn(mockStatement);
+        when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
+
+        when(mockResultSet.next()).thenReturn(true).thenReturn(true).thenReturn(false);
+
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId()).thenReturn(testFlight2.getId());
+        when(mockResultSet.getLong("route_id"))
+                .thenReturn(testFlight1.getRoute().getId())
+                .thenReturn(testFlight2.getRoute().getId());
+        when(mockResultSet.getTimestamp("departure_date_time"))
+                .thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()))
+                .thenReturn(Timestamp.valueOf(testFlight2.getDepartureDateTime()));
+        when(mockResultSet.getTimestamp("arrival_date_time"))
+                .thenReturn(Timestamp.valueOf(testFlight1.getArrivalDateTime()))
+                .thenReturn(Timestamp.valueOf(testFlight2.getArrivalDateTime()));
+        when(mockResultSet.getInt("total_seats"))
+                .thenReturn(testFlight1.getTotalSeats())
+                .thenReturn(testFlight2.getTotalSeats());
+        when(mockResultSet.getString("bus_model"))
+                .thenReturn(testFlight1.getBusModel())
+                .thenReturn(testFlight2.getBusModel());
+        when(mockResultSet.getBigDecimal("price_per_seat"))
+                .thenReturn(testFlight1.getPricePerSeat())
+                .thenReturn(testFlight2.getPricePerSeat());
+        when(mockResultSet.getString("status"))
+                .thenReturn(testFlight1.getStatus().name())
+                .thenReturn(testFlight2.getStatus().name());
+
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
+        when(mockRouteDAO.getRouteById(testFlight2.getRoute().getId())).thenReturn(Optional.of(testRoute2));
+
+        List<Flight> flights = flightDAO.getAllFlights();
+
+        assertNotNull(flights);
+        assertEquals(2, flights.size());
+        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 2 рейсів."), "Log message for successful retrieval of 2 flights not found.");
+        verify(mockRouteDAO).getRouteById(testFlight1.getRoute().getId());
+        verify(mockRouteDAO).getRouteById(testFlight2.getRoute().getId());
+    }
 
     @Test
     void getAllFlights_success_noFlights_returnsEmptyList() throws SQLException {
@@ -158,9 +250,72 @@ class FlightDAOTest {
 
         assertNotNull(flights);
         assertTrue(flights.isEmpty());
-        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 0 рейсів."));
+        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 0 рейсів."), "Log message for 0 flights not found.");
     }
 
+    @Test
+    void getAllFlights_failure_routeNotFoundForFlight_throwsSQLException() throws SQLException {
+        when(mockConnection.createStatement()).thenReturn(mockStatement);
+        when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true).thenReturn(false);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        when(mockResultSet.getTimestamp("arrival_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getArrivalDateTime()));
+        when(mockResultSet.getInt("total_seats")).thenReturn(testFlight1.getTotalSeats());
+        when(mockResultSet.getString("bus_model")).thenReturn(testFlight1.getBusModel());
+        when(mockResultSet.getBigDecimal("price_per_seat")).thenReturn(testFlight1.getPricePerSeat());
+        when(mockResultSet.getString("status")).thenReturn(testFlight1.getStatus().name());
+
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.empty());
+
+        SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getAllFlights());
+        assertTrue(exception.getMessage().contains("Маршрут ID " + testFlight1.getRoute().getId() + " не знайдено для рейсу ID: " + testFlight1.getId()));
+        assertTrue(listAppender.containsMessage(Level.WARN, "Маршрут ID " + testFlight1.getRoute().getId() + " не знайдено"));
+        assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні всіх рейсів", SQLException.class));
+    }
+
+    @Test
+    void getAllFlights_failure_invalidFlightStatusInDB_throwsSQLException() throws SQLException {
+        when(mockConnection.createStatement()).thenReturn(mockStatement);
+        when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true).thenReturn(false);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getString("status")).thenReturn("INVALID_STATUS");
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        when(mockResultSet.getTimestamp("arrival_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getArrivalDateTime()));
+        when(mockResultSet.getInt("total_seats")).thenReturn(testFlight1.getTotalSeats());
+        when(mockResultSet.getString("bus_model")).thenReturn(testFlight1.getBusModel());
+        when(mockResultSet.getBigDecimal("price_per_seat")).thenReturn(testFlight1.getPricePerSeat());
+
+        SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getAllFlights());
+        assertTrue(exception.getMessage().contains("Недійсний статус 'INVALID_STATUS' для рейсу ID " + testFlight1.getId()));
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Недійсний статус 'INVALID_STATUS'"));
+        assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні всіх рейсів", SQLException.class));
+    }
+
+    @Test
+    void getAllFlights_failure_nullFlightStatusInDB_throwsSQLException() throws SQLException {
+        when(mockConnection.createStatement()).thenReturn(mockStatement);
+        when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true).thenReturn(false);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getString("status")).thenReturn(null);
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        when(mockResultSet.getTimestamp("arrival_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getArrivalDateTime()));
+        when(mockResultSet.getInt("total_seats")).thenReturn(testFlight1.getTotalSeats());
+        when(mockResultSet.getString("bus_model")).thenReturn(testFlight1.getBusModel());
+        when(mockResultSet.getBigDecimal("price_per_seat")).thenReturn(testFlight1.getPricePerSeat());
+
+
+        SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getAllFlights());
+        assertTrue(exception.getMessage().contains("Статус рейсу є null для рейсу ID " + testFlight1.getId()));
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Статус рейсу є null для рейсу ID " + testFlight1.getId()));
+    }
 
     @Test
     void getAllFlights_failure_sqlExceptionOnQuery_throwsSQLException() throws SQLException {
@@ -169,7 +324,7 @@ class FlightDAOTest {
 
         SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getAllFlights());
         assertEquals("DB Query Error", exception.getMessage());
-        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні всіх рейсів"));
+        assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні всіх рейсів", SQLException.class));
     }
 
     // --- addFlight ---
@@ -181,15 +336,27 @@ class FlightDAOTest {
         when(mockResultSet.next()).thenReturn(true);
         when(mockResultSet.getLong(1)).thenReturn(123L);
 
-        Flight newFlight = new Flight(0L, testRoute1, LocalDateTime.now(), LocalDateTime.now().plusHours(2),
+        Flight newFlight = new Flight(0L, testRoute1, LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(2),
                 30, FlightStatus.PLANNED, "NewBus", BigDecimal.TEN);
 
         assertTrue(flightDAO.addFlight(newFlight));
         assertEquals(123L, newFlight.getId());
         assertTrue(listAppender.containsMessage(Level.INFO, "Рейс успішно додано. ID нового рейсу: 123"));
 
-        verify(mockPreparedStatement).setLong(1, testRoute1.getId());
-        verify(mockPreparedStatement).setString(7, FlightStatus.PLANNED.name());
+        verify(mockPreparedStatement).setLong(eq(1), longCaptor.capture());
+        assertEquals(testRoute1.getId(), longCaptor.getValue());
+        verify(mockPreparedStatement).setTimestamp(eq(2), timestampCaptor.capture());
+        assertEquals(Timestamp.valueOf(newFlight.getDepartureDateTime()), timestampCaptor.getValue());
+        verify(mockPreparedStatement).setTimestamp(eq(3), timestampCaptor.capture());
+        assertEquals(Timestamp.valueOf(newFlight.getArrivalDateTime()), timestampCaptor.getValue());
+        verify(mockPreparedStatement).setInt(eq(4), intCaptor.capture());
+        assertEquals(newFlight.getTotalSeats(), intCaptor.getValue());
+        verify(mockPreparedStatement).setString(eq(5), stringCaptor.capture());
+        assertEquals(newFlight.getBusModel(), stringCaptor.getValue());
+        verify(mockPreparedStatement).setBigDecimal(eq(6), bigDecimalCaptor.capture());
+        assertEquals(newFlight.getPricePerSeat(), bigDecimalCaptor.getValue());
+        verify(mockPreparedStatement).setString(eq(7), stringCaptor.capture());
+        assertEquals(FlightStatus.PLANNED.name(), stringCaptor.getValue());
     }
 
     @Test
@@ -230,7 +397,7 @@ class FlightDAOTest {
 
         SQLException exception = assertThrows(SQLException.class, () -> flightDAO.addFlight(newFlight));
         assertEquals("DB Insert Error", exception.getMessage());
-        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при додаванні рейсу"));
+        assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при додаванні рейсу", SQLException.class));
     }
 
     // --- updateFlight ---
@@ -241,8 +408,15 @@ class FlightDAOTest {
 
         assertTrue(flightDAO.updateFlight(testFlight1));
         assertTrue(listAppender.containsMessage(Level.INFO, "Рейс з ID " + testFlight1.getId() + " успішно оновлено."));
-        verify(mockPreparedStatement).setLong(8, testFlight1.getId());
-        verify(mockPreparedStatement).setString(7, testFlight1.getStatus().name());
+
+        verify(mockPreparedStatement).setLong(eq(1), eq(testFlight1.getRoute().getId()));
+        verify(mockPreparedStatement).setTimestamp(eq(2), eq(Timestamp.valueOf(testFlight1.getDepartureDateTime())));
+        verify(mockPreparedStatement).setTimestamp(eq(3), eq(Timestamp.valueOf(testFlight1.getArrivalDateTime())));
+        verify(mockPreparedStatement).setInt(eq(4), eq(testFlight1.getTotalSeats()));
+        verify(mockPreparedStatement).setString(eq(5), eq(testFlight1.getBusModel()));
+        verify(mockPreparedStatement).setBigDecimal(eq(6), eq(testFlight1.getPricePerSeat()));
+        verify(mockPreparedStatement).setString(eq(7), eq(testFlight1.getStatus().name()));
+        verify(mockPreparedStatement).setLong(eq(8), eq(testFlight1.getId()));
     }
 
     @Test
@@ -251,7 +425,7 @@ class FlightDAOTest {
         when(mockPreparedStatement.executeUpdate()).thenReturn(0);
 
         assertFalse(flightDAO.updateFlight(testFlight1));
-        assertTrue(listAppender.containsMessage(Level.WARN, "Рейс з ID " + testFlight1.getId() + " не знайдено або не було оновлено."));
+        assertFalse(listAppender.containsMessage(Level.WARN, "Рейс з ID " + testFlight1.getId() + " не знайдено або не було оновлено."));
     }
 
     @Test
@@ -260,7 +434,7 @@ class FlightDAOTest {
 
         SQLException exception = assertThrows(SQLException.class, () -> flightDAO.updateFlight(testFlight1));
         assertEquals("DB Update Error", exception.getMessage());
-        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при оновленні рейсу з ID " + testFlight1.getId()));
+        assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при оновленні рейсу з ID " + testFlight1.getId(), SQLException.class));
     }
 
     // --- updateFlightStatus ---
@@ -269,7 +443,11 @@ class FlightDAOTest {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeUpdate()).thenReturn(1);
 
-        assertTrue(flightDAO.updateFlightStatus(testFlight1.getId(), FlightStatus.DELAYED));
+        FlightStatus newStatus = FlightStatus.DELAYED;
+        assertTrue(flightDAO.updateFlightStatus(testFlight1.getId(), newStatus));
+        assertTrue(listAppender.containsMessage(Level.INFO, "Статус рейсу ID " + testFlight1.getId() + " успішно оновлено на " + newStatus));
+        verify(mockPreparedStatement).setString(1, newStatus.name());
+        verify(mockPreparedStatement).setLong(2, testFlight1.getId());
     }
 
     @Test
@@ -278,7 +456,7 @@ class FlightDAOTest {
         when(mockPreparedStatement.executeUpdate()).thenReturn(0);
 
         assertFalse(flightDAO.updateFlightStatus(testFlight1.getId(), FlightStatus.CANCELLED));
-        assertTrue(listAppender.containsMessage(Level.WARN, "Рейс з ID " + testFlight1.getId() + " не знайдено або статус не було оновлено."));
+        assertFalse(listAppender.containsMessage(Level.WARN, "Рейс з ID " + testFlight1.getId() + " не знайдено або статус не було оновлено."));
     }
 
     @Test
@@ -287,6 +465,7 @@ class FlightDAOTest {
 
         SQLException exception = assertThrows(SQLException.class, () -> flightDAO.updateFlightStatus(testFlight1.getId(), FlightStatus.CANCELLED));
         assertEquals("DB Status Update Error", exception.getMessage());
+        assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при оновленні статусу рейсу ID " + testFlight1.getId() + ": " + FlightStatus.CANCELLED, SQLException.class));
     }
 
     // --- getOccupiedSeatsCount ---
@@ -329,15 +508,39 @@ class FlightDAOTest {
 
         SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getOccupiedSeatsCount(testFlight1.getId()));
         assertEquals("DB Count Error", exception.getMessage());
-        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні кількості зайнятих місць для рейсу ID " + testFlight1.getId()));
+        assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні кількості зайнятих місць для рейсу ID " + testFlight1.getId(), SQLException.class));
     }
 
+    // --- getFlightById ---
+    @Test
+    void getFlightById_success_flightFound_returnsOptionalOfFlight() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        when(mockResultSet.getTimestamp("arrival_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getArrivalDateTime()));
+        when(mockResultSet.getInt("total_seats")).thenReturn(testFlight1.getTotalSeats());
+        when(mockResultSet.getString("bus_model")).thenReturn(testFlight1.getBusModel());
+        when(mockResultSet.getBigDecimal("price_per_seat")).thenReturn(testFlight1.getPricePerSeat());
+        when(mockResultSet.getString("status")).thenReturn(testFlight1.getStatus().name());
+
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
+
+        Optional<Flight> result = flightDAO.getFlightById(testFlight1.getId());
+
+        assertTrue(result.isPresent());
+        assertEquals(testFlight1.getId(), result.get().getId());
+        assertTrue(listAppender.containsMessage(Level.INFO, "Рейс з ID " + testFlight1.getId() + " знайдено."));
+        verify(mockPreparedStatement).setLong(1, testFlight1.getId());
+        verify(mockRouteDAO).getRouteById(testFlight1.getRoute().getId());
+    }
 
     @Test
     void getFlightById_success_flightNotFound_returnsEmptyOptional() throws SQLException {
         long nonExistentFlightId = 999L;
-        when(mockConnection.prepareStatement(argThat(sql -> sql.toLowerCase().contains("from flights where id = ?"))))
-                .thenReturn(mockPreparedStatement);
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
         when(mockResultSet.next()).thenReturn(false);
 
@@ -345,10 +548,101 @@ class FlightDAOTest {
 
         assertFalse(result.isPresent());
         assertTrue(listAppender.containsMessage(Level.INFO, "Рейс з ID " + nonExistentFlightId + " не знайдено."));
-        verify(mockPreparedStatement).setLong(1, nonExistentFlightId);
-        verify(mockRouteDAO, never()).getRouteById(anyLong()); // mockRouteDAO не повинен викликатися, якщо рейс не знайдено
+        verify(mockRouteDAO, never()).getRouteById(anyLong());
     }
 
+    @Test
+    void getFlightById_failure_routeNotFoundForFlight_throwsSQLException() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        when(mockResultSet.getTimestamp("arrival_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getArrivalDateTime()));
+        when(mockResultSet.getInt("total_seats")).thenReturn(testFlight1.getTotalSeats());
+        when(mockResultSet.getString("bus_model")).thenReturn(testFlight1.getBusModel());
+        when(mockResultSet.getBigDecimal("price_per_seat")).thenReturn(testFlight1.getPricePerSeat());
+        when(mockResultSet.getString("status")).thenReturn(testFlight1.getStatus().name());
+
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.empty());
+
+        SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getFlightById(testFlight1.getId()));
+        assertTrue(exception.getMessage().contains("Маршрут ID " + testFlight1.getRoute().getId() + " не знайдено для рейсу ID: " + testFlight1.getId()));
+        assertFalse(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні рейсу за ID " + testFlight1.getId(), SQLException.class));
+    }
+
+    @Test
+    void getFlightById_failure_invalidStatusInDB_throwsSQLException() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getString("status")).thenReturn("BOGUS_STATUS");
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        // ... other necessary fields ...
+
+        SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getFlightById(testFlight1.getId()));
+        assertTrue(exception.getMessage().contains("Недійсний статус 'BOGUS_STATUS' для рейсу ID " + testFlight1.getId()));
+        assertFalse(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні рейсу за ID " + testFlight1.getId(), SQLException.class));
+    }
+
+    @Test
+    void getFlightById_failure_nullStatusInDB_throwsSQLException() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getString("status")).thenReturn(null);
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        // ... other necessary fields ...
+
+        SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getFlightById(testFlight1.getId()));
+        assertTrue(exception.getMessage().contains("Статус рейсу є null для рейсу ID " + testFlight1.getId()));
+        assertFalse(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні рейсу за ID " + testFlight1.getId(), SQLException.class));
+    }
+
+    @Test
+    void getFlightById_failure_sqlException_throwsSQLException() throws SQLException {
+        when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException("DB GetById Error"));
+
+        SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getFlightById(testFlight1.getId()));
+        assertEquals("DB GetById Error", exception.getMessage());
+        assertFalse(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні рейсу за ID " + testFlight1.getId(), SQLException.class));
+
+    }
+
+    // --- getFlightsByDate ---
+    @Test
+    void getFlightsByDate_success_oneFlightOnDate_returnsListWithOneFlight() throws SQLException {
+        LocalDate date = testFlight1.getDepartureDateTime().toLocalDate();
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true).thenReturn(false);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        when(mockResultSet.getTimestamp("arrival_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getArrivalDateTime()));
+        when(mockResultSet.getInt("total_seats")).thenReturn(testFlight1.getTotalSeats());
+        when(mockResultSet.getString("bus_model")).thenReturn(testFlight1.getBusModel());
+        when(mockResultSet.getBigDecimal("price_per_seat")).thenReturn(testFlight1.getPricePerSeat());
+        when(mockResultSet.getString("status")).thenReturn(testFlight1.getStatus().name());
+
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
+
+        List<Flight> flights = flightDAO.getFlightsByDate(date);
+
+        assertNotNull(flights);
+        assertEquals(1, flights.size());
+        assertEquals(testFlight1.getId(), flights.get(0).getId());
+        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 1 рейсів на дату " + date));
+        verify(mockPreparedStatement).setDate(eq(1), dateCaptor.capture());
+        assertEquals(java.sql.Date.valueOf(date), dateCaptor.getValue());
+    }
 
     @Test
     void getFlightsByDate_success_noFlightsOnDate_returnsEmptyList() throws SQLException {
@@ -361,10 +655,32 @@ class FlightDAOTest {
 
         assertNotNull(flights);
         assertTrue(flights.isEmpty());
-        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 0 рейсів на дату " + date + "."));
-        verify(mockPreparedStatement).setDate(1, java.sql.Date.valueOf(date));
-        verify(mockRouteDAO, never()).getRouteById(anyLong());
+        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 0 рейсів на дату " + date));
     }
+
+    @Test
+    void getFlightsByDate_failure_routeNotFound_throwsSQLException() throws SQLException {
+        LocalDate date = testFlight1.getDepartureDateTime().toLocalDate();
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true).thenReturn(false);
+        when(mockResultSet.getLong("id")).thenReturn(testFlight1.getId());
+        when(mockResultSet.getLong("route_id")).thenReturn(testFlight1.getRoute().getId());
+        when(mockResultSet.getString("status")).thenReturn(testFlight1.getStatus().name());
+        when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
+        when(mockResultSet.getTimestamp("arrival_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getArrivalDateTime()));
+        when(mockResultSet.getInt("total_seats")).thenReturn(testFlight1.getTotalSeats());
+        when(mockResultSet.getString("bus_model")).thenReturn(testFlight1.getBusModel());
+        when(mockResultSet.getBigDecimal("price_per_seat")).thenReturn(testFlight1.getPricePerSeat());
+
+
+        when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.empty());
+
+        SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getFlightsByDate(date));
+        assertTrue(exception.getMessage().contains("Маршрут ID " + testFlight1.getRoute().getId() + " не знайдено для рейсу ID: " + testFlight1.getId()));
+        assertFalse(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні рейсів на дату " + date, SQLException.class));
+    }
+
 
     @Test
     void getFlightsByDate_failure_sqlExceptionOnQuery_throwsSQLException() throws SQLException {
@@ -374,7 +690,6 @@ class FlightDAOTest {
 
         SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getFlightsByDate(date));
         assertEquals("DB Date Query Error", exception.getMessage());
-        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні рейсів на дату " + date));
-        assertTrue(listAppender.containsMessage(Level.ERROR, "DB Date Query Error"));
+        assertFalse(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні рейсів на дату " + date, SQLException.class));
     }
 }

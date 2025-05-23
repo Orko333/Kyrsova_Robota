@@ -36,7 +36,7 @@ public class TicketDAO {
     }
 
 
-    public TicketDAO() {
+    public TicketDAO() throws SQLException {
 
         this.flightDAO = new FlightDAO();
         this.passengerDAO = new PassengerDAO();
