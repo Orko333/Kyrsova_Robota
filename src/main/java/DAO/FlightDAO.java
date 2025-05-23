@@ -2,7 +2,7 @@ package DAO;
 
 import DB.DatabaseConnectionManager;
 import Models.Flight;
-import Models.Enums.FlightStatus; // Виправлено імпорт
+import Models.Enums.FlightStatus;
 import Models.Route;
 
 import org.apache.logging.log4j.LogManager;
@@ -19,7 +19,36 @@ import java.util.Optional;
  */
 public class FlightDAO {
     private static final Logger logger = LogManager.getLogger("insurance.log");
-    private final RouteDAO routeDAO = new RouteDAO();
+    private final RouteDAO routeDAO;
+
+    /**
+     * Конструктор для FlightDAO з ін'єкцією RouteDAO (для тестування та гнучкості).
+     * @param routeDAO DAO для роботи з маршрутами.
+     * @throws SQLException якщо виникає помилка при створенні RouteDAO за замовчуванням (якщо передано null).
+     */
+    public FlightDAO(RouteDAO routeDAO) throws SQLException {
+        if (routeDAO == null) {
+            logger.warn("RouteDAO було передано як null в конструктор FlightDAO. Спроба створити екземпляр RouteDAO за замовчуванням.");
+            // Спроба створити RouteDAO за замовчуванням, якщо його не надано.
+            // Це може бути корисним для випадків, коли FlightDAO створюється не в тестовому середовищі
+            // і не має прямої ін'єкції RouteDAO.
+            this.routeDAO = new RouteDAO();
+        } else {
+            this.routeDAO = routeDAO;
+        }
+        logger.debug("FlightDAO ініціалізовано з наданим або створеним RouteDAO.");
+    }
+
+    /**
+     * Конструктор за замовчуванням для FlightDAO.
+     * Створює власний екземпляр RouteDAO.
+     * @throws SQLException якщо не вдалося створити RouteDAO.
+     */
+    public FlightDAO() throws SQLException {
+        this(new RouteDAO()); // Викликає інший конструктор з новим екземпляром RouteDAO
+        logger.debug("FlightDAO створено з RouteDAO за замовчуванням.");
+    }
+
 
     /**
      * Повертає список всіх рейсів з бази даних.
@@ -38,7 +67,7 @@ public class FlightDAO {
             while (rs.next()) {
                 long flightId = rs.getLong("id");
                 long routeId = rs.getLong("route_id");
-                Route route = routeDAO.getRouteById(routeId)
+                Route route = this.routeDAO.getRouteById(routeId)
                         .orElseThrow(() -> {
                             String errorMsg = "Маршрут ID " + routeId + " не знайдено для рейсу ID: " + flightId;
                             logger.warn(errorMsg); // Логування попередження про цілісність даних
@@ -109,7 +138,7 @@ public class FlightDAO {
                         return true;
                     } else {
                         logger.warn("Рейс додано ({} рядків), але не вдалося отримати згенерований ID.", affectedRows);
-                        return false;
+                        return false; // Або кинути виняток, оскільки це несподівана ситуація
                     }
                 }
             } else {
@@ -149,7 +178,7 @@ public class FlightDAO {
                 logger.info("Рейс з ID {} успішно оновлено.", flight.getId());
                 return true;
             } else {
-                logger.warn("Рейс з ID {} не знайдено або не було оновлено.", flight.getId());
+                logger.warn("Рейс з ID {} не знайдено або не було оновлено (affectedRows = 0).", flight.getId());
                 return false;
             }
         } catch (SQLException e) {
@@ -180,7 +209,7 @@ public class FlightDAO {
                 logger.info("Статус рейсу ID {} успішно оновлено на {}.", flightId, status);
                 return true;
             } else {
-                logger.warn("Рейс з ID {} не знайдено або статус не було оновлено.", flightId);
+                logger.warn("Рейс з ID {} не знайдено або статус не було оновлено (affectedRows = 0).", flightId);
                 return false;
             }
         } catch (SQLException e) {
@@ -209,6 +238,7 @@ public class FlightDAO {
                     count = rs.getInt(1);
                     logger.info("Кількість зайнятих місць для рейсу ID {}: {}", flightId, count);
                 } else {
+                    // Це малоймовірно для COUNT(*), але для повноти
                     logger.info("Не знайдено даних про зайняті місця для рейсу ID {}. Повертається 0.", flightId);
                 }
             }
@@ -236,7 +266,7 @@ public class FlightDAO {
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     long routeId = rs.getLong("route_id");
-                    Route route = routeDAO.getRouteById(routeId)
+                    Route route = this.routeDAO.getRouteById(routeId)
                             .orElseThrow(() -> {
                                 String errorMsg = "Маршрут ID " + routeId + " не знайдено для рейсу ID: " + id;
                                 logger.warn(errorMsg);
@@ -300,7 +330,7 @@ public class FlightDAO {
                 while (rs.next()) {
                     long flightId = rs.getLong("id");
                     long routeId = rs.getLong("route_id");
-                    Route route = routeDAO.getRouteById(routeId)
+                    Route route = this.routeDAO.getRouteById(routeId)
                             .orElseThrow(() -> {
                                 String errorMsg = "Маршрут ID " + routeId + " не знайдено для рейсу ID: " + flightId;
                                 logger.warn(errorMsg);
