@@ -38,7 +38,7 @@
         <Logger name="insurance.log" level="INFO" additivity="false">
             <AppenderRef ref="FileAppender"/>
             <AppenderRef ref="ErrorFileAppender"/>
-            <AppenderRef ref="EmailAppender"/>
+<!--            <AppenderRef ref="EmailAppender"/>-->
             <AppenderRef ref="ConsoleAppender"/>
         </Logger>
 

@@ -2,9 +2,12 @@ package UI.Panel;
 
 import DAO.FlightDAO;
 import DAO.RouteDAO;
+import DAO.StopDAO;
 import Models.Flight;
 import Models.Enums.FlightStatus;
+import Models.Route; // Потрібно для нового маршруту
 import UI.Dialog.FlightDialog;
+import UI.Dialog.RouteCreationDialog; // Потрібно для діалогу створення маршруту
 import UI.Model.FlightsTableModel;
 
 import org.apache.logging.log4j.LogManager;
@@ -23,26 +26,26 @@ import java.util.List;
 /**
  * Панель для управління рейсами.
  * Надає користувацький інтерфейс для перегляду списку рейсів,
- * додавання нових рейсів, редагування та скасування існуючих.
- *
- * @author [Ваше ім'я або назва команди]
- * @version 1.1
+ * додавання нових рейсів, редагування, скасування існуючих,
+ * а також ініціює створення нових маршрутів через відповідний діалог.
  */
 public class FlightsPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
 
     private JTable flightsTable;
     private FlightsTableModel flightsTableModel;
-    private JButton btnAddFlight, btnEditFlight, btnCancelFlight, btnRefreshFlights;
+    private JButton btnAddFlight, btnEditFlight, btnCancelFlight, btnRefreshFlights, btnAddNewRoute; // Додано кнопку btnAddNewRoute
 
     private final FlightDAO flightDAO;
     private final RouteDAO routeDAO;
+    private final StopDAO stopDAO;
 
     /**
      * Конструктор панелі управління рейсами.
-     * Ініціалізує DAO, компоненти UI та завантажує початкові дані про рейси.
+     * Ініціалізує DAO для рейсів, маршрутів та зупинок,
+     * компоненти користувацького інтерфейсу та завантажує початкові дані про рейси.
      *
-     * @throws RuntimeException якщо не вдалося ініціалізувати {@link FlightDAO} або {@link RouteDAO}.
+     * @throws RuntimeException якщо не вдалося ініціалізувати один з DAO (FlightDAO, RouteDAO, StopDAO).
      */
     public FlightsPanel() {
         logger.info("Ініціалізація FlightsPanel.");
@@ -64,6 +67,16 @@ public class FlightsPanel extends JPanel {
             throw new RuntimeException("Не вдалося ініціалізувати RouteDAO", e);
         }
 
+        try {
+            this.stopDAO = new StopDAO();
+            logger.debug("StopDAO успішно створено.");
+        } catch (Exception e) {
+            logger.fatal("Не вдалося створити StopDAO в FlightsPanel.", e);
+            JOptionPane.showMessageDialog(null, "Критична помилка: не вдалося ініціалізувати сервіс даних зупинок.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
+            throw new RuntimeException("Не вдалося ініціалізувати StopDAO", e);
+        }
+
+
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -72,11 +85,6 @@ public class FlightsPanel extends JPanel {
         logger.info("FlightsPanel успішно ініціалізовано.");
     }
 
-    /**
-     * Ініціалізує та розміщує компоненти користувацького інтерфейсу панелі.
-     * Створює таблицю для відображення рейсів та кнопки для виконання операцій:
-     * "Додати рейс", "Редагувати рейс", "Скасувати рейс" та "Оновити список".
-     */
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для FlightsPanel.");
         flightsTableModel = new FlightsTableModel(new ArrayList<>());
@@ -137,6 +145,7 @@ public class FlightsPanel extends JPanel {
         btnEditFlight = new JButton("Редагувати рейс");
         btnCancelFlight = new JButton("Скасувати рейс");
         btnRefreshFlights = new JButton("Оновити список");
+        btnAddNewRoute = new JButton("Створити маршрут"); // Ініціалізація нової кнопки
 
         btnAddFlight.addActionListener(this::addFlightAction);
         btnEditFlight.addActionListener(this::editFlightAction);
@@ -145,11 +154,13 @@ public class FlightsPanel extends JPanel {
             logger.info("Натиснуто кнопку 'Оновити список' рейсів.");
             loadFlightsData();
         });
+        btnAddNewRoute.addActionListener(this::addNewRouteAction); // Додавання слухача подій для нової кнопки
 
         buttonPanel.add(btnAddFlight);
         buttonPanel.add(btnEditFlight);
         buttonPanel.add(btnCancelFlight);
         buttonPanel.add(btnRefreshFlights);
+        buttonPanel.add(btnAddNewRoute); // Додавання нової кнопки на панель
 
         add(buttonPanel, BorderLayout.SOUTH);
         logger.debug("Компоненти UI для FlightsPanel успішно створені та додані.");
@@ -157,8 +168,8 @@ public class FlightsPanel extends JPanel {
 
     /**
      * Завантажує або оновлює список рейсів у таблиці.
-     * Дані отримуються з {@link FlightDAO}. У випадку помилки,
-     * виводиться повідомлення користувачу.
+     * Дані отримуються з {@link FlightDAO}. У випадку помилки SQL або іншої непередбаченої помилки,
+     * виводиться відповідне повідомлення користувачу.
      */
     public void loadFlightsData() {
         logger.info("Завантаження даних про рейси.");
@@ -173,12 +184,6 @@ public class FlightsPanel extends JPanel {
         }
     }
 
-    /**
-     * Відкриває діалогове вікно для редагування обраного рейсу.
-     * Якщо рейс не передано ({@code null}), виводить повідомлення про помилку.
-     * Після закриття діалогу, якщо дані були збережені, оновлює список рейсів.
-     * @param flightToEdit Об'єкт {@link Flight} для редагування.
-     */
     private void openEditFlightDialog(Flight flightToEdit) {
         if (flightToEdit == null) {
             logger.error("Спроба відкрити діалог редагування для null рейсу.");
@@ -202,16 +207,13 @@ public class FlightsPanel extends JPanel {
         }
     }
 
-    /**
-     * Обробляє дію додавання нового рейсу.
-     * Відкриває діалогове вікно {@link FlightDialog} для створення нового рейсу.
-     * Якщо рейс успішно створено та збережено, оновлює список рейсів у таблиці.
-     * @param e Об'єкт події {@link ActionEvent}.
-     */
     private void addFlightAction(ActionEvent e) {
         logger.info("Натиснуто кнопку 'Додати рейс'. Відкриття FlightDialog для створення нового рейсу.");
         FlightDialog dialog = new FlightDialog((Frame) SwingUtilities.getWindowAncestor(this),
-                "Новий рейс", flightDAO, routeDAO, null);
+                "Новий рейс",
+                flightDAO,
+                routeDAO,
+                null);
         dialog.setVisible(true);
         if (dialog.isSaved()) {
             logger.info("Новий рейс було створено та збережено. Оновлення списку рейсів.");
@@ -221,12 +223,6 @@ public class FlightsPanel extends JPanel {
         }
     }
 
-    /**
-     * Обробляє дію редагування обраного рейсу.
-     * Отримує обраний рейс з таблиці та відкриває діалогове вікно {@link FlightDialog}
-     * для його редагування.
-     * @param e Об'єкт події {@link ActionEvent}.
-     */
     private void editFlightAction(ActionEvent e) {
         logger.debug("Натиснуто кнопку 'Редагувати рейс'.");
         int selectedRowView = flightsTable.getSelectedRow();
@@ -247,13 +243,6 @@ public class FlightsPanel extends JPanel {
         }
     }
 
-    /**
-     * Обробляє дію скасування обраного рейсу.
-     * Змінює статус рейсу на {@link FlightStatus#CANCELLED}.
-     * Забороняє скасування рейсів, які вже скасовані, відправлені або прибули.
-     * Попередньо запитує підтвердження у користувача.
-     * @param e Об'єкт події {@link ActionEvent}.
-     */
     private void cancelFlightAction(ActionEvent e) {
         logger.debug("Натиснуто кнопку 'Скасувати рейс'.");
         int selectedRowView = flightsTable.getSelectedRow();
@@ -309,20 +298,51 @@ public class FlightsPanel extends JPanel {
     }
 
     /**
-     * Обробляє винятки типу {@link SQLException}, логує їх та показує повідомлення користувачу.
-     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
-     * @param e Об'єкт винятку {@link SQLException}.
+     * Обробляє дію кнопки "Створити маршрут".
+     * Відкриває діалогове вікно {@link RouteCreationDialog} для створення нового маршруту.
+     * Якщо маршрут успішно створений та збережений, виводиться повідомлення.
+     * @param e Об'єкт події {@link ActionEvent}.
      */
+    private void addNewRouteAction(ActionEvent e) {
+        logger.info("Натиснуто кнопку 'Створити маршрут'. Відкриття RouteCreationDialog.");
+        RouteCreationDialog routeDialog = new RouteCreationDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                stopDAO
+        );
+        routeDialog.setVisible(true);
+
+        if (routeDialog.isSaved()) {
+            Route newRoute = routeDialog.getCreatedRoute();
+            if (newRoute != null) {
+                logger.debug("RouteCreationDialog повернув новий маршрут: {}", newRoute.getFullRouteDescription());
+                try {
+                    if (routeDAO.addRoute(newRoute)) {
+                        logger.info("Новий маршрут успішно додано до БД. ID: {}", newRoute.getId());
+                        JOptionPane.showMessageDialog(this, "Новий маршрут '" + newRoute.getFullRouteDescription() + "' успішно створено та додано.", "Успіх", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        logger.warn("Не вдалося додати новий маршрут до БД (DAO повернув false).");
+                        JOptionPane.showMessageDialog(this, "Не вдалося зберегти новий маршрут в базі даних.", "Помилка збереження", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (SQLException ex) {
+                    logger.error("Помилка SQL при збереженні нового маршруту.", ex);
+                    JOptionPane.showMessageDialog(this, "Помилка бази даних при збереженні нового маршруту: " + ex.getMessage(), "Помилка БД", JOptionPane.ERROR_MESSAGE);
+                } catch (Exception exGeneric) {
+                    logger.error("Непередбачена помилка при збереженні нового маршруту.", exGeneric);
+                    JOptionPane.showMessageDialog(this, "Непередбачена помилка: " + exGeneric.getMessage(), "Помилка", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                logger.warn("RouteCreationDialog був збережений, але повернув null маршрут.");
+            }
+        } else {
+            logger.debug("Створення нового маршруту було скасовано або закрито без збереження.");
+        }
+    }
+
     private void handleSqlException(String userMessage, SQLException e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
     }
 
-    /**
-     * Обробляє загальні винятки (не {@link SQLException}), логує їх та показує повідомлення користувачу.
-     * @param userMessage Повідомлення для користувача, що описує контекст помилки.
-     * @param e Об'єкт винятку {@link Exception}.
-     */
     private void handleGenericException(String userMessage, Exception e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
         JOptionPane.showMessageDialog(this, userMessage + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);

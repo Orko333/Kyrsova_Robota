@@ -7,11 +7,11 @@ import Models.Ticket;
 import UI.Dialog.PassengerDialog;
 import UI.Model.PassengerHistoryTableModel;
 import UI.Model.PassengersTableModel;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder; // Додано імпорт, якщо його не було
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -26,9 +26,6 @@ import java.util.List;
  * Надає користувацький інтерфейс для відображення списку пасажирів,
  * редагування їхніх даних та перегляду історії куплених/заброньованих квитків
  * для обраного пасажира.
- *
- * @author [Ваше ім'я або назва команди]
- * @version 1.1
  */
 public class PassengersPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
@@ -43,28 +40,74 @@ public class PassengersPanel extends JPanel {
     private final TicketDAO ticketDAO;
 
     /**
-     * Конструктор панелі управління пасажирами.
-     * Ініціалізує DAO, компоненти UI та завантажує початкові дані про пасажирів.
+     * Конструктор панелі управління пасажирами для використання в програмі.
+     * Ініціалізує DAO через new, компоненти UI та завантажує початкові дані про пасажирів.
      *
      * @throws RuntimeException якщо не вдалося ініціалізувати {@link PassengerDAO} або {@link TicketDAO}.
      */
     public PassengersPanel() {
-        logger.info("Ініціалізація PassengersPanel.");
+        // Цей конструктор викликає інший, який ініціалізує DAO.
+        // Якщо DAO кидають перевірені винятки, їх треба обгорнути в RuntimeException тут,
+        // або цей конструктор має їх оголошувати.
+        this(createPassengerDAOInternal(), createTicketDAOInternal());
+        logger.info("PassengersPanel створено з DAO за замовчуванням.");
+    }
+
+    // Допоміжні методи для уникнення дублювання коду створення DAO з обробкою помилок
+    private static PassengerDAO createPassengerDAOInternal() {
         try {
-            this.passengerDAO = new PassengerDAO();
-            this.ticketDAO = new TicketDAO();
-            logger.debug("PassengerDAO та TicketDAO успішно створені.");
+            return new PassengerDAO();
         } catch (Exception e) {
-            logger.fatal("Не вдалося створити DAO в PassengersPanel.", e);
-            JOptionPane.showMessageDialog(this, "Критична помилка: не вдалося ініціалізувати сервіси даних.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
-            throw new RuntimeException("Не вдалося ініціалізувати DAO", e);
+            // Логування і кидання RuntimeException тут вже є в основному конструкторі,
+            // але для чистоти можна додати специфічне логування сюди
+            logger.fatal("Критична помилка при створенні PassengerDAO в конструкторі за замовчуванням.", e);
+            // JOptionPane тут не покажеш, бо це статичний метод.
+            // Помилка буде оброблена в конструкторі PassengersPanel(PassengerDAO, TicketDAO)
+            throw new RuntimeException("Не вдалося ініціалізувати PassengerDAO", e);
         }
+    }
+
+    private static TicketDAO createTicketDAOInternal() {
+        try {
+            return new TicketDAO();
+        } catch (Exception e) {
+            logger.fatal("Критична помилка при створенні TicketDAO в конструкторі за замовчуванням.", e);
+            throw new RuntimeException("Не вдалося ініціалізувати TicketDAO", e);
+        }
+    }
+
+
+    /**
+     * Конструктор панелі управління пасажирами для тестування та ін'єкції залежностей.
+     * Ініціалізує компоненти UI та завантажує початкові дані про пасажирів, використовуючи надані DAO.
+     *
+     * @param passengerDAO DAO для роботи з пасажирами.
+     * @param ticketDAO    DAO для роботи з квитками.
+     * @throws RuntimeException якщо надані DAO є null або виникає інша помилка ініціалізації.
+     */
+    public PassengersPanel(PassengerDAO passengerDAO, TicketDAO ticketDAO) {
+        logger.info("Ініціалізація PassengersPanel з наданими DAO.");
+        if (passengerDAO == null || ticketDAO == null) {
+            logger.fatal("Надані DAO не можуть бути null при створенні PassengersPanel.");
+            // Немає сенсу показувати JOptionPane тут, бо це, швидше за все, помилка програмування
+            throw new IllegalArgumentException("PassengerDAO та TicketDAO не можуть бути null.");
+        }
+        this.passengerDAO = passengerDAO;
+        this.ticketDAO = ticketDAO;
+        logger.debug("PassengerDAO та TicketDAO успішно присвоєні.");
+
+
+        // Виносимо блок try-catch для створення DAO з попереднього конструктора
+        // сюди, якщо він стосується інших аспектів ініціалізації,
+        // але якщо він стосувався *тільки* new DAO(), то він тут не потрібен.
+        // Припускаючи, що попередній try-catch стосувався саме `new DAO()`,
+        // ми його тут прибираємо, бо DAO вже передані.
 
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         initComponents();
-        loadPassengersData();
+        loadPassengersData(); // Завантажуємо дані після ініціалізації компонентів
         logger.info("PassengersPanel успішно ініціалізовано.");
     }
 
@@ -76,11 +119,13 @@ public class PassengersPanel extends JPanel {
      */
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для PassengersPanel.");
-        JPanel passengerListPanel = new JPanel(new BorderLayout(5,5));
+        JPanel passengerListPanel = new JPanel(new BorderLayout(5, 5));
         passengerListPanel.setBorder(BorderFactory.createTitledBorder("Список пасажирів"));
+        // passengerListPanel.setName("passengerListPanel"); // Опціонально, якщо потрібно для тестів
 
         passengersTableModel = new PassengersTableModel(new ArrayList<>());
         passengersTable = new JTable(passengersTableModel);
+        passengersTable.setName("passengersTable"); // ВАЖЛИВО: Встановлення імені
         passengersTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         passengersTable.setAutoCreateRowSorter(true);
         passengersTable.setFillsViewportHeight(true);
@@ -123,12 +168,17 @@ public class PassengersPanel extends JPanel {
         });
 
         JScrollPane passengersScrollPane = new JScrollPane(passengersTable);
+        passengersScrollPane.setName("passengersScrollPane"); // Опціонально
         passengersScrollPane.setPreferredSize(new Dimension(700, 250));
         passengerListPanel.add(passengersScrollPane, BorderLayout.CENTER);
 
         JPanel passengerButtonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        // passengerButtonsPanel.setName("passengerButtonsPanel"); // Опціонально
         btnEditPassenger = new JButton("Редагувати пасажира");
+        btnEditPassenger.setName("btnEditPassenger"); // ВАЖЛИВО
+
         btnRefreshPassengers = new JButton("Оновити список");
+        btnRefreshPassengers.setName("btnRefreshPassengers"); // ВАЖЛИВО
 
         btnEditPassenger.addActionListener(this::editPassengerAction);
         btnRefreshPassengers.addActionListener(e -> {
@@ -140,28 +190,37 @@ public class PassengersPanel extends JPanel {
         passengerButtonsPanel.add(btnRefreshPassengers);
         passengerListPanel.add(passengerButtonsPanel, BorderLayout.SOUTH);
 
-        JPanel historyPanel = new JPanel(new BorderLayout(5,5));
+        JPanel historyPanel = new JPanel(new BorderLayout(5, 5));
         historyPanel.setBorder(BorderFactory.createTitledBorder("Історія поїздок обраного пасажира"));
+        // historyPanel.setName("historyPanel"); // Опціонально
+
         historyTableModel = new PassengerHistoryTableModel(new ArrayList<>());
         historyTable = new JTable(historyTableModel);
+        historyTable.setName("historyTable"); // ВАЖЛИВО
         historyTable.setFillsViewportHeight(true);
 
         DefaultTableCellRenderer rightRendererHistory = new DefaultTableCellRenderer();
         rightRendererHistory.setHorizontalAlignment(JLabel.RIGHT);
-        if (historyTable.getColumnModel().getColumnCount() > 5) {
-            logger.trace("Налаштування рендерера для таблиці історії.");
-            historyTable.getColumnModel().getColumn(0).setCellRenderer(rightRendererHistory);
-            historyTable.getColumnModel().getColumn(1).setCellRenderer(rightRendererHistory);
-            historyTable.getColumnModel().getColumn(5).setCellRenderer(rightRendererHistory);
-        } else {
-            logger.warn("Кількість стовпців у таблиці історії ({}) менша за 6, рендерер може бути не встановлено для всіх стовпців.", historyTable.getColumnModel().getColumnCount());
-        }
+        // Перевірка кількості стовпців перед налаштуванням рендерера
+        SwingUtilities.invokeLater(() -> { // Відкладене налаштування, щоб модель таблиці була готова
+            if (historyTable.getColumnModel().getColumnCount() > 5) {
+                logger.trace("Налаштування рендерера для таблиці історії.");
+                historyTable.getColumnModel().getColumn(0).setCellRenderer(rightRendererHistory);
+                historyTable.getColumnModel().getColumn(1).setCellRenderer(rightRendererHistory);
+                historyTable.getColumnModel().getColumn(5).setCellRenderer(rightRendererHistory);
+            } else {
+                logger.warn("Кількість стовпців у таблиці історії ({}) менша за 6, рендерер може бути не встановлено для всіх стовпців.", historyTable.getColumnModel().getColumnCount());
+            }
+        });
+
 
         JScrollPane historyScrollPane = new JScrollPane(historyTable);
+        historyScrollPane.setName("historyScrollPane"); // Опціонально
         historyScrollPane.setPreferredSize(new Dimension(700, 200));
         historyPanel.add(historyScrollPane, BorderLayout.CENTER);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, passengerListPanel, historyPanel);
+        // splitPane.setName("mainSplitPane"); // Опціонально
         splitPane.setResizeWeight(0.6);
         add(splitPane, BorderLayout.CENTER);
         logger.debug("Компоненти UI для PassengersPanel успішно створені та додані.");
@@ -172,6 +231,7 @@ public class PassengersPanel extends JPanel {
      * Якщо пасажир не передано ({@code null}), виводить повідомлення про помилку.
      * Після закриття діалогу, якщо дані були збережені, оновлює список пасажирів
      * та намагається відновити попередній вибір у таблиці.
+     *
      * @param passengerToEdit Об'єкт {@link Passenger} для редагування.
      */
     private void openEditPassengerDialog(Passenger passengerToEdit) {
@@ -181,8 +241,19 @@ public class PassengersPanel extends JPanel {
             return;
         }
         logger.debug("Відкриття PassengerDialog для редагування пасажира ID: {}", passengerToEdit.getId());
+        // Переконуємося, що батьківське вікно коректне
+        Window topLevelAncestor = SwingUtilities.getWindowAncestor(this);
+        Frame ownerFrame = null;
+        if (topLevelAncestor instanceof Frame) {
+            ownerFrame = (Frame) topLevelAncestor;
+        } else {
+            // Якщо панель не в JFrame, можна спробувати знайти активне вікно або використати null
+            // Це може трапитися в тестах, якщо панель додана до "голого" JFrame без title, наприклад
+            logger.warn("Батьківське вікно не є JFrame, PassengerDialog може не мати коректного власника.");
+        }
+
         PassengerDialog dialog = new PassengerDialog(
-                (Frame) SwingUtilities.getWindowAncestor(this),
+                ownerFrame, // Використовуємо ownerFrame
                 passengerToEdit,
                 passengerDAO
         );
@@ -208,6 +279,7 @@ public class PassengersPanel extends JPanel {
      * Обробляє дію редагування обраного пасажира.
      * Отримує обраного пасажира з таблиці та викликає метод {@link #openEditPassengerDialog(Passenger)}
      * для відкриття діалогу редагування.
+     *
      * @param e Об'єкт події {@link ActionEvent}.
      */
     private void editPassengerAction(ActionEvent e) {
@@ -257,6 +329,7 @@ public class PassengersPanel extends JPanel {
      * Завантажує історію поїздок для вказаного пасажира та відображає її в таблиці історії.
      * Дані отримуються з {@link TicketDAO}. У випадку помилки,
      * виводиться повідомлення користувачу.
+     *
      * @param passengerId Ідентифікатор пасажира, для якого потрібно завантажити історію.
      */
     private void loadPassengerHistory(long passengerId) {
@@ -274,8 +347,9 @@ public class PassengersPanel extends JPanel {
 
     /**
      * Обробляє винятки типу {@link SQLException}, логує їх та показує повідомлення користувачу.
+     *
      * @param userMessage Повідомлення для користувача, що описує контекст помилки.
-     * @param e Об'єкт винятку {@link SQLException}.
+     * @param e           Об'єкт винятку {@link SQLException}.
      */
     private void handleSqlException(String userMessage, SQLException e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);
@@ -284,8 +358,9 @@ public class PassengersPanel extends JPanel {
 
     /**
      * Обробляє загальні винятки (не {@link SQLException}), логує їх та показує повідомлення користувачу.
+     *
      * @param userMessage Повідомлення для користувача, що описує контекст помилки.
-     * @param e Об'єкт винятку {@link Exception}.
+     * @param e           Об'єкт винятку {@link Exception}.
      */
     private void handleGenericException(String userMessage, Exception e) {
         logger.error("{}: {}", userMessage, e.getMessage(), e);

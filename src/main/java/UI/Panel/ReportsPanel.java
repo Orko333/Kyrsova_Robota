@@ -81,6 +81,25 @@ public class ReportsPanel extends JPanel {
         logger.info("ReportsPanel успішно ініціалізовано.");
     }
 
+    public ReportsPanel(TicketDAO ticketDAO, FlightDAO flightDAO) {
+        logger.info("Ініціалізація ReportsPanel.");
+        try {
+            this.ticketDAO = ticketDAO;
+            this.flightDAO = flightDAO;
+            logger.debug("TicketDAO та FlightDAO успішно створені.");
+        } catch (Exception e) {
+            logger.fatal("Не вдалося створити DAO в ReportsPanel.", e);
+            JOptionPane.showMessageDialog(this, "Критична помилка: не вдалося ініціалізувати сервіси даних.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
+            throw new RuntimeException("Не вдалося ініціалізувати DAO", e);
+        }
+
+        setLayout(new BorderLayout(10, 10));
+        setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        initComponents();
+        logger.info("ReportsPanel успішно ініціалізовано.");
+    }
+
     /**
      * Ініціалізує та розміщує компоненти користувацького інтерфейсу панелі.
      * Створює випадаючий список для вибору типу звіту, панель для динамічних параметрів звіту,
@@ -98,10 +117,12 @@ public class ReportsPanel extends JPanel {
                 "Завантаженість рейсів (дата)",
                 "Статистика по статусах квитків"
         });
+        cmbReportType.setName("cmbReportType");
         cmbReportType.addActionListener(this::onReportTypeChange);
         reportSelectionPanel.add(cmbReportType);
 
         btnGenerateReport = new JButton("Сформувати звіт");
+        btnGenerateReport.setName("btnGenerateReport");
         btnGenerateReport.setEnabled(false);
         btnGenerateReport.addActionListener(this::generateReportAction);
         reportSelectionPanel.add(btnGenerateReport);
@@ -114,9 +135,11 @@ public class ReportsPanel extends JPanel {
         add(topPanel, BorderLayout.NORTH);
 
         reportTextArea = new JTextArea(15, 70);
+        reportTextArea.setName("reportTextArea");
         reportTextArea.setEditable(false);
         reportTextArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         reportScrollPane = new JScrollPane(reportTextArea);
+        reportScrollPane.setName("reportScrollPane");
 
         add(reportScrollPane, BorderLayout.CENTER);
         logger.debug("Компоненти UI для ReportsPanel успішно створені та додані.");
@@ -140,6 +163,7 @@ public class ReportsPanel extends JPanel {
             logger.debug("Налаштування параметрів для звіту 'Продажі за маршрутами'.");
             parametersPanel.add(new JLabel("З:"));
             txtStartDate = new JTextField(10);
+            txtStartDate.setName("txtStartDate");
             txtStartDate.setText(LocalDate.now().minusMonths(1).format(DATE_FORMATTER));
             parametersPanel.add(txtStartDate);
             parametersPanel.add(new JLabel("По:"));

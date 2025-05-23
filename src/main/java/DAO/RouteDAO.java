@@ -12,13 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * DAO для роботи з об'єктами Route (Маршрути).
- * Надає методи для отримання та управління даними маршрутів.
- */
 public class RouteDAO {
     private static final Logger logger = LogManager.getLogger("insurance.log");
-    private final StopDAO stopDAO = new StopDAO();
+    private final StopDAO stopDAO = new StopDAO(); // Make sure StopDAO is properly initialized
+
+    // ... (existing getIntermediateStopsForRoute, getAllRoutes, getRouteById methods) ...
+    // Copy your existing methods here
 
     /**
      * Допоміжний метод для завантаження проміжних зупинок для конкретного маршруту.
@@ -40,7 +39,7 @@ public class RouteDAO {
                 while (rsIntermediate.next()) {
                     long intermediateStopId = rsIntermediate.getLong("stop_id");
                     logger.trace("Обробка проміжної зупинки ID: {} для маршруту ID: {}", intermediateStopId, routeId);
-                    Optional<Stop> intermediateStopOpt = stopDAO.getStopById(intermediateStopId);
+                    Optional<Stop> intermediateStopOpt = stopDAO.getStopById(intermediateStopId); // Assuming StopDAO has this
                     if (intermediateStopOpt.isPresent()) {
                         stops.add(intermediateStopOpt.get());
                     } else {
@@ -152,5 +151,117 @@ public class RouteDAO {
             logger.error("Помилка при отриманні маршруту за ID {}.", id, e);
             throw e;
         }
+    }
+
+    /**
+     * Додає новий маршрут до бази даних, включаючи його проміжні зупинки.
+     * @param route Об'єкт {@link Route} для додавання. ID маршруту буде встановлено після успішного додавання.
+     * @return {@code true}, якщо маршрут успішно додано, {@code false} в іншому випадку.
+     * @throws SQLException якщо виникає помилка доступу до бази даних або цілісності даних.
+     */
+    public boolean addRoute(Route route) throws SQLException {
+        logger.info("Спроба додати новий маршрут: Відправлення={}, Призначення={}",
+                route.getDepartureStop().getName(), route.getDestinationStop().getName());
+        String sqlInsertRoute = "INSERT INTO routes (departure_stop_id, destination_stop_id) VALUES (?, ?)";
+        String sqlInsertIntermediateStop = "INSERT INTO route_intermediate_stops (route_id, stop_id, stop_order) VALUES (?, ?, ?)";
+
+        Connection conn = null;
+        boolean success = false;
+        try {
+            conn = DatabaseConnectionManager.getConnection();
+            conn.setAutoCommit(false);
+
+            logger.debug("Виконується SQL-запит для додавання основного маршруту: {}", sqlInsertRoute);
+            try (PreparedStatement pstmtRoute = conn.prepareStatement(sqlInsertRoute, Statement.RETURN_GENERATED_KEYS)) {
+                if (route.getDepartureStop() == null || route.getDepartureStop().getId() == 0) {
+                    conn.rollback();
+                    throw new SQLException("Зупинка відправлення не може бути null або мати ID 0.");
+                }
+                if (route.getDestinationStop() == null || route.getDestinationStop().getId() == 0) {
+                    conn.rollback();
+                    throw new SQLException("Зупинка призначення не може бути null або мати ID 0.");
+                }
+
+                pstmtRoute.setLong(1, route.getDepartureStop().getId());
+                pstmtRoute.setLong(2, route.getDestinationStop().getId());
+                int affectedRows = pstmtRoute.executeUpdate();
+
+                if (affectedRows == 0) {
+                    logger.warn("Не вдалося додати основний маршрут, жоден рядок не змінено.");
+                    conn.rollback();
+                    return false;
+                }
+
+                try (ResultSet generatedKeys = pstmtRoute.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        route.setId(generatedKeys.getLong(1));
+                        logger.info("Основний маршрут успішно додано. ID нового маршруту: {}", route.getId());
+                    } else {
+                        logger.error("Не вдалося отримати згенерований ID для нового маршруту.");
+                        conn.rollback();
+                        throw new SQLException("Не вдалося отримати згенерований ID для маршруту.");
+                    }
+                }
+            }
+
+            List<Stop> intermediateStops = route.getIntermediateStops();
+            if (intermediateStops != null && !intermediateStops.isEmpty()) {
+                logger.debug("Додавання {} проміжних зупинок для маршруту ID: {}", intermediateStops.size(), route.getId());
+                try (PreparedStatement pstmtIntermediate = conn.prepareStatement(sqlInsertIntermediateStop)) {
+                    int order = 1;
+                    for (Stop stop : intermediateStops) {
+                        if (stop == null || stop.getId() == 0) {
+                            logger.warn("Проміжна зупинка є null або має ID 0 для маршруту ID {}, пропуск.", route.getId());
+                            continue;
+                        }
+                        pstmtIntermediate.setLong(1, route.getId());
+                        pstmtIntermediate.setLong(2, stop.getId());
+                        pstmtIntermediate.setInt(3, order++);
+                        pstmtIntermediate.addBatch();
+                        logger.trace("Додано в пакет проміжну зупинку ID: {} для маршруту ID: {} з порядком {}", stop.getId(), route.getId(), (order-1));
+                    }
+                    int[] batchResults = pstmtIntermediate.executeBatch();
+                    for (int i = 0; i < batchResults.length; i++) {
+                        if (batchResults[i] == Statement.EXECUTE_FAILED) {
+                            logger.error("Помилка при пакетному додаванні проміжних зупинок для маршруту ID: {}. Операція для зупинки {} не вдалася.", route.getId(), intermediateStops.get(i).getName());
+                            conn.rollback();
+                            throw new SQLException("Помилка при пакетному додаванні проміжних зупинок.");
+                        }
+                        if (batchResults[i] == 0) {
+                            logger.warn("Пакетне додавання проміжної зупинки {} для маршруту ID {} могло не вставити рядок (результат: 0).", intermediateStops.get(i).getName(), route.getId());
+                        }
+                    }
+                    logger.info("Успішно додано проміжні зупинки для маршруту ID: {}", route.getId());
+                }
+            } else {
+                logger.info("Для маршруту ID: {} немає проміжних зупинок.", route.getId());
+            }
+
+            conn.commit();
+            success = true;
+            logger.info("Маршрут {} успішно додано до бази даних.", route.getFullRouteDescription());
+
+        } catch (SQLException e) {
+            logger.error("Помилка SQL при додаванні маршруту: {}", e.getMessage(), e);
+            if (conn != null) {
+                try {
+                    logger.warn("Спроба відкату транзакції через помилку.");
+                    conn.rollback();
+                } catch (SQLException exRollback) {
+                    logger.error("Помилка при відкаті транзакції: {}", exRollback.getMessage(), exRollback);
+                }
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    logger.error("Помилка при закритті з'єднання: {}", e.getMessage(), e);
+                }
+            }
+        }
+        return success;
     }
 }

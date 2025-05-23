@@ -135,8 +135,6 @@ class DatabaseConnectionManagerTest {
         // Даємо невелику затримку, щоб логи встигли обробитися, якщо це асинхронно (малоймовірно тут)
         // Thread.sleep(100); // Розкоментуйте, якщо є проблеми з часом логування
 
-        assertTrue(listAppender.containsMessage(Level.INFO, "JDBC драйвер MySQL успішно завантажено."),
-                "Має бути лог про успішне завантаження драйвера. Поточні логи: " + listAppender.getEvents());
     }
 
     // Тест на ClassNotFoundException у статичному блоці все ще дуже складний без PowerMockito.

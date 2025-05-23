@@ -29,15 +29,14 @@ import java.util.stream.Collectors;
  * Надає користувацький інтерфейс для вибору пунктів відправлення та призначення, дати,
  * перегляду списку доступних рейсів, вибору місця та подальшого бронювання квитка.
  *
- * @author [Ваше ім'я або назва команди]
- * @version 1.1
  */
 public class TicketsPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final DateTimeFormatter DIALOG_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    public static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    public static final DateTimeFormatter DIALOG_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
-    private JComboBox<Stop> cmbDepartureStop, cmbDestinationStop;
+    public JComboBox<Stop> cmbDepartureStop;
+    public JComboBox<Stop> cmbDestinationStop;
     private JTextField txtDepartureDate;
     private JButton btnSearchFlights;
     private JTable flightsResultTable;
@@ -53,6 +52,27 @@ public class TicketsPanel extends JPanel {
     private final PassengerDAO passengerDAO;
 
     private Flight selectedFlightForBooking;
+
+    public TicketsPanel(FlightDAO flightDAO, StopDAO stopDAO, TicketDAO ticketDAO, PassengerDAO passengerDAO) {
+        logger.info("Ініціалізація TicketsPanel з наданими DAO.");
+        try {
+            this.flightDAO = flightDAO;
+            this.stopDAO = stopDAO;
+            this.ticketDAO = ticketDAO;
+            this.passengerDAO = passengerDAO;
+            logger.debug("Всі DAO успішно створені для TicketsPanel.");
+        } catch (Exception e) {
+            logger.fatal("Не вдалося створити один або декілька DAO в TicketsPanel.", e);
+            JOptionPane.showMessageDialog(this, "Критична помилка: не вдалося ініціалізувати сервіси даних.", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
+            throw new RuntimeException("Не вдалося ініціалізувати DAO", e);
+        }
+
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        initComponents();
+        logger.info("TicketsPanel успішно ініціалізовано.");
+    }
 
     /**
      * Конструктор панелі пошуку та бронювання квитків.
@@ -95,20 +115,24 @@ public class TicketsPanel extends JPanel {
 
         searchPanel.add(new JLabel("Пункт відправлення:"));
         cmbDepartureStop = new JComboBox<>();
+        cmbDepartureStop.setName("cmbDepartureStop");
         cmbDepartureStop.setPrototypeDisplayValue(new Stop(0, "Довга назва міста для прототипу", "Місто X"));
         searchPanel.add(cmbDepartureStop);
 
         searchPanel.add(new JLabel("Пункт призначення:"));
         cmbDestinationStop = new JComboBox<>();
+        cmbDestinationStop.setName("cmbDestinationStop");
         cmbDestinationStop.setPrototypeDisplayValue(new Stop(0, "Довга назва міста для прототипу", "Місто Y"));
         searchPanel.add(cmbDestinationStop);
 
         searchPanel.add(new JLabel("Дата (РРРР-ММ-ДД):"));
         txtDepartureDate = new JTextField(10);
+        txtDepartureDate.setName("txtDepartureDate");
         txtDepartureDate.setText(LocalDate.now().format(DATE_FORMATTER));
         searchPanel.add(txtDepartureDate);
 
         btnSearchFlights = new JButton("Знайти рейси");
+        btnSearchFlights.setName("btnSearchFlights");
         btnSearchFlights.addActionListener(this::searchFlightsAction);
         searchPanel.add(btnSearchFlights);
 
@@ -118,6 +142,7 @@ public class TicketsPanel extends JPanel {
 
         flightsResultTableModel = new FlightsTableModel(new ArrayList<>());
         flightsResultTable = new JTable(flightsResultTableModel);
+        flightsResultTable.setName("flightsResultTable");
         flightsResultTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         flightsResultTable.setAutoCreateRowSorter(true);
         flightsResultTable.setFillsViewportHeight(true);
@@ -168,11 +193,13 @@ public class TicketsPanel extends JPanel {
         flightDetailsPanel.setBorder(BorderFactory.createTitledBorder("Деталі рейсу та доступні місця"));
 
         lblSelectedFlightInfo = new JLabel("Оберіть рейс зі списку вище для перегляду деталей.");
+        lblSelectedFlightInfo.setName("lblSelectedFlightInfo");
         lblSelectedFlightInfo.setHorizontalAlignment(SwingConstants.CENTER);
         flightDetailsPanel.add(lblSelectedFlightInfo, BorderLayout.NORTH);
 
         availableSeatsModel = new DefaultListModel<>();
         listAvailableSeats = new JList<>(availableSeatsModel);
+        listAvailableSeats.setName("listAvailableSeats");
         listAvailableSeats.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         listAvailableSeats.setLayoutOrientation(JList.HORIZONTAL_WRAP);
         listAvailableSeats.setVisibleRowCount(-1);
@@ -182,6 +209,7 @@ public class TicketsPanel extends JPanel {
 
         btnBookTicket = new JButton("Забронювати обране місце");
         btnBookTicket.setEnabled(false);
+        btnBookTicket.setName("btnBookTicket");
         btnBookTicket.addActionListener(this::bookTicketAction);
         listAvailableSeats.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -383,7 +411,7 @@ public class TicketsPanel extends JPanel {
      * Якщо бронювання успішне, оновлює список доступних місць.
      * @param e Об'єкт події {@link ActionEvent}.
      */
-    private void bookTicketAction(ActionEvent e) {
+    public void bookTicketAction(ActionEvent e) {
         logger.info("Натиснуто кнопку 'Забронювати обране місце'.");
         if (selectedFlightForBooking == null || listAvailableSeats.isSelectionEmpty()) {
             logger.warn("Спроба забронювати квиток, але рейс або місце не вибрано.");
