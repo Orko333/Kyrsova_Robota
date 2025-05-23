@@ -1,3 +1,4 @@
+// TicketDAO.java
 package DAO;
 
 import DB.DatabaseConnectionManager;
@@ -23,9 +24,25 @@ import java.util.Optional;
  */
 public class TicketDAO {
     private static final Logger logger = LogManager.getLogger("insurance.log");
-    private final FlightDAO flightDAO = new FlightDAO();
-    private final PassengerDAO passengerDAO = new PassengerDAO();
-    private final RouteDAO routeDAO = new RouteDAO();
+    // Змінено: Видалено final та пряму ініціалізацію
+    private FlightDAO flightDAO;
+    private PassengerDAO passengerDAO;
+    private RouteDAO routeDAO;
+
+    public TicketDAO(FlightDAO flightDAO, PassengerDAO passengerDAO, RouteDAO routeDAO) {
+        this.flightDAO = flightDAO;
+        this.passengerDAO = passengerDAO;
+        this.routeDAO = routeDAO;
+    }
+
+
+    public TicketDAO() {
+
+        this.flightDAO = new FlightDAO();
+        this.passengerDAO = new PassengerDAO();
+        this.routeDAO = new RouteDAO();
+    }
+
 
     /**
      * Повертає список заброньованих або проданих місць для конкретного рейсу.
@@ -179,7 +196,8 @@ public class TicketDAO {
                 "WHERE t.passenger_id = ? ORDER BY f.departure_date_time DESC";
         logger.debug("Виконується SQL-запит для історії поїздок: {}", sql);
 
-        Passenger passenger = passengerDAO.findById(passengerId)
+        // Тепер this.passengerDAO буде моком у тестах
+        Passenger passenger = this.passengerDAO.findById(passengerId)
                 .orElseThrow(() -> {
                     String errorMsg = "Пасажира з ID " + passengerId + " не знайдено для історії поїздок.";
                     logger.error(errorMsg);
@@ -256,14 +274,14 @@ public class TicketDAO {
                     long fId = rs.getLong("flight_id");
                     long pId = rs.getLong("passenger_id");
                     logger.trace("Обробка рядка результату для квитка ID: {}", ticketId);
-
-                    Flight flight = flightDAO.getFlightById(fId)
+                    // Тепер this.flightDAO та this.passengerDAO будуть моками у тестах
+                    Flight flight = this.flightDAO.getFlightById(fId)
                             .orElseThrow(() -> {
                                 String errorMsg = "Рейс ID " + fId + " не знайдено для квитка ID: " + ticketId;
                                 logger.error(errorMsg);
                                 return new SQLException(errorMsg);
                             });
-                    Passenger passenger = passengerDAO.findById(pId)
+                    Passenger passenger = this.passengerDAO.findById(pId)
                             .orElseThrow(() -> {
                                 String errorMsg = "Пасажира ID " + pId + " не знайдено для квитка ID: " + ticketId;
                                 logger.error(errorMsg);
@@ -315,7 +333,8 @@ public class TicketDAO {
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     long routeId = rs.getLong("route_id");
-                    Optional<Route> routeOpt = routeDAO.getRouteById(routeId);
+                    // Тепер this.routeDAO буде моком у тестах
+                    Optional<Route> routeOpt = this.routeDAO.getRouteById(routeId);
                     String routeDescription;
                     if (routeOpt.isPresent()) {
                         routeDescription = routeOpt.get().getFullRouteDescription();
