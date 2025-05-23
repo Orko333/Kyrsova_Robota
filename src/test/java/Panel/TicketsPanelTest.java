@@ -305,6 +305,8 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
     }
 
 
+
+
     @Override
     protected void onTearDown() {
         // This is important to reset mocks between test method executions if they are class fields.

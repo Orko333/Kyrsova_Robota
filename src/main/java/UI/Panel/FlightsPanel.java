@@ -77,17 +77,6 @@ public class FlightsPanel extends JPanel {
         }
     }
 
-    // Статичний метод для показу діалогу підтвердження, який враховує прапорець
-    // (потрібен, якщо ми хочемо контролювати showConfirmDialog з тестів без MockedStatic)
-    // Наразі не використовується, але може бути корисним.
-    private static int showConfirmDialogInternal(Component parentComponent, Object message, String title, int optionType, int messageType) {
-        if (!suppressMessagesForTesting.get()) {
-            return JOptionPane.showConfirmDialog(parentComponent, message, title, optionType, messageType);
-        } else {
-            logger.info("FlightsPanel JOptionPane.showConfirmDialog придушено (тестовий режим): Титул='{}', Повідомлення='{}'. Повертаємо YES_OPTION для продовження тесту.", title, message);
-            return JOptionPane.YES_OPTION; // Для тестів часто потрібно симулювати позитивну відповідь
-        }
-    }
 
 
     /**

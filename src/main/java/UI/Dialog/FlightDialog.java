@@ -324,9 +324,7 @@ public class FlightDialog extends JDialog {
             }
             logger.trace("Кількість місць: {}", totalSeats);
         } catch (NumberFormatException e) {
-            logger.warn("Помилка валідації: неправильний формат кількості місць. Введено: '{}'", txtTotalSeats.getText(), e);
-            showDialogMessage(this, "Неправильний формат кількості місць.", "Помилка валідації", JOptionPane.ERROR_MESSAGE);
-            return;
+             return;
         }
 
         BigDecimal pricePerSeat;
@@ -334,7 +332,6 @@ public class FlightDialog extends JDialog {
             pricePerSeat = new BigDecimal(txtPricePerSeat.getText().trim().replace(",", "."));
             if (pricePerSeat.compareTo(BigDecimal.ZERO) < 0) {
                 logger.warn("Помилка валідації: ціна ({}) не може бути від'ємною.", pricePerSeat);
-                showDialogMessage(this, "Ціна не може бути від'ємною.", "Помилка валідації", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             logger.trace("Ціна за місце: {}", pricePerSeat);
@@ -347,12 +344,8 @@ public class FlightDialog extends JDialog {
         String busModel = txtBusModel.getText().trim();
         FlightStatus status = (FlightStatus) cmbStatus.getSelectedItem();
         if (status == null && cmbStatus.getItemCount() > 0) { // Якщо статус не обраний, але є варіанти
-            logger.warn("Помилка валідації: статус не обрано.");
-            showDialogMessage(this, "Будь ласка, оберіть статус рейсу.", "Помилка валідації", JOptionPane.ERROR_MESSAGE);
             return;
         } else if (status == null) { // Якщо статус null і варіантів немає (малоймовірно з Enum.values())
-            logger.error("Критична помилка: не вдалося отримати статус рейсу.");
-            showDialogMessage(this, "Помилка: не вдалося визначити статус рейсу.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -361,11 +354,7 @@ public class FlightDialog extends JDialog {
         try {
             if (currentFlight == null) { // Створення нового рейсу
                 logger.debug("Створення нового рейсу.");
-                if (selectedRoute == null) { // Подвійна перевірка, хоча валідація вище мала спрацювати
-                    logger.error("Критична помилка: Маршрут не обрано для нового рейсу.");
-                    showDialogMessage(this, "Маршрут не обрано для нового рейсу.", "Помилка", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
+
                 Flight newFlight = new Flight(0, selectedRoute, departureDateTime, arrivalDateTime, totalSeats, status, busModel, pricePerSeat);
                 logger.debug("Створено об'єкт нового рейсу.");
                 if (flightDAO.addFlight(newFlight)) {
@@ -379,11 +368,7 @@ public class FlightDialog extends JDialog {
             } else { // Оновлення існуючого рейсу
                 logger.debug("Оновлення існуючого рейсу ID: {}", currentFlight.getId());
                 Route routeToSet = (selectedRoute != null) ? selectedRoute : currentFlight.getRoute();
-                if (routeToSet == null) { // Якщо маршрут не вдалося визначити
-                    logger.error("Критична помилка: не вдалося визначити маршрут для оновлення рейсу ID: {}", currentFlight.getId());
-                    showDialogMessage(this, "Помилка: не вдалося визначити маршрут для оновлення.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
+
 
                 currentFlight.setRoute(routeToSet);
                 currentFlight.setDepartureDateTime(departureDateTime);

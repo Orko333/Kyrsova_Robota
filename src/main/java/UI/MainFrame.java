@@ -57,45 +57,26 @@ public class MainFrame extends JFrame {
         JTabbedPane tabbedPane = new JTabbedPane();
         logger.debug("Створено JTabbedPane.");
 
-        try {
+
             logger.debug("Створення FlightsPanel...");
             FlightsPanel flightsPanel = new FlightsPanel();
             tabbedPane.addTab("Управління рейсами", createIcon("/icons/bus_schedule.png"), flightsPanel, "Операції з рейсами: створення, редагування, скасування");
-            logger.info("Вкладку 'Управління рейсами' додано.");
-        } catch (Exception e) {
-            logger.error("Помилка при створенні або додаванні FlightsPanel.", e);
-            showDialogMessage(this, "Помилка завантаження модуля управління рейсами: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
-        }
-
-        try {
             logger.debug("Створення TicketsPanel...");
             TicketsPanel ticketsPanel = new TicketsPanel();
             tabbedPane.addTab("Квитки", createIcon("/icons/ticket.png"), ticketsPanel, "Бронювання та продаж квитків");
             logger.info("Вкладку 'Квитки' додано.");
-        } catch (Exception e) {
-            logger.error("Помилка при створенні або додаванні TicketsPanel.", e);
-            showDialogMessage(this, "Помилка завантаження модуля квитків: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
-        }
 
-        try {
+
+
             logger.debug("Створення PassengersPanel...");
             PassengersPanel passengersPanel = new PassengersPanel();
             tabbedPane.addTab("Пасажири", createIcon("/icons/passengers.png"), passengersPanel, "Управління даними пасажирів та історія поїздок");
             logger.info("Вкладку 'Пасажири' додано.");
-        } catch (Exception e) {
-            logger.error("Помилка при створенні або додаванні PassengersPanel.", e);
-            showDialogMessage(this, "Помилка завантаження модуля пасажирів: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
-        }
 
-        try {
             logger.debug("Створення ReportsPanel...");
             ReportsPanel reportsPanel = new ReportsPanel();
             tabbedPane.addTab("Звітність", createIcon("/icons/report.png"), reportsPanel, "Перегляд звітів та статистики");
             logger.info("Вкладку 'Звітність' додано.");
-        } catch (Exception e) {
-            logger.error("Помилка при створенні або додаванні ReportsPanel.", e);
-            showDialogMessage(this, "Помилка завантаження модуля звітності: " + e.getMessage(), "Помилка модуля", JOptionPane.ERROR_MESSAGE);
-        }
 
         add(tabbedPane);
         pack();
@@ -108,7 +89,6 @@ public class MainFrame extends JFrame {
         logger.trace("Спроба завантажити іконку за шляхом: {}", path);
         java.net.URL imgURL = getClass().getResource(path);
         if (imgURL != null) {
-            logger.trace("Іконку {} успішно завантажено.", path);
             return new ImageIcon(imgURL);
         } else {
             logger.warn("Не вдалося знайти іконку: {}", path);
@@ -162,22 +142,12 @@ public class MainFrame extends JFrame {
                         "Критична помилка БД", JOptionPane.ERROR_MESSAGE);
             }
             return false;
-        } catch (Exception ex) {
-            logger.fatal("Непередбачена критична помилка під час перевірки з'єднання з БД.", ex);
-            if (!suppressMessagesForTesting.get()) {
-                JOptionPane.showMessageDialog(null,
-                        "Непередбачена помилка під час ініціалізації з'єднання з БД: " + ex.getMessage() + "\n" +
-                                "Програма не може продовжити роботу.",
-                        "Критична помилка", JOptionPane.ERROR_MESSAGE);
-            }
-            return false;
         }
     }
 
     // Зроблено package-private або public для тестування
     static void createAndShowGUI() {
         if (!checkDatabaseConnection()) {
-            logger.fatal("Завершення роботи програми через помилку підключення до БД.");
             System.exit(1);
             return;
         }

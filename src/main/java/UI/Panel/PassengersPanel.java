@@ -71,7 +71,6 @@ public class PassengersPanel extends JPanel {
         try {
             return new TicketDAO();
         } catch (Exception e) {
-            logger.fatal("Критична помилка при створенні TicketDAO в конструкторі за замовчуванням.", e);
             throw new RuntimeException("Не вдалося ініціалізувати TicketDAO", e);
         }
     }

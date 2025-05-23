@@ -43,20 +43,7 @@ public class BookingsManagementPanel extends JPanel {
      * Ініціалізує DAO, компоненти UI та завантажує початкові дані.
      * У разі критичної помилки ініціалізації DAO, робота панелі припиняється.
      */
-    public BookingsManagementPanel() {
-        this(createTicketDAOInternal());
-        logger.info("BookingsManagementPanel створено з DAO за замовчуванням.");
-    }
 
-    private static TicketDAO createTicketDAOInternal() {
-        try {
-            return new TicketDAO();
-        } catch (Exception e) {
-            // Логування вже є в конструкторі, що приймає DAO
-            // JOptionPane.showMessageDialog не може бути тут, оскільки це статичний метод
-            throw new RuntimeException("Не вдалося ініціалізувати TicketDAO для BookingsManagementPanel", e);
-        }
-    }
 
     /**
      * Конструктор панелі управління бронюваннями для тестування та ін'єкції залежностей.
