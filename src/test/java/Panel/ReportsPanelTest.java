@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 
 import static UI.Panel.ReportsPanel.TABLE_DATE_TIME_FORMATTER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -425,6 +426,28 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         assertThat(message).contains("РРРР-ММ-ДД");
         optionPane.okButton().click();
     }
+
+    @Test
+    public void testHandleGenericException_WhenPanelIsShowing_ShowsJOptionPane() throws SQLException {
+        window.comboBox("cmbReportType").selectItem(REPORT_TYPE_STATUS);
+        String exceptionMessage = "Generic test error for showing panel";
+        // Спричиняємо RuntimeException замість SQLException
+        when(mockTicketDAO.getTicketCountsByStatus()).thenThrow(new RuntimeException(exceptionMessage));
+
+        window.button("btnGenerateReport").click();
+        Pause.pause(100); // Даємо час для появи JOptionPane
+
+        JOptionPaneFixture optionPane = JOptionPaneFinder.findOptionPane().using(robot());
+        optionPane.requireErrorMessage(); // Перевіряємо тип повідомлення
+        optionPane.requireTitle("Внутрішня помилка програми"); // Перевіряємо заголовок
+
+        String dialogMessage = GuiActionRunner.execute(() -> optionPane.target().getMessage().toString());
+        String expectedUserMessagePart = "Непередбачена помилка при генерації звіту '" + REPORT_TYPE_STATUS + "'";
+        // Перевіряємо, що повідомлення діалогу містить і частину користувача, і повідомлення винятку
+        assertThat(dialogMessage).isEqualTo(expectedUserMessagePart + ":\n" + exceptionMessage);
+        optionPane.okButton().click();
+    }
+
 
 
     @Override

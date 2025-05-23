@@ -33,7 +33,7 @@ public class MainFrame extends JFrame {
         }
     }
 
-    private void showDialogMessage(Component parentComponent, Object message, String title, int messageType) {
+    public void showDialogMessage(Component parentComponent, Object message, String title, int messageType) {
         if (!suppressMessagesForTesting.get()) {
             JOptionPane.showMessageDialog(parentComponent, message, title, messageType);
         } else {
