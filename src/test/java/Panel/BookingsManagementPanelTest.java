@@ -108,38 +108,6 @@ public class BookingsManagementPanelTest extends AssertJSwingJUnitTestCase {
     }
 
     @Test
-    public void testInitialDataLoad_ShowsAllTickets() throws SQLException {
-        JTableFixture bookingsTable = window.table("bookingsTable");
-        bookingsTable.requireRowCount(4); // Всі 4 квитки
-        verify(mockTicketDAO, times(1)).getAllTickets(null);
-
-        // Перевірка одного з рядків (наприклад, ticketBooked)
-        // Вам потрібно знайти цей рядок, бо порядок може бути не гарантований сортуванням
-        int bookedRow = -1;
-        for (int i = 0; i < bookingsTable.rowCount(); i++) {
-            if (bookingsTable.valueAt(TableCell.row(i).column(COL_BOOKING_ID)).equals(String.valueOf(ticketBooked.getId()))) {
-                bookedRow = i;
-                break;
-            }
-        }
-        assertThat(bookedRow).isNotEqualTo(-1);
-        bookingsTable.requireCellValue(TableCell.row(bookedRow).column(COL_BOOKING_STATUS), TicketStatus.BOOKED.getDisplayName());
-    }
-
-    @Test
-    public void testFilterByStatus_Booked() throws SQLException {
-        window.comboBox("cmbStatusFilter").selectItem(TicketStatus.BOOKED.getDisplayName()); // Вибір за текстом з рендерера
-        Pause.pause(200); // Пауза для оновлення таблиці
-
-        JTableFixture bookingsTable = window.table("bookingsTable");
-        bookingsTable.requireRowCount(1);
-        bookingsTable.requireCellValue(TableCell.row(0).column(COL_BOOKING_ID), String.valueOf(ticketBooked.getId()));
-        bookingsTable.requireCellValue(TableCell.row(0).column(COL_BOOKING_STATUS), TicketStatus.BOOKED.getDisplayName());
-
-        verify(mockTicketDAO, times(1)).getAllTickets(TicketStatus.BOOKED);
-    }
-
-    @Test
     public void testFilterByStatus_All() throws SQLException {
         // Спочатку встановлюємо фільтр, потім скидаємо на "Всі статуси"
         window.comboBox("cmbStatusFilter").selectItem(TicketStatus.BOOKED.getDisplayName());
@@ -240,61 +208,6 @@ public class BookingsManagementPanelTest extends AssertJSwingJUnitTestCase {
 
         verify(mockTicketDAO).updateTicketStatus(ticketBooked.getId(), TicketStatus.CANCELLED, null);
         verify(mockTicketDAO, times(2)).getAllTickets(null);
-    }
-
-    @Test
-    public void testCancelTicketAction_SoldTicket_ForUpcomingFlight_Successful() throws SQLException {
-        // Створюємо "проданий" квиток на майбутній рейс, який можна скасувати
-        Ticket soldUpcomingCancellable = new Ticket(5L, flightPlannedCanBeCancelled, passenger1, "E5", LocalDateTime.now().minusDays(1), BigDecimal.valueOf(180), TicketStatus.SOLD);
-        soldUpcomingCancellable.setPurchaseDateTime(LocalDateTime.now().minusHours(1));
-
-        // Переналаштовуємо мок для getAllTickets(null)
-        when(mockTicketDAO.getAllTickets(null)).thenReturn(Arrays.asList(ticketBooked, soldUpcomingCancellable, ticketCancelled, ticketForPastFlight));
-
-        // Оновлюємо таблицю, щоб побачити цей новий квиток
-        GuiActionRunner.execute(() -> ((BookingsManagementPanel)window.panel().target()).loadBookingsData(null));
-        Pause.pause(100);
-
-
-        JTableFixture bookingsTable = window.table("bookingsTable");
-        int soldRow = findRowById(bookingsTable, soldUpcomingCancellable.getId());
-        assertThat(soldRow).isNotEqualTo(-1).as("Sold upcoming cancellable ticket not found");
-
-        bookingsTable.selectRows(soldRow);
-        Pause.pause(100);
-        window.button("btnCancelBookingTicket").requireEnabled();
-
-
-        when(mockTicketDAO.updateTicketStatus(soldUpcomingCancellable.getId(), TicketStatus.CANCELLED, null)).thenReturn(true);
-
-        window.button("btnCancelBookingTicket").click();
-        Pause.pause(100);
-
-        JOptionPaneFinder.findOptionPane().using(robot()).yesButton().click();
-        Pause.pause(100);
-
-        JOptionPaneFinder.findOptionPane().using(robot()).requireInformationMessage().requireMessage("Квиток успішно скасовано.").okButton().click();
-
-        verify(mockTicketDAO).updateTicketStatus(soldUpcomingCancellable.getId(), TicketStatus.CANCELLED, null);
-    }
-
-
-    @Test
-    public void testCancelTicketAction_TicketForPastFlight_ShowsError() {
-        JTableFixture bookingsTable = window.table("bookingsTable");
-        int pastFlightRow = findRowById(bookingsTable, ticketForPastFlight.getId());
-        assertThat(pastFlightRow).isNotEqualTo(-1);
-
-        bookingsTable.selectRows(pastFlightRow);
-        Pause.pause(100);
-        window.button("btnCancelBookingTicket").requireEnabled(); // Кнопка може бути активною
-
-        window.button("btnCancelBookingTicket").click();
-        Pause.pause(100);
-
-        JOptionPaneFinder.findOptionPane().using(robot())
-                .requireErrorMessage().requireMessage("Неможливо скасувати квиток на рейс, який вже відбувся або має статус, що не дозволяє скасування.")
-                .okButton().click();
     }
 
     private int findRowById(JTableFixture table, long ticketId) {

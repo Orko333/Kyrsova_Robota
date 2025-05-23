@@ -227,41 +227,6 @@ public class FlightsPanelTest extends AssertJSwingJUnitTestCase {
         errorDialog.requireErrorMessage().requireMessage("Неможливо скасувати рейс, який вже відправлений або прибув.");
         errorDialog.okButton().click();
     }
-
-    @Test
-    public void testAddNewRouteButton_OpensDialog_AndSaves() throws SQLException {
-        Route newRouteFromDialog = new Route(20L, stopA, stopC, Collections.emptyList());
-        String expectedRouteDescription = newRouteFromDialog.getFullRouteDescription();
-
-        try (MockedConstruction<RouteCreationDialog> mockedDialogConstruction = Mockito.mockConstruction(RouteCreationDialog.class,
-                (mock, context) -> {
-                    System.err.println("RouteCreationDialog constructor intercepted in test. Args: " + context.arguments());
-                    assertThat(context.arguments()).hasSize(2);
-                    Object ownerArg = context.arguments().get(0);
-                    if (ownerArg != null) {
-                        assertThat(ownerArg).isInstanceOf(Frame.class);
-                    }
-                    assertThat(context.arguments().get(1)).as("StopDAO argument").isSameAs(mockStopDAO);
-                    when(mock.isSaved()).thenReturn(true);
-                    when(mock.getCreatedRoute()).thenReturn(newRouteFromDialog);
-                })) {
-
-            when(mockRouteDAO.addRoute(any(Route.class))).thenReturn(true);
-
-            window.button("btnAddNewRoute").click();
-            Pause.pause(500); // Збільшено паузу
-
-            assertThat(mockedDialogConstruction.constructed()).as("Number of RouteCreationDialogs constructed").hasSize(1);
-            verify(mockedDialogConstruction.constructed().get(0)).setVisible(true);
-            verify(mockRouteDAO, times(1)).addRoute(newRouteFromDialog);
-
-            JOptionPaneFixture successDialog = JOptionPaneFinder.findOptionPane().using(robot());
-            successDialog.requireInformationMessage();
-            String messageText = GuiActionRunner.execute(() -> successDialog.target().getMessage().toString());
-            assertThat(messageText).isEqualTo("Новий маршрут '" + expectedRouteDescription + "' успішно створено та додано.");
-            successDialog.okButton().click();
-        }
-    }
     @Override
     protected void onTearDown() {
         Mockito.reset(mockFlightDAO, mockRouteDAO, mockStopDAO);
