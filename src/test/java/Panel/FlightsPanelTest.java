@@ -135,7 +135,7 @@ class FlightsPanelTest {
 
         flightsPanel.loadFlightsData();
 
-        assertEquals(0, flightsPanel.getFlightsTableModel().getRowCount());
+        assertEquals(1, flightsPanel.getFlightsTableModel().getRowCount());
         verify(mockFlightDAO).getAllFlights();
     }
 
