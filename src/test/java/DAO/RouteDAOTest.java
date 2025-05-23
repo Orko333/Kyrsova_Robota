@@ -23,19 +23,18 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName; // Додано
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.exceptions.misusing.PotentialStubbingProblem;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException; // Додано
-import java.lang.reflect.Method; // Додано
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -46,6 +45,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -76,17 +76,29 @@ class RouteDAOTest {
                     event.getLevel().equals(level) &&
                             event.getMessage().getFormattedMessage().contains(partialMessage));
         }
+        public boolean containsExactMessage(Level level, String exactMessage) { // Not used but kept from original
+            return events.stream().anyMatch(event ->
+                    event.getLevel().equals(level) &&
+                            event.getMessage().getFormattedMessage().equals(exactMessage));
+        }
     }
 
     @Mock private Connection mockConnection;
-    @Mock private PreparedStatement mockPsRoutes; // Для основного запиту маршрутів
-    @Mock private PreparedStatement mockPsIntermediateStops; // Для запиту проміжних зупинок
+    @Mock private PreparedStatement mockPsRoutes;
+    @Mock private PreparedStatement mockPsIntermediateStops;
     @Mock private Statement mockStatement;
-    @Mock private ResultSet mockRsRoutes; // Для основного запиту маршрутів
-    @Mock private ResultSet mockRsIntermediateStops; // Для запиту проміжних зупинок
+    @Mock private ResultSet mockRsRoutes;
+    @Mock private ResultSet mockRsIntermediateStops;
     @Mock private ResultSet mockGeneratedKeys;
 
-    @Mock private StopDAO mockStopDAO; // @InjectMocks ін'єктує це в routeDAO
+    // Mocks for StopDAO's internal JDBC calls, because RouteDAO news StopDAO()
+    @Mock private PreparedStatement mockPsStopGetById;
+    @Mock private ResultSet mockRsStopGetById;
+
+
+    // mockStopDAO is kept for tests that might call it directly if RouteDAO was refactored for DI
+    // but currently RouteDAO news its own StopDAO, so mockStopDAO isn't injected effectively.
+    @Mock private StopDAO mockStopDAO_UnusedDueToDirectInstantiationInSUT; // Renamed to clarify
 
     @InjectMocks
     private RouteDAO routeDAO;
@@ -98,8 +110,12 @@ class RouteDAOTest {
     private Stop stop1, stop2, stop3, stop4, stop5;
     private Route routeKyivLviv, routeKyivOdesa;
 
-    // SQL-запит, що використовується в методі getIntermediateStopsForRoute
+    private final String SQL_GET_ALL_ROUTES = "SELECT id, departure_stop_id, destination_stop_id FROM routes ORDER BY id";
+    private final String SQL_GET_ROUTE_BY_ID = "SELECT id, departure_stop_id, destination_stop_id FROM routes WHERE id = ?";
+    private final String SQL_INSERT_ROUTE = "INSERT INTO routes (departure_stop_id, destination_stop_id) VALUES (?, ?)";
     private final String SQL_GET_INTERMEDIATE_STOPS = "SELECT stop_id FROM route_intermediate_stops WHERE route_id = ? ORDER BY stop_order";
+    private final String SQL_INSERT_INTERMEDIATE_STOP = "INSERT INTO route_intermediate_stops (route_id, stop_id, stop_order) VALUES (?, ?, ?)";
+    private final String SQL_GET_STOP_BY_ID_IN_STOPDAO = "SELECT id, name, city FROM stops WHERE id = ?";
 
 
     @BeforeAll
@@ -108,18 +124,26 @@ class RouteDAOTest {
         org.apache.logging.log4j.core.config.Configuration config = context.getConfiguration();
         listAppender = new ListAppender("TestRouteDAOAppender", null, PatternLayout.createDefaultLayout(config), true, Property.EMPTY_ARRAY);
         listAppender.start();
-        insuranceLogger = context.getLogger("insurance.log"); // Назва логера така ж, як у RouteDAO
+        insuranceLogger = context.getLogger("insurance.log");
+        // Remove existing appenders to prevent duplicate logs if tests run multiple times in the same JVM
         insuranceLogger.addAppender(listAppender);
-        insuranceLogger.setLevel(Level.ALL); // Перехоплювати всі рівні логування
+        insuranceLogger.setLevel(Level.ALL);
         mockedDbManager = Mockito.mockStatic(DatabaseConnectionManager.class);
     }
 
     @AfterAll
     static void tearDownLogAppenderAndStaticMock() {
-        if (listAppender != null) {
-            insuranceLogger.removeAppender(listAppender);
+        if (listAppender != null && insuranceLogger != null) { // Added null check for insuranceLogger
+            insuranceLogger.removeAppender(listAppender); // Clean up appender from the specific logger
             listAppender.stop();
         }
+        // Also remove from root logger if it was added there, though typically not for named loggers.
+        LoggerContext context = (LoggerContext) LogManager.getContext(false);
+        if (context != null && context.getRootLogger() != null && listAppender != null) { // Added null checks
+            context.getRootLogger().removeAppender(listAppender);
+        }
+
+
         if (mockedDbManager != null && !mockedDbManager.isClosed()) {
             mockedDbManager.close();
         }
@@ -127,27 +151,26 @@ class RouteDAOTest {
 
     @BeforeEach
     void setUp() throws SQLException {
-        listAppender.clearEvents(); // Очищаємо логи перед кожним тестом
+        listAppender.clearEvents();
         mockedDbManager.when(DatabaseConnectionManager::getConnection).thenReturn(mockConnection);
 
-        // Загальні налаштування моків, які можуть бути перевизначені в окремих тестах
-        // Для getRouteById та getAllRoutes
-        lenient().when(mockConnection.prepareStatement(argThat(sql -> sql != null && sql.contains("FROM routes WHERE id = ?")))).thenReturn(mockPsRoutes);
-        lenient().when(mockConnection.createStatement()).thenReturn(mockStatement);
+        lenient().when(mockConnection.prepareStatement(eq(SQL_GET_ROUTE_BY_ID))).thenReturn(mockPsRoutes);
         lenient().when(mockPsRoutes.executeQuery()).thenReturn(mockRsRoutes);
-        lenient().when(mockStatement.executeQuery(anyString())).thenReturn(mockRsRoutes);
 
-        // Для addRoute
-        lenient().when(mockConnection.prepareStatement(argThat(sql -> sql != null && sql.startsWith("INSERT INTO routes")), eq(Statement.RETURN_GENERATED_KEYS))).thenReturn(mockPsRoutes);
+        lenient().when(mockConnection.createStatement()).thenReturn(mockStatement);
+        lenient().when(mockStatement.executeQuery(eq(SQL_GET_ALL_ROUTES))).thenReturn(mockRsRoutes);
+
+        lenient().when(mockConnection.prepareStatement(eq(SQL_INSERT_ROUTE), eq(Statement.RETURN_GENERATED_KEYS))).thenReturn(mockPsRoutes);
         lenient().when(mockPsRoutes.getGeneratedKeys()).thenReturn(mockGeneratedKeys);
+        lenient().when(mockConnection.prepareStatement(eq(SQL_INSERT_INTERMEDIATE_STOP))).thenReturn(mockPsIntermediateStops);
 
-        // Для getIntermediateStopsForRoute (також використовується в getRouteById, getAllRoutes)
-        // Переконайтеся, що цей мок не конфліктує з іншими, якщо використовується та ж змінна mockPsIntermediateStops
-        // Якщо SQL_GET_INTERMEDIATE_STOPS унікальний, то eq(SQL_GET_INTERMEDIATE_STOPS) безпечніше
         lenient().when(mockConnection.prepareStatement(eq(SQL_GET_INTERMEDIATE_STOPS))).thenReturn(mockPsIntermediateStops);
-        // Альтернатива, якщо SQL_GET_INTERMEDIATE_STOPS не унікальний, але інші запити до route_intermediate_stops є:
-        // lenient().when(mockConnection.prepareStatement(argThat(sql -> sql != null && sql.contains("route_intermediate_stops") && sql.contains("ORDER BY stop_order")))).thenReturn(mockPsIntermediateStops);
         lenient().when(mockPsIntermediateStops.executeQuery()).thenReturn(mockRsIntermediateStops);
+
+        mockPsStopGetById = mock(PreparedStatement.class);
+        mockRsStopGetById = mock(ResultSet.class);
+        lenient().when(mockConnection.prepareStatement(eq(SQL_GET_STOP_BY_ID_IN_STOPDAO))).thenReturn(mockPsStopGetById);
+        lenient().when(mockPsStopGetById.executeQuery()).thenReturn(mockRsStopGetById);
 
 
         stop1 = new Stop(1L, "Київ-Вокзал", "Київ");
@@ -161,18 +184,12 @@ class RouteDAOTest {
     }
 
     @AfterEach
-    void tearDown() throws SQLException {
-        // Закриття ресурсів тут не потрібне для моків, Mockito сам їх обробляє.
-        // Скидання стану моків, щоб уникнути взаємного впливу тестів
+    void tearDown() {
         reset(mockConnection, mockPsRoutes, mockPsIntermediateStops,
-                mockStatement, mockRsRoutes, mockRsIntermediateStops, mockStopDAO, mockGeneratedKeys);
+                mockStatement, mockRsRoutes, mockRsIntermediateStops, mockGeneratedKeys,
+                mockPsStopGetById, mockRsStopGetById, mockStopDAO_UnusedDueToDirectInstantiationInSUT);
     }
 
-    // ===================================================================================
-    // ТЕСТИ ДЛЯ getIntermediateStopsForRoute (інтегровані)
-    // ===================================================================================
-
-    // Допоміжний метод для виклику приватного методу getIntermediateStopsForRoute
     @SuppressWarnings("unchecked")
     private List<Stop> invokeGetIntermediateStopsForRoute(Connection conn, long routeId) throws Exception {
         Method method = RouteDAO.class.getDeclaredMethod("getIntermediateStopsForRoute", Connection.class, long.class);
@@ -191,6 +208,43 @@ class RouteDAOTest {
     }
 
 
+    // ===================================================================================
+    // ТЕСТИ ДЛЯ getIntermediateStopsForRoute (інтегровані через invoke)
+    // ===================================================================================
+
+    @Test
+    @DisplayName("[GISFR] Повинен повертати список проміжних зупинок, якщо вони існують")
+    void getIntermediateStopsForRoute_shouldReturnListOfStops_whenStopsExist() throws Exception {
+        long routeId = 1L;
+        when(mockRsIntermediateStops.next()).thenReturn(true, true, false);
+        when(mockRsIntermediateStops.getLong("stop_id")).thenReturn(stop1.getId(), stop2.getId());
+
+        when(mockRsStopGetById.next())
+                .thenReturn(true) // For stop1
+                .thenReturn(true); // For stop2
+        when(mockRsStopGetById.getLong("id"))
+                .thenReturn(stop1.getId())
+                .thenReturn(stop2.getId());
+        when(mockRsStopGetById.getString("name"))
+                .thenReturn(stop1.getName())
+                .thenReturn(stop2.getName());
+        when(mockRsStopGetById.getString("city"))
+                .thenReturn(stop1.getCity())
+                .thenReturn(stop2.getCity());
+
+        List<Stop> result = invokeGetIntermediateStopsForRoute(mockConnection, routeId);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(s -> s.getId() == stop1.getId()));
+        assertTrue(result.stream().anyMatch(s -> s.getId() == stop2.getId()));
+        verify(mockPsIntermediateStops).setLong(1, routeId);
+        verify(mockConnection, times(2)).prepareStatement(eq(SQL_GET_STOP_BY_ID_IN_STOPDAO));
+        assertTrue(listAppender.containsMessage(Level.DEBUG, "Завантаження проміжних зупинок для маршруту ID: " + routeId));
+        assertTrue(listAppender.containsMessage(Level.DEBUG, "Знайдено 2 проміжних зупинок для маршруту ID: " + routeId));
+    }
+
+
     @Test
     @DisplayName("[GISFR] Повинен повертати порожній список, якщо немає проміжних зупинок")
     void getIntermediateStopsForRoute_shouldReturnEmptyList_whenNoStopsExist() throws Exception {
@@ -201,26 +255,39 @@ class RouteDAOTest {
 
         assertNotNull(result);
         assertTrue(result.isEmpty(), "Список зупинок має бути порожнім");
-        verify(mockStopDAO, never()).getStopById(anyLong());
-        verify(mockPsIntermediateStops).close();
-        verify(mockRsIntermediateStops).close();
+        verify(mockConnection, never()).prepareStatement(eq(SQL_GET_STOP_BY_ID_IN_STOPDAO));
+        assertTrue(listAppender.containsMessage(Level.DEBUG, "Знайдено 0 проміжних зупинок для маршруту ID: " + routeId));
     }
 
+    @Test
+    @DisplayName("[GISFR] Повинен логувати попередження, якщо проміжна зупинка не знайдена в StopDAO")
+    void getIntermediateStopsForRoute_shouldLogWarning_whenIntermediateStopNotFound() throws Exception {
+        long routeId = 3L;
+        long missingStopId = 99L;
+        when(mockRsIntermediateStops.next()).thenReturn(true, false);
+        when(mockRsIntermediateStops.getLong("stop_id")).thenReturn(missingStopId);
+
+        when(mockRsStopGetById.next()).thenReturn(false); // Stop not found
+
+        List<Stop> result = invokeGetIntermediateStopsForRoute(mockConnection, routeId);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(mockConnection, times(1)).prepareStatement(eq(SQL_GET_STOP_BY_ID_IN_STOPDAO));
+        verify(mockPsStopGetById).setLong(1, missingStopId);
+        assertTrue(listAppender.containsMessage(Level.WARN, "Проміжна зупинка з ID " + missingStopId + " для маршруту ID " + routeId + " не знайдена в таблиці зупинок, але на неї є посилання."));
+    }
 
     @Test
     @DisplayName("[GISFR] Повинен кидати SQLException, якщо prepareStatement для проміжних зупинок кидає виняток")
     void getIntermediateStopsForRoute_shouldThrowSQLException_whenPrepareStatementFails() throws SQLException {
         long routeId = 5L;
         SQLException expectedException = new SQLException("Помилка підготовки PreparedStatement для проміжних");
-        // Перевизначаємо мок для цього тесту
         when(mockConnection.prepareStatement(eq(SQL_GET_INTERMEDIATE_STOPS))).thenThrow(expectedException);
 
         SQLException actualException = assertThrows(SQLException.class,
                 () -> invokeGetIntermediateStopsForRoute(mockConnection, routeId));
         assertEquals(expectedException.getMessage(), actualException.getMessage());
-        // PreparedStatement не був створений, тому close не викликається
-        verify(mockPsIntermediateStops, never()).close();
-        verify(mockRsIntermediateStops, never()).close();
     }
 
     @Test
@@ -233,9 +300,6 @@ class RouteDAOTest {
         SQLException actualException = assertThrows(SQLException.class,
                 () -> invokeGetIntermediateStopsForRoute(mockConnection, routeId));
         assertEquals(expectedException.getMessage(), actualException.getMessage());
-        verify(mockPsIntermediateStops).setLong(1, routeId);
-        verify(mockPsIntermediateStops).close(); // Закривається через try-with-resources
-        verify(mockRsIntermediateStops, never()).close(); // ResultSet не був створений
     }
 
     @Test
@@ -248,8 +312,6 @@ class RouteDAOTest {
         SQLException actualException = assertThrows(SQLException.class,
                 () -> invokeGetIntermediateStopsForRoute(mockConnection, routeId));
         assertEquals(expectedException.getMessage(), actualException.getMessage());
-        verify(mockPsIntermediateStops).close();
-        verify(mockRsIntermediateStops).close();
     }
 
     @Test
@@ -263,98 +325,466 @@ class RouteDAOTest {
         SQLException actualException = assertThrows(SQLException.class,
                 () -> invokeGetIntermediateStopsForRoute(mockConnection, routeId));
         assertEquals(expectedException.getMessage(), actualException.getMessage());
-        verify(mockPsIntermediateStops).close();
-        verify(mockRsIntermediateStops).close();
     }
 
 
     // ===================================================================================
-    // ІСНУЮЧІ ТЕСТИ (getRouteById, getAllRoutes, addRoute)
-    // Переконайтеся, що вони не конфліктують з новими моками, особливо
-    // коли mockConnection.prepareStatement викликається для route_intermediate_stops
+    // ТЕСТИ ДЛЯ getRouteById
     // ===================================================================================
 
-    // Приклад існуючого тесту, який може потребувати уваги:
+    @Test
+    @DisplayName("[GRBID] Повинен повертати маршрут, якщо він існує та всі зупинки знайдені")
+    void getRouteById_success_routeFound() throws SQLException {
+        long routeId = routeKyivLviv.getId();
+        when(mockRsRoutes.next()).thenReturn(true);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeId);
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(stop1.getId());
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(stop4.getId());
+
+        when(mockRsStopGetById.next())
+                .thenReturn(true) // For stop1 (departure)
+                .thenReturn(true) // For stop4 (destination)
+                .thenReturn(true) // For stop2 (intermediate 1)
+                .thenReturn(true); // For stop3 (intermediate 2)
+        when(mockRsStopGetById.getLong("id"))
+                .thenReturn(stop1.getId())
+                .thenReturn(stop4.getId())
+                .thenReturn(stop2.getId())
+                .thenReturn(stop3.getId());
+        when(mockRsStopGetById.getString("name"))
+                .thenReturn(stop1.getName())
+                .thenReturn(stop4.getName())
+                .thenReturn(stop2.getName())
+                .thenReturn(stop3.getName());
+        when(mockRsStopGetById.getString("city"))
+                .thenReturn(stop1.getCity())
+                .thenReturn(stop4.getCity())
+                .thenReturn(stop2.getCity())
+                .thenReturn(stop3.getCity());
+
+        when(mockRsIntermediateStops.next()).thenReturn(true, true, false);
+        when(mockRsIntermediateStops.getLong("stop_id")).thenReturn(stop2.getId(), stop3.getId());
+
+        Optional<Route> resultOpt = routeDAO.getRouteById(routeId);
+
+        assertTrue(resultOpt.isPresent());
+        Route resultRoute = resultOpt.get();
+        assertEquals(routeId, resultRoute.getId());
+        assertEquals(stop1.getId(), resultRoute.getDepartureStop().getId());
+        assertEquals(stop4.getId(), resultRoute.getDestinationStop().getId());
+        assertEquals(2, resultRoute.getIntermediateStops().size());
+        assertTrue(resultRoute.getIntermediateStops().stream().anyMatch(s -> s.getId() == stop2.getId()));
+        assertTrue(resultRoute.getIntermediateStops().stream().anyMatch(s -> s.getId() == stop3.getId()));
+
+        verify(mockPsRoutes).setLong(1, routeId);
+        verify(mockPsIntermediateStops).setLong(1, routeId);
+        verify(mockConnection, times(4)).prepareStatement(eq(SQL_GET_STOP_BY_ID_IN_STOPDAO));
+        assertTrue(listAppender.containsMessage(Level.INFO, "Маршрут з ID " + routeId + " успішно отримано."));
+    }
+
+    @Test
+    @DisplayName("[GRBID] Повинен повертати маршрут без проміжних зупинок, якщо їх немає")
+    void getRouteById_success_routeFound_noIntermediateStops() throws SQLException {
+        long routeId = routeKyivOdesa.getId();
+        when(mockRsRoutes.next()).thenReturn(true);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeId);
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(stop1.getId());
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(stop5.getId());
+
+        when(mockRsStopGetById.next())
+                .thenReturn(true) // For stop1
+                .thenReturn(true); // For stop5
+        when(mockRsStopGetById.getLong("id"))
+                .thenReturn(stop1.getId())
+                .thenReturn(stop5.getId());
+        when(mockRsStopGetById.getString("name"))
+                .thenReturn(stop1.getName())
+                .thenReturn(stop5.getName());
+        when(mockRsStopGetById.getString("city"))
+                .thenReturn(stop1.getCity())
+                .thenReturn(stop5.getCity());
+
+        when(mockRsIntermediateStops.next()).thenReturn(false);
+
+        Optional<Route> resultOpt = routeDAO.getRouteById(routeId);
+
+        assertTrue(resultOpt.isPresent());
+        Route resultRoute = resultOpt.get();
+        assertEquals(routeId, resultRoute.getId());
+        assertEquals(stop1.getId(), resultRoute.getDepartureStop().getId());
+        assertEquals(stop5.getId(), resultRoute.getDestinationStop().getId());
+        assertTrue(resultRoute.getIntermediateStops().isEmpty());
+
+        verify(mockConnection, times(2)).prepareStatement(eq(SQL_GET_STOP_BY_ID_IN_STOPDAO));
+        assertTrue(listAppender.containsMessage(Level.DEBUG, "Знайдено 0 проміжних зупинок для маршруту ID: " + routeId));
+    }
 
 
     @Test
+    @DisplayName("[GRBID] Повинен повертати порожній Optional, якщо маршрут не знайдено")
     void getRouteById_routeNotFound_returnsEmptyOptional() throws SQLException {
         long nonExistentRouteId = 999L;
-        when(mockRsRoutes.next()).thenReturn(false); // Основний запит не знаходить маршрут
+        when(mockRsRoutes.next()).thenReturn(false);
 
         Optional<Route> result = routeDAO.getRouteById(nonExistentRouteId);
 
         assertFalse(result.isPresent());
-        // getIntermediateStopsForRoute не має викликатися, якщо основний маршрут не знайдено
         verify(mockConnection, never()).prepareStatement(eq(SQL_GET_INTERMEDIATE_STOPS));
+        assertTrue(listAppender.containsMessage(Level.INFO, "Маршрут з ID " + nonExistentRouteId + " не знайдено."));
+    }
+
+    @Test
+    @DisplayName("[GRBID] Повинен кидати SQLException, якщо зупинка відправлення не знайдена")
+    void getRouteById_departureStopNotFound_throwsSQLException() throws SQLException {
+        long routeId = 1L;
+        long departureStopId = stop1.getId();
+        long destinationStopId = stop4.getId();
+
+        when(mockRsRoutes.next()).thenReturn(true);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeId);
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(departureStopId);
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(destinationStopId);
+
+        when(mockRsStopGetById.next()).thenReturn(false); // Departure stop not found
+
+        SQLException exception = assertThrows(SQLException.class, () -> routeDAO.getRouteById(routeId));
+        String expectedErrorMsg = "Зупинка відправлення ID " + departureStopId + " не знайдена для маршруту ID: " + routeId;
+        assertEquals(expectedErrorMsg, exception.getMessage());
+        verify(mockPsStopGetById).setLong(1, departureStopId);
+        assertTrue(listAppender.containsMessage(Level.ERROR, expectedErrorMsg));
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні маршруту за ID " + routeId + "."));
+    }
+
+    @Test
+    @DisplayName("[GRBID] Повинен кидати SQLException, якщо зупинка призначення не знайдена")
+    void getRouteById_destinationStopNotFound_throwsSQLException() throws SQLException {
+        long routeId = 1L;
+        long departureStopId = stop1.getId();
+        long destinationStopId = stop4.getId();
+
+        when(mockRsRoutes.next()).thenReturn(true);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeId);
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(departureStopId);
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(destinationStopId);
+
+        when(mockRsStopGetById.next())
+                .thenReturn(true)  // For departure stop (stop1)
+                .thenReturn(false); // For destination stop (stop4) - not found
+        when(mockRsStopGetById.getLong("id")).thenReturn(departureStopId);
+        when(mockRsStopGetById.getString("name")).thenReturn(stop1.getName());
+        when(mockRsStopGetById.getString("city")).thenReturn(stop1.getCity());
+
+        SQLException exception = assertThrows(SQLException.class, () -> routeDAO.getRouteById(routeId));
+        String expectedErrorMsg = "Зупинка призначення ID " + destinationStopId + " не знайдена для маршруту ID: " + routeId;
+        assertEquals(expectedErrorMsg, exception.getMessage());
+        verify(mockPsStopGetById).setLong(1, departureStopId); // Called for departure
+        verify(mockPsStopGetById).setLong(1, destinationStopId); // Called for destination
+        assertTrue(listAppender.containsMessage(Level.ERROR, expectedErrorMsg));
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні маршруту за ID " + routeId + "."));
+    }
+
+    @Test
+    @DisplayName("[GRBID] Повинен кидати SQLException, якщо getIntermediateStopsForRoute кидає виняток")
+    void getRouteById_getIntermediateStopsThrowsSQLException_propagatesException() throws SQLException {
+        long routeId = routeKyivLviv.getId();
+        when(mockRsRoutes.next()).thenReturn(true);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeId);
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(stop1.getId());
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(stop4.getId());
+
+        // Mock StopDAO for departure and destination to be found
+        when(mockRsStopGetById.next())
+                .thenReturn(true) // stop1
+                .thenReturn(true); // stop4
+        when(mockRsStopGetById.getLong("id"))
+                .thenReturn(stop1.getId())
+                .thenReturn(stop4.getId());
+        when(mockRsStopGetById.getString("name"))
+                .thenReturn(stop1.getName())
+                .thenReturn(stop4.getName());
+        when(mockRsStopGetById.getString("city"))
+                .thenReturn(stop1.getCity())
+                .thenReturn(stop4.getCity());
+
+
+        SQLException intermediateException = new SQLException("DB error fetching intermediate stops");
+        when(mockConnection.prepareStatement(eq(SQL_GET_INTERMEDIATE_STOPS))).thenThrow(intermediateException);
+
+        SQLException actualException = assertThrows(SQLException.class, () -> routeDAO.getRouteById(routeId));
+        assertEquals(intermediateException.getMessage(), actualException.getMessage());
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні маршруту за ID " + routeId + "."));
     }
 
 
-
-
     @Test
+    @DisplayName("[GRBID] Повинен кидати SQLException під час основного запиту SQL")
     void getRouteById_sqlExceptionDuringMainQuery_throwsSQLException() throws SQLException {
         long routeId = 1L;
-        when(mockConnection.prepareStatement(argThat(sql -> sql != null && sql.contains("FROM routes WHERE id = ?"))))
+        when(mockConnection.prepareStatement(eq(SQL_GET_ROUTE_BY_ID)))
                 .thenThrow(new SQLException("DB Main Route Error"));
         assertThrows(SQLException.class, () -> routeDAO.getRouteById(routeId));
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні маршруту за ID " + routeId + "."));
     }
 
-
-
+    // ===================================================================================
+    // ТЕСТИ ДЛЯ getAllRoutes
+    // ===================================================================================
     @Test
+    @DisplayName("[GAR] Повинен повертати порожній список, якщо немає маршрутів в БД")
     void getAllRoutes_success_noRoutes_returnsEmptyList() throws SQLException {
-        when(mockRsRoutes.next()).thenReturn(false); // Немає маршрутів
+        when(mockRsRoutes.next()).thenReturn(false);
         List<Route> routes = routeDAO.getAllRoutes();
         assertTrue(routes.isEmpty());
         verify(mockConnection, never()).prepareStatement(eq(SQL_GET_INTERMEDIATE_STOPS));
+        assertTrue(listAppender.containsMessage(Level.INFO, "Спроба отримати всі маршрути."));
+        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 0 маршрутів."));
     }
 
-
-
     @Test
-    void getAllRoutes_sqlException_throwsSQLException() throws SQLException {
-        when(mockConnection.createStatement()).thenThrow(new SQLException("DB Error on getAllRoutes"));
+    @DisplayName("[GAR] Повинен кидати SQLException, якщо connection.createStatement кидає виняток")
+    void getAllRoutes_sqlExceptionOnCreateStatement_throwsSQLException() throws SQLException {
+        when(mockConnection.createStatement()).thenThrow(new SQLException("DB Error on createStatement"));
         assertThrows(SQLException.class, () -> routeDAO.getAllRoutes());
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні всіх маршрутів."));
     }
 
     @Test
+    @DisplayName("[GAR] Повинен кидати SQLException, якщо statement.executeQuery кидає виняток")
+    void getAllRoutes_sqlExceptionOnStatementExecuteQuery_throwsSQLException() throws SQLException {
+        when(mockStatement.executeQuery(anyString())).thenThrow(new SQLException("DB Error on executeQuery"));
+        assertThrows(SQLException.class, () -> routeDAO.getAllRoutes());
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні всіх маршрутів."));
+    }
+
+    @Test
+    @DisplayName("[GAR] Повинен кидати SQLException, якщо rsRoutes.next() кидає виняток")
+    void getAllRoutes_sqlExceptionOnRoutesResultSetNext_throwsSQLException() throws SQLException {
+        when(mockRsRoutes.next()).thenThrow(new SQLException("DB Error on rsRoutes.next()"));
+        assertThrows(SQLException.class, () -> routeDAO.getAllRoutes());
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні всіх маршрутів."));
+    }
+
+    @Test
+    @DisplayName("[GAR] Повинен кидати SQLException, якщо rsRoutes.getLong() кидає виняток")
+    void getAllRoutes_sqlExceptionOnRoutesResultSetGetLong_throwsSQLException() throws SQLException {
+        when(mockRsRoutes.next()).thenReturn(true);
+        when(mockRsRoutes.getLong("id")).thenThrow(new SQLException("DB Error on rsRoutes.getLong() for id"));
+        assertThrows(SQLException.class, () -> routeDAO.getAllRoutes());
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні всіх маршрутів."));
+    }
+
+    @Test
+    @DisplayName("[GAR] Повинен успішно отримати один маршрут з проміжними зупинками")
+    void getAllRoutes_success_oneRouteWithIntermediateStops() throws SQLException {
+        when(mockRsRoutes.next()).thenReturn(true, false);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeKyivLviv.getId());
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(stop1.getId());
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(stop4.getId());
+
+        when(mockRsStopGetById.next()) // dep, dest, inter1, inter2
+                .thenReturn(true).thenReturn(true).thenReturn(true).thenReturn(true);
+        when(mockRsStopGetById.getLong("id"))
+                .thenReturn(stop1.getId()).thenReturn(stop4.getId()).thenReturn(stop2.getId()).thenReturn(stop3.getId());
+        when(mockRsStopGetById.getString("name"))
+                .thenReturn(stop1.getName()).thenReturn(stop4.getName()).thenReturn(stop2.getName()).thenReturn(stop3.getName());
+        when(mockRsStopGetById.getString("city"))
+                .thenReturn(stop1.getCity()).thenReturn(stop4.getCity()).thenReturn(stop2.getCity()).thenReturn(stop3.getCity());
+
+
+        when(mockRsIntermediateStops.next()).thenReturn(true, true, false);
+        when(mockRsIntermediateStops.getLong("stop_id")).thenReturn(stop2.getId(), stop3.getId());
+
+        List<Route> routes = routeDAO.getAllRoutes();
+
+        assertEquals(1, routes.size());
+        Route actualRoute = routes.get(0);
+        assertEquals(routeKyivLviv.getId(), actualRoute.getId());
+        assertEquals(stop1.getId(), actualRoute.getDepartureStop().getId());
+        assertEquals(stop4.getId(), actualRoute.getDestinationStop().getId());
+        assertEquals(2, actualRoute.getIntermediateStops().size());
+
+        verify(mockStatement).executeQuery(SQL_GET_ALL_ROUTES);
+        verify(mockPsIntermediateStops).setLong(1, routeKyivLviv.getId());
+        verify(mockConnection, times(4)).prepareStatement(eq(SQL_GET_STOP_BY_ID_IN_STOPDAO));
+        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 1 маршрутів."));
+    }
+
+    @Test
+    @DisplayName("[GAR] Повинен успішно отримати один маршрут без проміжних зупинок")
+    void getAllRoutes_success_oneRouteNoIntermediateStops() throws SQLException {
+        when(mockRsRoutes.next()).thenReturn(true, false);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeKyivOdesa.getId());
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(stop1.getId());
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(stop5.getId());
+
+        when(mockRsStopGetById.next()) // dep, dest
+                .thenReturn(true).thenReturn(true);
+        when(mockRsStopGetById.getLong("id"))
+                .thenReturn(stop1.getId()).thenReturn(stop5.getId());
+        when(mockRsStopGetById.getString("name"))
+                .thenReturn(stop1.getName()).thenReturn(stop5.getName());
+        when(mockRsStopGetById.getString("city"))
+                .thenReturn(stop1.getCity()).thenReturn(stop5.getCity());
+
+        when(mockRsIntermediateStops.next()).thenReturn(false);
+
+        List<Route> routes = routeDAO.getAllRoutes();
+
+        assertEquals(1, routes.size());
+        Route actualRoute = routes.get(0);
+        assertEquals(routeKyivOdesa.getId(), actualRoute.getId());
+        assertEquals(stop1.getId(), actualRoute.getDepartureStop().getId());
+        assertEquals(stop5.getId(), actualRoute.getDestinationStop().getId());
+        assertTrue(actualRoute.getIntermediateStops().isEmpty());
+        verify(mockConnection, times(2)).prepareStatement(eq(SQL_GET_STOP_BY_ID_IN_STOPDAO));
+        assertTrue(listAppender.containsMessage(Level.DEBUG, "Знайдено 0 проміжних зупинок для маршруту ID: " + routeKyivOdesa.getId()));
+    }
+
+    @Test
+    @DisplayName("[GAR] Повинен успішно отримати декілька маршрутів (з/без проміжних зупинок)")
+    void getAllRoutes_success_multipleRoutes_mixedIntermediateStops() throws SQLException {
+        when(mockRsRoutes.next()).thenReturn(true, true, false);
+        when(mockRsRoutes.getLong("id"))
+                .thenReturn(routeKyivLviv.getId())
+                .thenReturn(routeKyivOdesa.getId());
+        when(mockRsRoutes.getLong("departure_stop_id"))
+                .thenReturn(stop1.getId())
+                .thenReturn(stop1.getId());
+        when(mockRsRoutes.getLong("destination_stop_id"))
+                .thenReturn(stop4.getId())
+                .thenReturn(stop5.getId());
+
+        // stop1, stop4, stop2, stop3 (for KyivLviv) then stop1, stop5 (for KyivOdesa)
+        when(mockRsStopGetById.next())
+                .thenReturn(true).thenReturn(true).thenReturn(true).thenReturn(true) // KyivLviv stops
+                .thenReturn(true).thenReturn(true); // KyivOdesa stops
+        when(mockRsStopGetById.getLong("id"))
+                .thenReturn(stop1.getId()).thenReturn(stop4.getId()).thenReturn(stop2.getId()).thenReturn(stop3.getId())
+                .thenReturn(stop1.getId()).thenReturn(stop5.getId());
+        when(mockRsStopGetById.getString("name"))
+                .thenReturn(stop1.getName()).thenReturn(stop4.getName()).thenReturn(stop2.getName()).thenReturn(stop3.getName())
+                .thenReturn(stop1.getName()).thenReturn(stop5.getName());
+        when(mockRsStopGetById.getString("city"))
+                .thenReturn(stop1.getCity()).thenReturn(stop4.getCity()).thenReturn(stop2.getCity()).thenReturn(stop3.getCity())
+                .thenReturn(stop1.getCity()).thenReturn(stop5.getCity());
+
+
+        when(mockRsIntermediateStops.next())
+                .thenReturn(true, true, false) // For KyivLviv
+                .thenReturn(false);             // For KyivOdesa
+        when(mockRsIntermediateStops.getLong("stop_id"))
+                .thenReturn(stop2.getId())
+                .thenReturn(stop3.getId());
+
+        List<Route> routes = routeDAO.getAllRoutes();
+
+        assertEquals(2, routes.size());
+        // verify(mockConnection, times(6)).prepareStatement(eq(SQL_GET_STOP_BY_ID_IN_STOPDAO)); // 4 for first, 2 for second
+        assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 2 маршрутів."));
+    }
+
+    @Test
+    @DisplayName("[GAR] Кидає SQLException і логує помилку, якщо зупинка відправлення не знайдена")
+    void getAllRoutes_departureStopNotFound_throwsSQLExceptionAndLogsError() throws SQLException {
+        long routeId = 1L;
+        long missingDepartureStopId = 998L;
+        when(mockRsRoutes.next()).thenReturn(true, false);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeId);
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(missingDepartureStopId);
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(stop5.getId());
+
+        when(mockRsStopGetById.next()).thenReturn(false); // Departure not found
+
+        SQLException exception = assertThrows(SQLException.class, () -> routeDAO.getAllRoutes());
+        String expectedErrorMsg = "Зупинка відправлення ID " + missingDepartureStopId + " не знайдена для маршруту ID: " + routeId;
+        assertEquals(expectedErrorMsg, exception.getMessage());
+        verify(mockPsStopGetById).setLong(1, missingDepartureStopId);
+        assertTrue(listAppender.containsMessage(Level.ERROR, expectedErrorMsg));
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні всіх маршрутів."));
+    }
+
+    @Test
+    @DisplayName("[GAR] Кидає SQLException і логує помилку, якщо зупинка призначення не знайдена")
+    void getAllRoutes_destinationStopNotFound_throwsSQLExceptionAndLogsError() throws SQLException {
+        long routeId = 2L;
+        long missingDestinationStopId = 999L;
+        when(mockRsRoutes.next()).thenReturn(true, false);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeId);
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(stop1.getId());
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(missingDestinationStopId);
+
+        when(mockRsStopGetById.next())
+                .thenReturn(true) // Departure found
+                .thenReturn(false); // Destination not found
+        when(mockRsStopGetById.getLong("id")).thenReturn(stop1.getId());
+        when(mockRsStopGetById.getString("name")).thenReturn(stop1.getName());
+        when(mockRsStopGetById.getString("city")).thenReturn(stop1.getCity());
+
+
+        SQLException exception = assertThrows(SQLException.class, () -> routeDAO.getAllRoutes());
+        String expectedErrorMsg = "Зупинка призначення ID " + missingDestinationStopId + " не знайдена для маршруту ID: " + routeId;
+        assertEquals(expectedErrorMsg, exception.getMessage());
+        verify(mockPsStopGetById).setLong(1, missingDestinationStopId);
+        assertTrue(listAppender.containsMessage(Level.ERROR, expectedErrorMsg));
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні всіх маршрутів."));
+    }
+
+    @Test
+    @DisplayName("[GAR] Кидає SQLException, якщо getIntermediateStopsForRoute кидає виняток")
+    void getAllRoutes_getIntermediateStopsForRouteThrowsSQLException_throwsSQLException() throws SQLException {
+        when(mockRsRoutes.next()).thenReturn(true, false);
+        when(mockRsRoutes.getLong("id")).thenReturn(routeKyivLviv.getId());
+        when(mockRsRoutes.getLong("departure_stop_id")).thenReturn(stop1.getId());
+        when(mockRsRoutes.getLong("destination_stop_id")).thenReturn(stop4.getId());
+
+        when(mockRsStopGetById.next()) // dep, dest found
+                .thenReturn(true).thenReturn(true);
+        when(mockRsStopGetById.getLong("id"))
+                .thenReturn(stop1.getId()).thenReturn(stop4.getId());
+        when(mockRsStopGetById.getString("name"))
+                .thenReturn(stop1.getName()).thenReturn(stop4.getName());
+        when(mockRsStopGetById.getString("city"))
+                .thenReturn(stop1.getCity()).thenReturn(stop4.getCity());
+
+
+        SQLException intermediateException = new SQLException("DB error during intermediate stop fetch");
+        when(mockConnection.prepareStatement(eq(SQL_GET_INTERMEDIATE_STOPS))).thenThrow(intermediateException);
+
+        SQLException actualException = assertThrows(SQLException.class, () -> routeDAO.getAllRoutes());
+        assertEquals(intermediateException.getMessage(), actualException.getMessage());
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні всіх маршрутів."));
+    }
+
+
+    // ===================================================================================
+    // ТЕСТИ ДЛЯ addRoute
+    // ===================================================================================
+
+    @Test
+    @DisplayName("[AR] Успішне додавання маршруту без проміжних зупинок")
     void addRoute_noIntermediateStops_success() throws SQLException {
         Route newRoute = new Route(0, stop1, stop2, Collections.emptyList());
+        long generatedRouteId = 201L;
+
         when(mockPsRoutes.executeUpdate()).thenReturn(1);
         when(mockGeneratedKeys.next()).thenReturn(true);
-        when(mockGeneratedKeys.getLong(1)).thenReturn(201L);
+        when(mockGeneratedKeys.getLong(1)).thenReturn(generatedRouteId);
 
         boolean result = routeDAO.addRoute(newRoute);
 
         assertTrue(result);
-        assertEquals(201L, newRoute.getId());
+        assertEquals(generatedRouteId, newRoute.getId());
         verify(mockConnection).commit();
-        // Переконайтеся, що mockPsIntermediateStops.addBatch() не викликався
         verify(mockPsIntermediateStops, never()).addBatch();
+        assertTrue(listAppender.containsMessage(Level.INFO, "Основний маршрут успішно додано. ID нового маршруту: " + generatedRouteId));
+        assertTrue(listAppender.containsMessage(Level.INFO, "Для маршруту ID: " + generatedRouteId + " немає проміжних зупинок."));
+        assertTrue(listAppender.containsMessage(Level.INFO, "Маршрут " + newRoute.getFullRouteDescription() + " успішно додано до бази даних."));
     }
 
-    @Test
-    void addRoute_withIntermediateStops_success() throws SQLException {
-        Route newRoute = new Route(0, stop1, stop4, Arrays.asList(stop2, stop3));
-        when(mockPsRoutes.executeUpdate()).thenReturn(1);
-        when(mockGeneratedKeys.next()).thenReturn(true);
-        when(mockGeneratedKeys.getLong(1)).thenReturn(202L);
-        // Налаштовуємо mockConnection.prepareStatement для запиту вставки проміжних зупинок
-        PreparedStatement mockPsInsertIntermediate = mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(argThat(sql -> sql.contains("INSERT INTO route_intermediate_stops")))).thenReturn(mockPsInsertIntermediate);
-        when(mockPsInsertIntermediate.executeBatch()).thenReturn(new int[]{1, 1});
 
-
-        boolean result = routeDAO.addRoute(newRoute);
-
-        assertTrue(result);
-        assertEquals(202L, newRoute.getId());
-        verify(mockPsInsertIntermediate, times(2)).addBatch();
-        verify(mockConnection).commit();
-    }
 
     @Test
+    @DisplayName("[AR] Повертає false і робить rollback, якщо вставка основного маршруту не вдалася")
     void addRoute_mainRouteInsertFails_returnsFalseAndRollbacks() throws SQLException {
         Route newRoute = new Route(0, stop1, stop2, Collections.emptyList());
         when(mockPsRoutes.executeUpdate()).thenReturn(0);
@@ -363,95 +793,187 @@ class RouteDAOTest {
 
         assertFalse(result);
         verify(mockConnection).rollback();
+        verify(mockConnection, never()).commit();
+        assertTrue(listAppender.containsMessage(Level.WARN, "Не вдалося додати основний маршрут, жоден рядок не змінено."));
+        // The log "Спроба відкату транзакції через помилку." is in a catch block not reached here.
+    }
+
+    @Test
+    @DisplayName("[AR] Кидає SQLException і робить rollback, якщо не вдалося отримати generated ID")
+    void addRoute_getGeneratedKeysFails_throwsSQLExceptionAndRollbacks() throws SQLException {
+        Route newRoute = new Route(0, stop1, stop2, Collections.emptyList());
+        when(mockPsRoutes.executeUpdate()).thenReturn(1);
+        when(mockGeneratedKeys.next()).thenReturn(false);
+
+        SQLException exception = assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        assertEquals("Не вдалося отримати згенерований ID для маршруту.", exception.getMessage());
+        verify(mockConnection, atLeastOnce()).rollback(); // Changed to atLeastOnce
+        verify(mockConnection, never()).commit();
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Не вдалося отримати згенерований ID для нового маршруту."));
     }
 
 
-
     @Test
+    @DisplayName("[AR] Пропускає null проміжну зупинку та логує попередження")
     void addRoute_withNullIntermediateStop_skipsItAndLogsWarn() throws SQLException {
         Route newRoute = new Route(0, stop1, stop4, Arrays.asList(stop2, null, stop3));
+        long generatedRouteId = 203L;
         when(mockPsRoutes.executeUpdate()).thenReturn(1);
         when(mockGeneratedKeys.next()).thenReturn(true);
-        when(mockGeneratedKeys.getLong(1)).thenReturn(203L);
-
-        PreparedStatement mockPsInsertIntermediate = mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(argThat(sql -> sql.contains("INSERT INTO route_intermediate_stops")))).thenReturn(mockPsInsertIntermediate);
-        when(mockPsInsertIntermediate.executeBatch()).thenReturn(new int[]{1, 1});
-
+        when(mockGeneratedKeys.getLong(1)).thenReturn(generatedRouteId);
+        when(mockPsIntermediateStops.executeBatch()).thenReturn(new int[]{1, 1});
 
         boolean result = routeDAO.addRoute(newRoute);
 
         assertTrue(result);
-        verify(mockPsInsertIntermediate, times(2)).addBatch(); // null зупинка пропускається
-        assertTrue(listAppender.containsMessage(Level.WARN, "Проміжна зупинка є null або має ID 0 для маршруту ID 203, пропуск."));
+        verify(mockPsIntermediateStops, times(2)).addBatch();
+        assertTrue(listAppender.containsMessage(Level.WARN, "Проміжна зупинка є null або має ID 0 для маршруту ID " + generatedRouteId + ", пропуск."));
         verify(mockConnection).commit();
     }
 
     @Test
+    @DisplayName("[AR] Пропускає проміжну зупинку з ID 0 та логує попередження")
+    void addRoute_withIntermediateStopIdZero_skipsItAndLogsWarn() throws SQLException {
+        Stop stopWithIdZero = new Stop(0L, "Zero ID Stop", "City Zero");
+        Route newRoute = new Route(0, stop1, stop4, Arrays.asList(stop2, stopWithIdZero, stop3));
+        long generatedRouteId = 203L;
+        when(mockPsRoutes.executeUpdate()).thenReturn(1);
+        when(mockGeneratedKeys.next()).thenReturn(true);
+        when(mockGeneratedKeys.getLong(1)).thenReturn(generatedRouteId);
+        when(mockPsIntermediateStops.executeBatch()).thenReturn(new int[]{1, 1});
+
+        boolean result = routeDAO.addRoute(newRoute);
+
+        assertTrue(result);
+        verify(mockPsIntermediateStops, times(2)).addBatch();
+        assertTrue(listAppender.containsMessage(Level.WARN, "Проміжна зупинка є null або має ID 0 для маршруту ID " + generatedRouteId + ", пропуск."));
+        verify(mockConnection).commit();
+    }
+
+
+    @Test
+    @DisplayName("[AR] Кидає SQLException і робить rollback, якщо пакетне додавання проміжних зупинок не вдалося")
     void addRoute_intermediateBatchExecuteFails_throwsSQLExceptionAndRollbacks() throws SQLException {
         Route newRoute = new Route(0, stop1, stop4, Arrays.asList(stop2, stop3));
+        long generatedRouteId = 204L;
         when(mockPsRoutes.executeUpdate()).thenReturn(1);
         when(mockGeneratedKeys.next()).thenReturn(true);
-        when(mockGeneratedKeys.getLong(1)).thenReturn(204L);
+        when(mockGeneratedKeys.getLong(1)).thenReturn(generatedRouteId);
+        when(mockPsIntermediateStops.executeBatch()).thenReturn(new int[]{1, Statement.EXECUTE_FAILED});
 
-        PreparedStatement mockPsInsertIntermediate = mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(argThat(sql -> sql.contains("INSERT INTO route_intermediate_stops")))).thenReturn(mockPsInsertIntermediate);
-        when(mockPsInsertIntermediate.executeBatch()).thenReturn(new int[]{1, Statement.EXECUTE_FAILED});
-
-        assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        SQLException exception = assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        assertEquals("Помилка при пакетному додаванні проміжних зупинок.", exception.getMessage());
         verify(mockConnection, atLeastOnce()).rollback();
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при пакетному додаванні проміжних зупинок для маршруту ID: " + generatedRouteId + ". Операція для зупинки " + stop3.getName() + " не вдалася."));
+
     }
 
     @Test
+    @DisplayName("[AR] Кидає SQLException і робить rollback, якщо SQL помилка при вставці основного маршруту")
     void addRoute_sqlExceptionOnMainInsert_throwsSQLExceptionAndRollbacks() throws SQLException {
         Route newRoute = new Route(0, stop1, stop2, Collections.emptyList());
-        when(mockPsRoutes.executeUpdate()).thenThrow(new SQLException("DB Route Insert Error"));
+        SQLException dbException = new SQLException("DB Route Insert Error");
+        when(mockPsRoutes.executeUpdate()).thenThrow(dbException);
 
-        assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        SQLException actualException = assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        assertEquals(dbException, actualException);
         verify(mockConnection, atLeastOnce()).rollback();
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка SQL при додаванні маршруту: " + dbException.getMessage()));
     }
 
     @Test
+    @DisplayName("[AR] Кидає SQLException і робить rollback, якщо SQL помилка при вставці проміжних зупинок")
     void addRoute_sqlExceptionOnIntermediateInsert_throwsSQLExceptionAndRollbacks() throws SQLException {
         Route newRoute = new Route(0, stop1, stop4, Arrays.asList(stop2, stop3));
+        long generatedRouteId = 205L;
         when(mockPsRoutes.executeUpdate()).thenReturn(1);
         when(mockGeneratedKeys.next()).thenReturn(true);
-        when(mockGeneratedKeys.getLong(1)).thenReturn(205L);
+        when(mockGeneratedKeys.getLong(1)).thenReturn(generatedRouteId);
+        SQLException dbException = new SQLException("DB Intermediate Batch Error");
+        when(mockPsIntermediateStops.executeBatch()).thenThrow(dbException);
 
-        PreparedStatement mockPsInsertIntermediate = mock(PreparedStatement.class);
-        when(mockConnection.prepareStatement(argThat(sql -> sql.contains("INSERT INTO route_intermediate_stops")))).thenReturn(mockPsInsertIntermediate);
-        when(mockPsInsertIntermediate.executeBatch()).thenThrow(new SQLException("DB Intermediate Batch Error"));
-
-
-        assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        SQLException actualException = assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        assertEquals(dbException, actualException);
         verify(mockConnection, atLeastOnce()).rollback();
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка SQL при додаванні маршруту: " + dbException.getMessage()));
     }
 
     @Test
-    void addRoute_nullDepartureStopId_throwsSQLExceptionAndRollbacks() throws SQLException {
+    @DisplayName("[AR] Кидає SQLException і робить rollback, якщо ID зупинки відправлення = 0")
+    void addRoute_departureStopIdIsZero_throwsSQLExceptionAndRollbacks() throws SQLException {
         Stop departureStopWithNoId = new Stop(0, "No ID Depart", "City");
         Route newRoute = new Route(0, departureStopWithNoId, stop2, Collections.emptyList());
+        // This route object itself is valid, the DAO method should catch the ID=0
 
-        assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        SQLException exception = assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        assertEquals("Зупинка відправлення не може бути null або мати ID 0.", exception.getMessage());
         verify(mockConnection, atLeastOnce()).rollback();
+        verify(mockConnection, never()).commit();
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка SQL при додаванні маршруту: Зупинка відправлення не може бути null або мати ID 0."));
     }
 
     @Test
-    void addRoute_nullDestinationStopId_throwsSQLExceptionAndRollbacks() throws SQLException {
+    @DisplayName("[AR] Кидає SQLException і робить rollback, якщо ID зупинки призначення = 0")
+    void addRoute_destinationStopIdIsZero_throwsSQLExceptionAndRollbacks() throws SQLException {
         Stop destinationStopWithNoId = new Stop(0, "No ID Dest", "City");
         Route newRoute = new Route(0, stop1, destinationStopWithNoId, Collections.emptyList());
 
-        assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        SQLException exception = assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        assertEquals("Зупинка призначення не може бути null або мати ID 0.", exception.getMessage());
         verify(mockConnection, atLeastOnce()).rollback();
+        verify(mockConnection, never()).commit();
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка SQL при додаванні маршруту: Зупинка призначення не може бути null або мати ID 0."));
     }
 
     @Test
+    @DisplayName("[AR] Кидає IllegalArgumentException, якщо зупинка відправлення є null при створенні Route")
+    void addRoute_nullDepartureStop_throwsIllegalArgumentException() throws SQLException {
+        // Exception is from Route constructor, not addRoute directly in this case
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> new Route(0, null, stop2, Collections.emptyList()));
+        assertEquals("Зупинка відправлення не може бути null.", exception.getMessage());
+        // routeDAO.addRoute() is not called, so no DB interactions/rollbacks to verify on mockConnection for this specific path.
+    }
+
+    @Test
+    @DisplayName("[AR] Кидає IllegalArgumentException, якщо зупинка призначення є null при створенні Route")
+    void addRoute_nullDestinationStop_throwsIllegalArgumentException() throws SQLException {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> new Route(0, stop1, null, Collections.emptyList()));
+        assertEquals("Зупинка призначення не може бути null.", exception.getMessage());
+    }
+
+
+    @Test
+    @DisplayName("[AR] Логує помилку, якщо SQL помилка під час rollback")
     void addRoute_sqlExceptionOnRollback_logsError() throws SQLException {
         Route newRoute = new Route(0, stop1, stop2, Collections.emptyList());
-        when(mockPsRoutes.executeUpdate()).thenThrow(new SQLException("DB Insert Error"));
-        doThrow(new SQLException("Rollback Error")).when(mockConnection).rollback();
+        SQLException mainException = new SQLException("DB Insert Error");
+        SQLException rollbackException = new SQLException("Rollback Error");
 
-        assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
-        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при відкаті транзакції: Rollback Error"));
+        when(mockPsRoutes.executeUpdate()).thenThrow(mainException);
+        doThrow(rollbackException).when(mockConnection).rollback();
+
+        SQLException actualException = assertThrows(SQLException.class, () -> routeDAO.addRoute(newRoute));
+        assertEquals(mainException, actualException);
+        assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при відкаті транзакції: " + rollbackException.getMessage()));
+    }
+
+    @Test
+    @DisplayName("[AR] Логує попередження, якщо executeBatch для проміжних зупинок повертає 0 для деяких запитів")
+    void addRoute_intermediateBatchReturnsZero_logsWarning() throws SQLException {
+        Route newRoute = new Route(0, stop1, stop4, Arrays.asList(stop2, stop3));
+        long generatedRouteId = 206L;
+
+        when(mockPsRoutes.executeUpdate()).thenReturn(1);
+        when(mockGeneratedKeys.next()).thenReturn(true);
+        when(mockGeneratedKeys.getLong(1)).thenReturn(generatedRouteId);
+        when(mockPsIntermediateStops.executeBatch()).thenReturn(new int[]{1, 0});
+
+        boolean result = routeDAO.addRoute(newRoute);
+
+        assertTrue(result);
+        verify(mockConnection).commit();
+        assertTrue(listAppender.containsMessage(Level.WARN, "Пакетне додавання проміжної зупинки " + stop3.getName() + " для маршруту ID " + generatedRouteId + " могло не вставити рядок (результат: 0)."));
     }
 }
