@@ -9,7 +9,7 @@ import Models.Flight;
 import Models.Route;
 import Models.Stop;
 import UI.Panel.TicketsPanel;
-import org.assertj.swing.data.TableCell; // Import for TableCell
+import org.assertj.swing.data.TableCell;
 import org.assertj.swing.edt.GuiActionRunner;
 import org.assertj.swing.finder.JOptionPaneFinder;
 import org.assertj.swing.fixture.FrameFixture;
@@ -75,7 +75,7 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
 
         try {
             when(mockStopDAO.getAllStops()).thenReturn(Arrays.asList(stopKyiv, stopLviv, stopOdesa));
-            // Default mock for getAllFlights, specific tests can override this
+
             when(mockFlightDAO.getAllFlights()).thenReturn(Arrays.asList(flight1_KyivLviv_Planned, flight2_OdesaKyiv_Delayed, flight3_KyivLviv_Completed));
             when(mockTicketDAO.getOccupiedSeatsForFlight(anyLong())).thenReturn(Collections.emptyList());
         } catch (SQLException e) {
@@ -84,22 +84,22 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
 
         JFrame frame = GuiActionRunner.execute(() -> {
             try {
-                ticketsPanel = new TicketsPanel(mockFlightDAO, mockStopDAO, mockTicketDAO, mockPassengerDAO); // Assumes setName calls are in TicketsPanel's initComponents
+                ticketsPanel = new TicketsPanel(mockFlightDAO, mockStopDAO, mockTicketDAO, mockPassengerDAO);
                 setFinalField(ticketsPanel, "flightDAO", mockFlightDAO);
                 setFinalField(ticketsPanel, "stopDAO", mockStopDAO);
                 setFinalField(ticketsPanel, "ticketDAO", mockTicketDAO);
                 setFinalField(ticketsPanel, "passengerDAO", mockPassengerDAO);
 
-                // Ensure combo boxes are populated with mocked data after DAO injection
+
                 clearAndLoadStops(getComboBox(ticketsPanel, "cmbDepartureStop"),
                         getComboBox(ticketsPanel, "cmbDestinationStop"),
-                        mockStopDAO.getAllStops()); // Use the mocked stops
+                        mockStopDAO.getAllStops());
 
             } catch (Exception e) {
                 throw new RuntimeException("Failed to set up TicketsPanel with mocks: " + e.getMessage(), e);
             }
             JFrame testFrame = new JFrame();
-            testFrame.setContentPane(ticketsPanel); // Set the panel as content pane
+            testFrame.setContentPane(ticketsPanel);
             testFrame.pack();
             testFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             return testFrame;
@@ -151,7 +151,7 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
 
     @Test
     public void testInitialState() {
-        window.comboBox("cmbDepartureStop").requireItemCount(4); // 3 mocked stops + "Будь-який"
+        window.comboBox("cmbDepartureStop").requireItemCount(4);
         window.comboBox("cmbDestinationStop").requireItemCount(4);
         window.textBox("txtDepartureDate").requireText(LocalDate.now().format(DATE_FORMATTER));
         window.button("btnSearchFlights").requireEnabled();
@@ -163,7 +163,7 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
 
     @Test
     public void testSearchFlights_Successful() throws SQLException {
-        // Ensure getAllFlights returns data that will match the search criteria
+
         when(mockFlightDAO.getAllFlights()).thenReturn(Arrays.asList(flight1_KyivLviv_Planned, flight2_OdesaKyiv_Delayed));
 
         window.comboBox("cmbDepartureStop").selectItem(stopKyiv.getName() + " (" + stopKyiv.getCity() + ")");
@@ -174,18 +174,18 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
 
         JTableFixture table = window.table("flightsResultTable");
         table.requireRowCount(1);
-        // Corrected: Use TableCell finder
+
         table.cell(TableCell.row(0).column(0)).requireValue(String.valueOf(flight1_KyivLviv_Planned.getId()));
         table.cell(TableCell.row(0).column(1)).requireValue(flight1_KyivLviv_Planned.getRoute().getFullRouteDescription());
     }
 
     @Test
     public void testSearchFlights_NoResults() throws SQLException {
-        when(mockFlightDAO.getAllFlights()).thenReturn(Collections.emptyList()); // No flights to find
+        when(mockFlightDAO.getAllFlights()).thenReturn(Collections.emptyList());
 
         window.comboBox("cmbDepartureStop").selectItem(stopKyiv.getName() + " (" + stopKyiv.getCity() + ")");
         window.comboBox("cmbDestinationStop").selectItem(stopLviv.getName() + " (" + stopLviv.getCity() + ")");
-        window.textBox("txtDepartureDate").setText(LocalDate.now().plusDays(5).format(DATE_FORMATTER)); // A date with no flights
+        window.textBox("txtDepartureDate").setText(LocalDate.now().plusDays(5).format(DATE_FORMATTER));
 
         window.button("btnSearchFlights").click();
 
@@ -207,19 +207,19 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
 
     @Test
     public void testSelectFlight_UpdatesDetailsAndSeats_Bookable() throws SQLException {
-        // Ensure the flight to be selected will be found by the search
+
         when(mockFlightDAO.getAllFlights()).thenReturn(Collections.singletonList(flight1_KyivLviv_Planned));
         when(mockTicketDAO.getOccupiedSeatsForFlight(flight1_KyivLviv_Planned.getId()))
                 .thenReturn(Arrays.asList("2", "5"));
 
-        // Set search criteria to find flight1_KyivLviv_Planned
+
         window.comboBox("cmbDepartureStop").selectItem(stopKyiv.getName() + " (" + stopKyiv.getCity() + ")");
         window.comboBox("cmbDestinationStop").selectItem(stopLviv.getName() + " (" + stopLviv.getCity() + ")");
         window.textBox("txtDepartureDate").setText(flight1_KyivLviv_Planned.getDepartureDateTime().toLocalDate().format(DATE_FORMATTER));
         window.button("btnSearchFlights").click();
 
         JTableFixture table = window.table("flightsResultTable");
-        table.requireRowCount(1); // Verify flight is found
+        table.requireRowCount(1);
         table.selectRows(0);
 
         String expectedLabelText = String.format("Обрано: %s -> %s, Відпр: %s, Приб: %s, Ціна: %.2f грн, Статус: %s",
@@ -243,7 +243,7 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
         when(mockFlightDAO.getAllFlights()).thenReturn(Collections.singletonList(flight1_KyivLviv_Planned));
         when(mockTicketDAO.getOccupiedSeatsForFlight(flight1_KyivLviv_Planned.getId())).thenReturn(Collections.emptyList());
 
-        // Set search criteria to find flight1_KyivLviv_Planned
+
         window.comboBox("cmbDepartureStop").selectItem(stopKyiv.getName() + " (" + stopKyiv.getCity() + ")");
         window.comboBox("cmbDestinationStop").selectItem(stopLviv.getName() + " (" + stopLviv.getCity() + ")");
         window.textBox("txtDepartureDate").setText(flight1_KyivLviv_Planned.getDepartureDateTime().toLocalDate().format(DATE_FORMATTER));
@@ -264,7 +264,7 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
 
     @Test
     public void testBookTicket_SuccessfulPath_SimulatesDialogConfirmation() throws SQLException {
-        // Ensure the bookable flight is found and selected
+
         when(mockFlightDAO.getAllFlights()).thenReturn(Collections.singletonList(flight1_KyivLviv_Planned));
         when(mockTicketDAO.getOccupiedSeatsForFlight(flight1_KyivLviv_Planned.getId()))
                 .thenReturn(Collections.emptyList());
@@ -276,14 +276,13 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
 
         window.table("flightsResultTable").requireRowCount(1);
         window.table("flightsResultTable").selectRows(0);
-        window.list("listAvailableSeats").selectItem("1"); // Select a seat
+        window.list("listAvailableSeats").selectItem("1");
         window.button("btnBookTicket").requireEnabled();
 
-        // Verify the first call to getOccupiedSeatsForFlight (from selecting the flight and updating details)
+
         verify(mockTicketDAO, times(1)).getOccupiedSeatsForFlight(flight1_KyivLviv_Planned.getId());
 
-        // Further testing of BookingDialog interaction is complex without refactoring TicketsPanel
-        // For now, this test confirms setup until the point of clicking "Book".
+
     }
 
 
@@ -291,8 +290,8 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
     public void testHandleSqlException_OnSearchFlights() throws SQLException {
         when(mockFlightDAO.getAllFlights()).thenThrow(new SQLException("Test DB error getting flights"));
 
-        // Perform any search
-        window.comboBox("cmbDepartureStop").selectItem(0); // "Будь-який"
+
+        window.comboBox("cmbDepartureStop").selectItem(0);
         window.button("btnSearchFlights").click();
 
         JOptionPaneFixture optionPane = JOptionPaneFinder.findOptionPane().using(robot());
@@ -309,8 +308,8 @@ public class TicketsPanelTest extends AssertJSwingJUnitTestCase {
 
     @Override
     protected void onTearDown() {
-        // This is important to reset mocks between test method executions if they are class fields.
+
         Mockito.reset(mockFlightDAO, mockStopDAO, mockTicketDAO, mockPassengerDAO);
-        // AssertJSwingJUnitTestCase handles window.cleanUp()
+
     }
 }

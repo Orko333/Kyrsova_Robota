@@ -47,21 +47,20 @@ class PassengerDAOTest {
     @Mock
     private PreparedStatement mockPreparedStatement;
     @Mock
-    private Statement mockStatement; // Для getAllPassengers
+    private Statement mockStatement;
     @Mock
     private ResultSet mockResultSet;
 
-    // Важливо: Ми будемо використовувати @Spy, щоб тестувати логіку всередині PassengerDAO,
-    // але дозволити мокувати окремі виклики методів самого DAO (наприклад, findByDocument всередині addOrGetPassenger)
+
     @Spy
-    @InjectMocks // Інжектуємо моки в PassengerDAO, який є @Spy
+    @InjectMocks
     private PassengerDAO passengerDAO;
 
     private static ListAppender listAppender;
     private static org.apache.logging.log4j.core.Logger insuranceLogger;
     private static MockedStatic<DatabaseConnectionManager> mockedDbManager;
 
-    // Test Data
+
     private Passenger testPassenger1;
     private Passenger testPassenger2;
 
@@ -101,10 +100,10 @@ class PassengerDAOTest {
     @BeforeEach
     void setUp() throws SQLException {
         listAppender.clearEvents();
-        // Мокуємо статичний метод для кожного тесту
+
         mockedDbManager.when(DatabaseConnectionManager::getConnection).thenReturn(mockConnection);
 
-        // Спільна поведінка для закриття ресурсів
+
         lenient().doNothing().when(mockResultSet).close();
         lenient().doNothing().when(mockPreparedStatement).close();
         lenient().doNothing().when(mockStatement).close();
@@ -125,9 +124,9 @@ class PassengerDAOTest {
             verify(mockStatement, atLeast(0)).close();
             verify(mockResultSet, atLeast(0)).close();
         } catch (SQLException e) {
-            // Це не повинно відбуватися, якщо моки налаштовані правильно
+
         }
-        reset(mockConnection, mockPreparedStatement, mockStatement, mockResultSet); // Скидаємо моки для чистоти між тестами
+        reset(mockConnection, mockPreparedStatement, mockStatement, mockResultSet);
     }
 
     private void mockPassengerResultSetRow(Passenger passenger) throws SQLException {
@@ -140,10 +139,10 @@ class PassengerDAOTest {
         lenient().when(mockResultSet.getString("benefit_type")).thenReturn(passenger.getBenefitType().name());
     }
 
-    // --- addOrGetPassenger ---
+
     @Test
     void addOrGetPassenger_existingPassenger_returnsExistingId() throws SQLException {
-        // Мокуємо, що findByDocument (викликаний всередині addOrGetPassenger) знаходить пасажира
+
         doReturn(Optional.of(testPassenger1)).when(passengerDAO)
                 .findByDocument(testPassenger1.getDocumentType(), testPassenger1.getDocumentNumber());
 
@@ -151,8 +150,8 @@ class PassengerDAOTest {
 
         assertEquals(testPassenger1.getId(), passengerId);
         assertTrue(listAppender.containsMessage(Level.INFO, "Пасажир з документом Тип=" + testPassenger1.getDocumentType() + ", Номер=" + testPassenger1.getDocumentNumber() + " вже існує з ID=" + testPassenger1.getId()));
-        verify(passengerDAO).findByDocument(testPassenger1.getDocumentType(), testPassenger1.getDocumentNumber()); // Перевіряємо виклик findByDocument
-        verify(mockConnection, never()).prepareStatement(anyString(), anyInt()); // INSERT не повинен викликатися
+        verify(passengerDAO).findByDocument(testPassenger1.getDocumentType(), testPassenger1.getDocumentNumber());
+        verify(mockConnection, never()).prepareStatement(anyString(), anyInt());
     }
 
     @Test
@@ -161,11 +160,11 @@ class PassengerDAOTest {
                 "0991112233", "new@example.com", BenefitType.NONE);
         long generatedId = 100L;
 
-        // Мокуємо, що findByDocument не знаходить пасажира
+
         doReturn(Optional.empty()).when(passengerDAO)
                 .findByDocument(newPassengerDetails.getDocumentType(), newPassengerDetails.getDocumentNumber());
 
-        // Мокуємо процес INSERT
+
         when(mockConnection.prepareStatement(anyString(), eq(Statement.RETURN_GENERATED_KEYS))).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeUpdate()).thenReturn(1); // 1 рядок додано
         when(mockPreparedStatement.getGeneratedKeys()).thenReturn(mockResultSet);
@@ -191,9 +190,9 @@ class PassengerDAOTest {
                 .findByDocument(newPassengerDetails.getDocumentType(), newPassengerDetails.getDocumentNumber());
 
         when(mockConnection.prepareStatement(anyString(), eq(Statement.RETURN_GENERATED_KEYS))).thenReturn(mockPreparedStatement);
-        when(mockPreparedStatement.executeUpdate()).thenReturn(1); // Рядок ніби додано
+        when(mockPreparedStatement.executeUpdate()).thenReturn(1);
         when(mockPreparedStatement.getGeneratedKeys()).thenReturn(mockResultSet);
-        when(mockResultSet.next()).thenReturn(false); // Але ключів немає
+        when(mockResultSet.next()).thenReturn(false);
 
         SQLException exception = assertThrows(SQLException.class, () -> passengerDAO.addOrGetPassenger(newPassengerDetails));
         assertTrue(exception.getMessage().contains("Не вдалося створити пасажира, ключі не згенеровано."));
@@ -209,7 +208,7 @@ class PassengerDAOTest {
                 .findByDocument(newPassengerDetails.getDocumentType(), newPassengerDetails.getDocumentNumber());
 
         when(mockConnection.prepareStatement(anyString(), eq(Statement.RETURN_GENERATED_KEYS))).thenReturn(mockPreparedStatement);
-        when(mockPreparedStatement.executeUpdate()).thenReturn(0); // Жоден рядок не змінено
+        when(mockPreparedStatement.executeUpdate()).thenReturn(0);
 
         SQLException exception = assertThrows(SQLException.class, () -> passengerDAO.addOrGetPassenger(newPassengerDetails));
         assertTrue(exception.getMessage().contains("Не вдалося створити пасажира, жоден рядок не було змінено."));
@@ -227,12 +226,12 @@ class PassengerDAOTest {
         when(mockPreparedStatement.executeUpdate()).thenThrow(unexpectedException);
 
         SQLException actualException = assertThrows(SQLException.class, () -> passengerDAO.addOrGetPassenger(newPassenger));
-        assertSame(unexpectedException, actualException); // Перевіряємо, що саме та виняткова ситуація була перекинута
+        assertSame(unexpectedException, actualException);
         assertTrue(listAppender.containsMessage(Level.ERROR, "Непередбачена помилка SQL при додаванні пасажира."));
     }
 
 
-    // --- findByDocument ---
+
     @Test
     void findByDocument_passengerExists_returnsOptionalOfPassenger() throws SQLException {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
@@ -272,7 +271,7 @@ class PassengerDAOTest {
         assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при пошуку пасажира за документом: Тип=" + testPassenger1.getDocumentType()));
     }
 
-    // --- findById ---
+
     @Test
     void findById_passengerExists_returnsOptionalOfPassenger() throws SQLException {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
@@ -312,15 +311,15 @@ class PassengerDAOTest {
     }
 
 
-    // --- getAllPassengers ---
+
     @Test
     void getAllPassengers_success_returnsListOfPassengers() throws SQLException {
         when(mockConnection.createStatement()).thenReturn(mockStatement);
         when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
 
-        // Мокуємо ResultSet для двох пасажирів
+
         when(mockResultSet.next()).thenReturn(true).thenReturn(true).thenReturn(false);
-        // Перший пасажир
+
         when(mockResultSet.getLong("id")).thenReturn(testPassenger1.getId()).thenReturn(testPassenger2.getId());
         when(mockResultSet.getString("full_name")).thenReturn(testPassenger1.getFullName()).thenReturn(testPassenger2.getFullName());
         when(mockResultSet.getString("document_number")).thenReturn(testPassenger1.getDocumentNumber()).thenReturn(testPassenger2.getDocumentNumber());
@@ -361,11 +360,11 @@ class PassengerDAOTest {
         assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при отриманні всіх пасажирів"));
     }
 
-    // --- updatePassenger ---
+
     @Test
     void updatePassenger_success_returnsTrue() throws SQLException {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-        when(mockPreparedStatement.executeUpdate()).thenReturn(1); // 1 рядок оновлено
+        when(mockPreparedStatement.executeUpdate()).thenReturn(1);
 
         assertTrue(passengerDAO.updatePassenger(testPassenger1));
         assertTrue(listAppender.containsMessage(Level.INFO, "Пасажира з ID " + testPassenger1.getId() + " успішно оновлено."));
@@ -377,7 +376,7 @@ class PassengerDAOTest {
     @Test
     void updatePassenger_passengerNotFoundOrNotUpdated_returnsFalse() throws SQLException {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
-        when(mockPreparedStatement.executeUpdate()).thenReturn(0); // 0 рядків оновлено
+        when(mockPreparedStatement.executeUpdate()).thenReturn(0);
 
         assertFalse(passengerDAO.updatePassenger(testPassenger1));
         assertTrue(listAppender.containsMessage(Level.WARN, "Пасажира з ID " + testPassenger1.getId() + " не знайдено або не було оновлено."));
@@ -392,7 +391,7 @@ class PassengerDAOTest {
         assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при оновленні пасажира з ID " + testPassenger1.getId()));
     }
 
-    // --- mapRowToPassenger ---
+
     @Test
     void mapRowToPassenger_validBenefitType_mapsCorrectly() throws SQLException {
         when(mockResultSet.getLong("id")).thenReturn(testPassenger1.getId());
@@ -403,7 +402,7 @@ class PassengerDAOTest {
         when(mockResultSet.getString("email")).thenReturn(testPassenger1.getEmail());
         when(mockResultSet.getString("benefit_type")).thenReturn(BenefitType.NONE.name());
 
-        Passenger mapped = passengerDAO.mapRowToPassenger(mockResultSet); // Викликаємо публічно для тесту, якщо це приватний метод, то тестуємо опосередковано
+        Passenger mapped = passengerDAO.mapRowToPassenger(mockResultSet);
 
         assertEquals(testPassenger1.getId(), mapped.getId());
         assertEquals(BenefitType.NONE, mapped.getBenefitType());

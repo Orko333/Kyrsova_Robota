@@ -34,7 +34,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong; // Use anyLong for long IDs
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -84,8 +84,7 @@ class FlightsPanelTest {
                 LocalDateTime.now().minusHours(1), LocalDateTime.now().plusHours(1),
                 50, FlightStatus.PLANNED, "Placeholder Bus", new BigDecimal("10.00"));
 
-        // Initial setup of FlightsPanel and its initial load
-        // Stub getAllFlights for the constructor's loadFlightsData call
+
         when(mockFlightDAO.getAllFlights()).thenReturn(Collections.emptyList());
         flightsPanel = new FlightsPanel(mockFlightDAO, mockRouteDAO, mockStopDAO);
         testFrame.add(flightsPanel);
@@ -93,7 +92,7 @@ class FlightsPanelTest {
 
         SwingUtilities.invokeAndWait(() -> {});
         Thread.sleep(100);
-        // Reset after constructor's load
+
         reset(mockFlightDAO);
     }
 
@@ -107,8 +106,7 @@ class FlightsPanelTest {
 
     @Test
     void constructor_nullDAOs_throwsIllegalArgumentException() {
-        // Temporarily unstub for this specific test if necessary, or ensure no load in constructor
-        // For this specific test, the constructor's load doesn't matter much as it's testing arg validation
+
         assertThrows(IllegalArgumentException.class, () -> new FlightsPanel(null, mockRouteDAO, mockStopDAO));
         assertThrows(IllegalArgumentException.class, () -> new FlightsPanel(mockFlightDAO, null, mockStopDAO));
         assertThrows(IllegalArgumentException.class, () -> new FlightsPanel(mockFlightDAO, mockRouteDAO, null));
@@ -120,7 +118,7 @@ class FlightsPanelTest {
         List<Flight> flights = Collections.singletonList(flight1);
         when(mockFlightDAO.getAllFlights()).thenReturn(flights);
 
-        flightsPanel.loadFlightsData(); // This is the load being tested
+        flightsPanel.loadFlightsData();
 
         assertEquals(1, flightsPanel.getFlightsTableModel().getRowCount());
         assertEquals(flight1.getId(), flightsPanel.getFlightsTableModel().getFlightAt(0).getId());
@@ -154,8 +152,7 @@ class FlightsPanelTest {
 
     @Test
     void addFlightAction_dialogSaved_reloadsData() throws SQLException {
-        // No initial load in this test, constructor did one.
-        // Mock for the reload *after* dialog save
+
         when(mockFlightDAO.getAllFlights()).thenReturn(Collections.emptyList());
 
         try (MockedConstruction<FlightDialog> mockedDialogConstruction = Mockito.mockConstruction(FlightDialog.class,
@@ -170,13 +167,13 @@ class FlightsPanelTest {
             assertEquals(1, mockedDialogConstruction.constructed().size());
             FlightDialog constructedDialog = mockedDialogConstruction.constructed().get(0);
             verify(constructedDialog).setVisible(true);
-            verify(mockFlightDAO, times(1)).getAllFlights(); // Only the reload
+            verify(mockFlightDAO, times(1)).getAllFlights();
         }
     }
 
     @Test
     void addFlightAction_dialogNotSaved_doesNotReloadData() throws SQLException {
-        // No specific DAO interaction expected for the action itself if dialog not saved
+
         try (MockedConstruction<FlightDialog> mockedDialogConstruction = Mockito.mockConstruction(FlightDialog.class,
                 (mock, context) -> {
                     when(mock.isSaved()).thenReturn(false);
@@ -195,18 +192,18 @@ class FlightsPanelTest {
     void editFlightAction_noRowSelected_showsWarning() throws SQLException {
         flightsPanel.getFlightsTable().clearSelection();
         flightsPanel.getBtnEditFlight().doClick();
-        verify(mockFlightDAO, never()).getAllFlights(); // No reload if no selection
+        verify(mockFlightDAO, never()).getAllFlights();
     }
 
     @Test
     void editFlightAction_rowSelected_dialogSaved_reloadsData() throws SQLException {
         Flight flightToEdit = new Flight(1L, route1, LocalDateTime.now(), LocalDateTime.now().plusHours(2), 100, FlightStatus.PLANNED, "Scania Touring", new BigDecimal("55.99"));
 
-        // Manually set data into table model for this test, bypassing panel's loadFlightsData
+
         flightsPanel.getFlightsTableModel().setFlights(Collections.singletonList(flightToEdit));
         flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0);
 
-        // Stub for the reload *after* dialog save
+
         when(mockFlightDAO.getAllFlights()).thenReturn(Collections.singletonList(flightToEdit));
 
 
@@ -221,18 +218,18 @@ class FlightsPanelTest {
             assertEquals(1, mockedDialogConstruction.constructed().size());
             FlightDialog constructedDialog = mockedDialogConstruction.constructed().get(0);
             verify(constructedDialog).setVisible(true);
-            verify(mockFlightDAO, times(1)).getAllFlights(); // Only the reload
+            verify(mockFlightDAO, times(1)).getAllFlights();
         }
     }
 
     @Test
     void tableDoubleClick_opensEditDialog() throws SQLException {
         Flight flightToEdit = new Flight(2L, route2, LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(3), 75, FlightStatus.PLANNED, "MAN Lion's Coach", new BigDecimal("65.00"));
-        // Manually set data for this test
+
         flightsPanel.getFlightsTableModel().setFlights(Collections.singletonList(flightToEdit));
         flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0);
 
-        // Stub for the reload *after* dialog save
+
         when(mockFlightDAO.getAllFlights()).thenReturn(Collections.singletonList(flightToEdit));
 
         try (MockedConstruction<FlightDialog> mockedDialogConstruction = Mockito.mockConstruction(FlightDialog.class,
@@ -253,7 +250,7 @@ class FlightsPanelTest {
             assertEquals(1, mockedDialogConstruction.constructed().size());
             FlightDialog constructedDialog = mockedDialogConstruction.constructed().get(0);
             verify(constructedDialog).setVisible(true);
-            verify(mockFlightDAO, times(1)).getAllFlights(); // Only the reload
+            verify(mockFlightDAO, times(1)).getAllFlights();
         } catch (Exception e) {
             fail("Exception during table double click simulation: " + e.getMessage());
         }
@@ -269,7 +266,7 @@ class FlightsPanelTest {
     @Test
     void cancelFlightAction_flightAlreadyCancelled_showsInfo() throws SQLException {
         Flight flightToCancel = new Flight(3L, route1, LocalDateTime.now(), LocalDateTime.now().plusHours(2), 100, FlightStatus.CANCELLED, "Setra S516", new BigDecimal("40.00"));
-        // Manually set data for this test
+
         flightsPanel.getFlightsTableModel().setFlights(Collections.singletonList(flightToCancel));
         flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0);
 
@@ -281,7 +278,7 @@ class FlightsPanelTest {
     @Test
     void cancelFlightAction_flightDeparted_showsError() throws SQLException {
         Flight flightToCancel = new Flight(4L, route2, LocalDateTime.now().minusHours(1), LocalDateTime.now().plusHours(1), 50, FlightStatus.DEPARTED, "Irizar i6", new BigDecimal("70.00"));
-        // Manually set data for this test
+
         flightsPanel.getFlightsTableModel().setFlights(Collections.singletonList(flightToCancel));
         flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0);
 
@@ -294,12 +291,12 @@ class FlightsPanelTest {
     @Test
     void cancelFlightAction_confirmationYes_updatesStatusAndReloads() throws SQLException {
         Flight flightToCancel = new Flight(5L, route1, LocalDateTime.now().plusDays(2), LocalDateTime.now().plusDays(2).plusHours(2), 100, FlightStatus.PLANNED, "VDL Futura", new BigDecimal("50.50"));
-        // Manually set data for this test
+
         flightsPanel.getFlightsTableModel().setFlights(Collections.singletonList(flightToCancel));
         flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0);
 
         when(mockFlightDAO.updateFlightStatus(flightToCancel.getId(), FlightStatus.CANCELLED)).thenReturn(true);
-        // Stub for the reload *after* successful cancellation
+
         when(mockFlightDAO.getAllFlights()).thenReturn(Collections.emptyList());
 
         flightsPanel.getBtnCancelFlight().doClick();
@@ -307,27 +304,27 @@ class FlightsPanelTest {
         verify(mockFlightDAO).updateFlightStatus(flightIdLongCaptor.capture(), flightStatusCaptor.capture());
         assertEquals(flightToCancel.getId(), flightIdLongCaptor.getValue());
         assertEquals(FlightStatus.CANCELLED, flightStatusCaptor.getValue());
-        verify(mockFlightDAO, times(1)).getAllFlights(); // Only the reload
+        verify(mockFlightDAO, times(1)).getAllFlights();
     }
 
     @Test
     void cancelFlightAction_confirmationYes_updateFails_showsError() throws SQLException {
         Flight flightToCancel = new Flight(6L, route2, LocalDateTime.now().plusDays(3), LocalDateTime.now().plusDays(3).plusHours(4), 60, FlightStatus.PLANNED, "Neoplan Tourliner", new BigDecimal("80.00"));
 
-        // 1. Set up the table with the flight
+
         flightsPanel.getFlightsTableModel().setFlights(Collections.singletonList(flightToCancel));
-        // 2. Select the row
+
         flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0);
 
-        // 3. Mock the DAO call for this specific action
+
         when(mockFlightDAO.updateFlightStatus(flightToCancel.getId(), FlightStatus.CANCELLED)).thenReturn(false);
 
-        // 4. Perform the action
+
         flightsPanel.getBtnCancelFlight().doClick();
 
-        // 5. Verify updateFlightStatus was called
+
         verify(mockFlightDAO).updateFlightStatus(flightToCancel.getId(), FlightStatus.CANCELLED);
-        // 6. Verify getAllFlights was NOT called (because update failed, so no reload)
+
         verify(mockFlightDAO, never()).getAllFlights();
     }
 
@@ -335,28 +332,28 @@ class FlightsPanelTest {
     void cancelFlightAction_confirmationYes_updateThrowsSQLException_showsError() throws SQLException {
         Flight flightToCancel = new Flight(7L, route1, LocalDateTime.now().plusDays(4), LocalDateTime.now().plusDays(4).plusHours(1), 30, FlightStatus.PLANNED, "Custom Bus", new BigDecimal("33.33"));
 
-        // 1. Set up the table with the flight
+
         flightsPanel.getFlightsTableModel().setFlights(Collections.singletonList(flightToCancel));
-        // 2. Select the row
+
         flightsPanel.getFlightsTable().setRowSelectionInterval(0, 0);
 
-        // 3. Mock the DAO call for this specific action
+
         when(mockFlightDAO.updateFlightStatus(flightToCancel.getId(), FlightStatus.CANCELLED))
                 .thenThrow(new SQLException("DB error during update"));
 
-        // 4. Perform the action
+
         flightsPanel.getBtnCancelFlight().doClick();
 
-        // 5. Verify updateFlightStatus was called
+
         verify(mockFlightDAO).updateFlightStatus(flightToCancel.getId(), FlightStatus.CANCELLED);
-        // 6. Verify getAllFlights was NOT called (because update failed, so no reload)
+
         verify(mockFlightDAO, never()).getAllFlights();
     }
 
 
     @Test
     void btnRefreshFlights_callsLoadFlightsData() throws SQLException {
-        // mockFlightDAO was reset in setUp after constructor load.
+
         when(mockFlightDAO.getAllFlights()).thenReturn(Collections.emptyList());
 
         flightsPanel.getBtnRefreshFlights().doClick();

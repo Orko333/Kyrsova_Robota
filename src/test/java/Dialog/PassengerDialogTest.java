@@ -1,4 +1,4 @@
-package Dialog; // Або ваш актуальний пакет
+package Dialog;
 
 import DAO.PassengerDAO;
 import Models.Enums.BenefitType;
@@ -38,7 +38,7 @@ class PassengerDialogTest {
 
     @BeforeEach
     void setUp() {
-        PassengerDialog.setSuppressMessagesForTesting(true); // Придушуємо JOptionPane
+        PassengerDialog.setSuppressMessagesForTesting(true);
 
         testOwnerFrame = new JFrame();
 
@@ -51,7 +51,7 @@ class PassengerDialogTest {
 
     @AfterEach
     void tearDown() {
-        PassengerDialog.setSuppressMessagesForTesting(false); // Відновлюємо
+        PassengerDialog.setSuppressMessagesForTesting(false);
 
         if (passengerDialog != null) {
             final PassengerDialog currentDialog = passengerDialog;
@@ -103,7 +103,7 @@ class PassengerDialogTest {
     @DisplayName("Конструктор: помилка, якщо Passenger є null")
     void constructor_nullPassenger_throwsIllegalArgumentException() {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            // Не використовуємо initializeDialog, бо він очікує, що діалог створиться
+
             new PassengerDialog(testOwnerFrame, null, mockPassengerDAO);
         });
         assertEquals("Пасажир не може бути null.", exception.getMessage());
@@ -136,7 +136,7 @@ class PassengerDialogTest {
     void savePassengerAction_success() throws SQLException {
         initializeDialog(testPassenger);
 
-        // Змінюємо дані в полях
+
         String newFullName = "Нове ПІБ";
         String newPhone = "0509876543";
         String newEmail = "new.email@example.com";
@@ -152,17 +152,17 @@ class PassengerDialogTest {
         clickSaveButton();
 
         assertTrue(passengerDialog.isSaved());
-        assertFalse(passengerDialog.isDisplayable()); // Діалог має закритися
+        assertFalse(passengerDialog.isDisplayable());
 
         verify(mockPassengerDAO).updatePassenger(passengerCaptor.capture());
         Passenger updatedPassenger = passengerCaptor.getValue();
 
-        assertEquals(testPassenger.getId(), updatedPassenger.getId()); // ID не має змінюватися
+        assertEquals(testPassenger.getId(), updatedPassenger.getId());
         assertEquals(newFullName, updatedPassenger.getFullName());
         assertEquals(newPhone, updatedPassenger.getPhoneNumber());
         assertEquals(newEmail, updatedPassenger.getEmail());
         assertEquals(newBenefit, updatedPassenger.getBenefitType());
-        // Інші поля, які не змінювали, мають залишитися від testPassenger
+
         assertEquals(testPassenger.getDocumentType(), updatedPassenger.getDocumentType());
         assertEquals(testPassenger.getDocumentNumber(), updatedPassenger.getDocumentNumber());
     }
@@ -171,12 +171,12 @@ class PassengerDialogTest {
     @DisplayName("Збереження: помилка валідації - порожнє ПІБ")
     void savePassengerAction_validationError_emptyFullName() throws SQLException {
         initializeDialog(testPassenger);
-        passengerDialog.getTxtFullName().setText(""); // Порожнє ПІБ
+        passengerDialog.getTxtFullName().setText("");
 
         clickSaveButton();
 
         assertFalse(passengerDialog.isSaved());
-        assertTrue(passengerDialog.isDisplayable()); // Діалог не має закриватися
+        assertTrue(passengerDialog.isDisplayable());
         verify(mockPassengerDAO, never()).updatePassenger(any(Passenger.class));
     }
 
@@ -197,7 +197,7 @@ class PassengerDialogTest {
     @DisplayName("Збереження: порожній Email є валідним (має стати null)")
     void savePassengerAction_emptyEmailIsValid() throws SQLException {
         initializeDialog(testPassenger);
-        passengerDialog.getTxtEmail().setText(""); // Порожній Email
+        passengerDialog.getTxtEmail().setText("");
 
         when(mockPassengerDAO.updatePassenger(any(Passenger.class))).thenReturn(true);
         clickSaveButton();
@@ -211,7 +211,7 @@ class PassengerDialogTest {
     @DisplayName("Збереження: помилка DAO (updatePassenger повертає false)")
     void savePassengerAction_daoUpdateFails() throws SQLException {
         initializeDialog(testPassenger);
-        // Заповнюємо валідні дані
+
         passengerDialog.getTxtFullName().setText("Валідне ПІБ");
         passengerDialog.getTxtDocumentType().setText("Паспорт");
         passengerDialog.getTxtDocumentNumber().setText("ББ543210");
@@ -231,7 +231,7 @@ class PassengerDialogTest {
     void savePassengerAction_sqlExceptionOnUpdate() throws SQLException {
         initializeDialog(testPassenger);
         passengerDialog.getTxtFullName().setText("Валідне ПІБ SQLException");
-        // ... інші валідні дані ...
+
 
         when(mockPassengerDAO.updatePassenger(any(Passenger.class))).thenThrow(new SQLException("DB update error"));
 

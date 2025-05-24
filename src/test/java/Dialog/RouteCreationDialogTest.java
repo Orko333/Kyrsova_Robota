@@ -1,4 +1,4 @@
-package Dialog; // Або ваш актуальний пакет
+package Dialog;
 
 import DAO.StopDAO;
 import Models.Route;
@@ -38,11 +38,11 @@ class RouteCreationDialogTest {
 
     @BeforeEach
     void setUp() throws SQLException {
-        RouteCreationDialog.setSuppressMessagesForTesting(true); // Придушуємо JOptionPane
+        RouteCreationDialog.setSuppressMessagesForTesting(true);
 
         testOwnerFrame = new JFrame();
 
-        // Створюємо тестові зупинки
+
         stopA = new Stop(1, "Місто A", "Вокзал A");
         stopB = new Stop(2, "Місто B", "Вокзал B");
         stopC = new Stop(3, "Місто C", "Вокзал C");
@@ -50,15 +50,15 @@ class RouteCreationDialogTest {
         stopE = new Stop(5, "Місто E", "Вокзал E");
         allStopsList = new ArrayList<>(Arrays.asList(stopA, stopB, stopC, stopD, stopE));
 
-        // Мокуємо DAO
+
         when(mockStopDAO.getAllStops()).thenReturn(allStopsList);
 
-        routeCreationDialog = null; // Скидаємо перед кожним тестом
+        routeCreationDialog = null;
     }
 
     @AfterEach
     void tearDown() {
-        RouteCreationDialog.setSuppressMessagesForTesting(false); // Відновлюємо
+        RouteCreationDialog.setSuppressMessagesForTesting(false);
 
         if (routeCreationDialog != null) {
             final RouteCreationDialog currentDialog = routeCreationDialog;
@@ -98,10 +98,10 @@ class RouteCreationDialogTest {
         assertNotNull(routeCreationDialog);
         assertEquals("Створення нового маршруту", routeCreationDialog.getTitle());
 
-        // Перевірка, що комбо-бокси заповнені (враховуючи null елемент на початку)
+
         assertEquals(allStopsList.size() + 1, routeCreationDialog.getCmbDepartureStop().getItemCount());
         assertEquals(allStopsList.size() + 1, routeCreationDialog.getCmbDestinationStop().getItemCount());
-        // Перевірка, що список доступних зупинок заповнений (усі, бо нічого не обрано)
+
         assertEquals(allStopsList.size(), routeCreationDialog.getAvailableStopsModel().getSize());
         assertTrue(routeCreationDialog.getBtnSave().isEnabled());
     }
@@ -111,7 +111,7 @@ class RouteCreationDialogTest {
     void loadStops_emptyListFromDAO() throws SQLException {
         when(mockStopDAO.getAllStops()).thenReturn(new ArrayList<>());
         initializeDialog();
-        // JOptionPane буде придушено
+
         assertFalse(routeCreationDialog.getBtnSave().isEnabled());
         assertFalse(routeCreationDialog.getCmbDepartureStop().isEnabled());
         assertFalse(routeCreationDialog.getCmbDestinationStop().isEnabled());
@@ -130,11 +130,11 @@ class RouteCreationDialogTest {
     @DisplayName("Оновлення доступних зупинок: при виборі відправлення та призначення")
     void updateAvailableIntermediateStops_onSelection() {
         initializeDialog();
-        // Симулюємо вибір
+
         routeCreationDialog.getCmbDepartureStop().setSelectedItem(stopA);
         routeCreationDialog.getCmbDestinationStop().setSelectedItem(stopE);
 
-        // Список доступних має оновитися (stopA та stopE мають зникнути)
+
         DefaultListModel<Stop> availableModel = routeCreationDialog.getAvailableStopsModel();
         assertEquals(allStopsList.size() - 2, availableModel.getSize());
         assertFalse(availableModel.contains(stopA));
@@ -151,8 +151,7 @@ class RouteCreationDialogTest {
         routeCreationDialog.getCmbDepartureStop().setSelectedItem(stopA);
         routeCreationDialog.getCmbDestinationStop().setSelectedItem(stopE);
 
-        // Вибираємо stopB зі списку доступних
-        // Потрібен доступ до JList та його моделі
+
         DefaultListModel<Stop> availableModel = routeCreationDialog.getAvailableStopsModel();
         JList<Stop> lstAvailable = routeCreationDialog.getLstAvailableStops();
         int indexOfStopB = -1;
@@ -166,7 +165,7 @@ class RouteCreationDialogTest {
         lstAvailable.setSelectedIndex(indexOfStopB);
 
 
-        // Натискаємо кнопку "Додати >>"
+
         routeCreationDialog.getBtnAddStop().getActionListeners()[0].actionPerformed(
                 new ActionEvent(routeCreationDialog.getBtnAddStop(), ActionEvent.ACTION_PERFORMED, "add")
         );
@@ -174,7 +173,7 @@ class RouteCreationDialogTest {
         DefaultListModel<Stop> selectedModel = routeCreationDialog.getSelectedStopsModel();
         assertEquals(1, selectedModel.getSize());
         assertEquals(stopB, selectedModel.getElementAt(0));
-        assertFalse(availableModel.contains(stopB)); // Має зникнути з доступних
+        assertFalse(availableModel.contains(stopB));
     }
 
     @Test
@@ -184,24 +183,24 @@ class RouteCreationDialogTest {
         routeCreationDialog.getCmbDepartureStop().setSelectedItem(stopA);
         routeCreationDialog.getCmbDestinationStop().setSelectedItem(stopE);
 
-        // Спочатку додамо stopB і stopC до обраних
+
         DefaultListModel<Stop> selectedModel = routeCreationDialog.getSelectedStopsModel();
         DefaultListModel<Stop> availableModel = routeCreationDialog.getAvailableStopsModel();
         selectedModel.addElement(stopB); availableModel.removeElement(stopB);
         selectedModel.addElement(stopC); availableModel.removeElement(stopC);
         assertEquals(2, selectedModel.getSize());
 
-        // Вибираємо stopB для видалення зі списку обраних
+
         routeCreationDialog.getLstSelectedIntermediateStops().setSelectedValue(stopB, true);
 
-        // Натискаємо кнопку "<< Видалити"
+
         routeCreationDialog.getBtnRemoveStop().getActionListeners()[0].actionPerformed(
                 new ActionEvent(routeCreationDialog.getBtnRemoveStop(), ActionEvent.ACTION_PERFORMED, "remove")
         );
 
         assertEquals(1, selectedModel.getSize());
-        assertEquals(stopC, selectedModel.getElementAt(0)); // Залишився тільки stopC
-        assertTrue(availableModel.contains(stopB)); // Має повернутися до доступних
+        assertEquals(stopC, selectedModel.getElementAt(0));
+        assertTrue(availableModel.contains(stopB));
     }
 
     @Test
@@ -210,16 +209,16 @@ class RouteCreationDialogTest {
         initializeDialog();
         DefaultListModel<Stop> selectedModel = routeCreationDialog.getSelectedStopsModel();
         selectedModel.addElement(stopB);
-        selectedModel.addElement(stopC); // B, C
-        routeCreationDialog.getLstSelectedIntermediateStops().setSelectedValue(stopC, true); // Вибираємо C
+        selectedModel.addElement(stopC);
+        routeCreationDialog.getLstSelectedIntermediateStops().setSelectedValue(stopC, true);
 
         routeCreationDialog.getBtnMoveUp().getActionListeners()[0].actionPerformed(
                 new ActionEvent(routeCreationDialog.getBtnMoveUp(), ActionEvent.ACTION_PERFORMED, "moveUp")
         );
 
-        assertEquals(stopC, selectedModel.getElementAt(0)); // Тепер C, B
+        assertEquals(stopC, selectedModel.getElementAt(0));
         assertEquals(stopB, selectedModel.getElementAt(1));
-        assertEquals(0, routeCreationDialog.getLstSelectedIntermediateStops().getSelectedIndex()); // C має бути вибраним
+        assertEquals(0, routeCreationDialog.getLstSelectedIntermediateStops().getSelectedIndex());
     }
 
     @Test
@@ -227,17 +226,17 @@ class RouteCreationDialogTest {
     void moveStopDownAction_moveSelected() {
         initializeDialog();
         DefaultListModel<Stop> selectedModel = routeCreationDialog.getSelectedStopsModel();
-        selectedModel.addElement(stopB); // B
-        selectedModel.addElement(stopC); // C
-        routeCreationDialog.getLstSelectedIntermediateStops().setSelectedValue(stopB, true); // Вибираємо B
+        selectedModel.addElement(stopB);
+        selectedModel.addElement(stopC);
+        routeCreationDialog.getLstSelectedIntermediateStops().setSelectedValue(stopB, true);
 
         routeCreationDialog.getBtnMoveDown().getActionListeners()[0].actionPerformed(
                 new ActionEvent(routeCreationDialog.getBtnMoveDown(), ActionEvent.ACTION_PERFORMED, "moveDown")
         );
 
-        assertEquals(stopC, selectedModel.getElementAt(0)); // Тепер C
-        assertEquals(stopB, selectedModel.getElementAt(1)); // Потім B
-        assertEquals(1, routeCreationDialog.getLstSelectedIntermediateStops().getSelectedIndex()); // B має бути вибраним
+        assertEquals(stopC, selectedModel.getElementAt(0));
+        assertEquals(stopB, selectedModel.getElementAt(1));
+        assertEquals(1, routeCreationDialog.getLstSelectedIntermediateStops().getSelectedIndex());
     }
 
 
@@ -247,7 +246,7 @@ class RouteCreationDialogTest {
         initializeDialog();
         routeCreationDialog.getCmbDepartureStop().setSelectedItem(stopA);
         routeCreationDialog.getCmbDestinationStop().setSelectedItem(stopE);
-        // Додаємо проміжні
+
         DefaultListModel<Stop> selectedModel = routeCreationDialog.getSelectedStopsModel();
         selectedModel.addElement(stopB);
         selectedModel.addElement(stopC);
@@ -257,7 +256,7 @@ class RouteCreationDialogTest {
         );
 
         assertTrue(routeCreationDialog.isSaved());
-        assertFalse(routeCreationDialog.isDisplayable()); // Діалог має закритися
+        assertFalse(routeCreationDialog.isDisplayable());
         Route createdRoute = routeCreationDialog.getCreatedRoute();
         assertNotNull(createdRoute);
         assertEquals(stopA, createdRoute.getDepartureStop());
@@ -271,7 +270,7 @@ class RouteCreationDialogTest {
     @DisplayName("Збереження: помилка валідації - не обрано відправлення")
     void saveRouteAction_validationError_noDeparture() {
         initializeDialog();
-        // Не обираємо відправлення
+
         routeCreationDialog.getCmbDestinationStop().setSelectedItem(stopE);
 
         routeCreationDialog.getBtnSave().getActionListeners()[0].actionPerformed(
@@ -304,7 +303,7 @@ class RouteCreationDialogTest {
         initializeDialog();
         routeCreationDialog.getCmbDepartureStop().setSelectedItem(stopA);
         routeCreationDialog.getCmbDestinationStop().setSelectedItem(stopE);
-        routeCreationDialog.getSelectedStopsModel().addElement(stopA); // Проміжна = відправлення
+        routeCreationDialog.getSelectedStopsModel().addElement(stopA);
 
         routeCreationDialog.getBtnSave().getActionListeners()[0].actionPerformed(
                 new ActionEvent(routeCreationDialog.getBtnSave(), ActionEvent.ACTION_PERFORMED, "save")

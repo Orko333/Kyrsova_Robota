@@ -23,7 +23,7 @@ import org.junit.jupiter.api.AfterAll;
 
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-// import org.mockito.InjectMocks; // No longer needed as we manually instantiate FlightDAO
+
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -49,7 +49,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT) // Use lenient for less strict stubbing issues if needed, or fix all stubbings
+@MockitoSettings(strictness = Strictness.LENIENT)
 class FlightDAOTest {
 
     @Mock
@@ -62,9 +62,9 @@ class FlightDAOTest {
     private ResultSet mockResultSet;
 
     @Mock
-    private RouteDAO mockRouteDAO; // This will be injected into FlightDAO
+    private RouteDAO mockRouteDAO;
 
-    // No @InjectMocks, we will manually create FlightDAO instance
+
     private FlightDAO flightDAO;
 
     @Captor
@@ -81,7 +81,7 @@ class FlightDAOTest {
     private ArgumentCaptor<java.sql.Date> dateCaptor;
 
     private static ListAppender listAppender;
-    private static org.apache.logging.log4j.core.Logger rootLogger; // Changed to root logger
+    private static org.apache.logging.log4j.core.Logger rootLogger;
     private static MockedStatic<DatabaseConnectionManager> mockedDbManager;
 
     private Stop departureStop1, destinationStop1, departureStop2, destinationStop2;
@@ -112,8 +112,8 @@ class FlightDAOTest {
     @BeforeAll
     static void setupLogAppenderAndStaticMock() {
         LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        // Using the root logger or the specific logger name from your log4j2.xml for "insurance.log"
-        rootLogger = context.getLogger("insurance.log"); // Make sure this matches your logger name in log4j2.xml
+
+        rootLogger = context.getLogger("insurance.log");
         listAppender = new ListAppender("TestFlightDAOAppender");
         listAppender.start();
         rootLogger.addAppender(listAppender);
@@ -137,7 +137,7 @@ class FlightDAOTest {
         listAppender.clearEvents();
         mockedDbManager.when(DatabaseConnectionManager::getConnection).thenReturn(mockConnection);
 
-        // Instantiate FlightDAO with the mock RouteDAO
+
         flightDAO = new FlightDAO(mockRouteDAO);
 
         lenient().doNothing().when(mockResultSet).close();
@@ -166,10 +166,10 @@ class FlightDAOTest {
 
     @AfterEach
     void tearDown() {
-        // No explicit verify for close here, lenient stubs handle it.
+
     }
 
-    // --- getAllFlights ---
+
     @Test
     void getAllFlights_success_oneFlight_returnsListWithOneFlight() throws SQLException {
         when(mockConnection.createStatement()).thenReturn(mockStatement);
@@ -327,7 +327,7 @@ class FlightDAOTest {
         assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні всіх рейсів", SQLException.class));
     }
 
-    // --- addFlight ---
+
     @Test
     void addFlight_success_returnsTrueAndSetsId() throws SQLException {
         when(mockConnection.prepareStatement(anyString(), eq(Statement.RETURN_GENERATED_KEYS))).thenReturn(mockPreparedStatement);
@@ -400,7 +400,7 @@ class FlightDAOTest {
         assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при додаванні рейсу", SQLException.class));
     }
 
-    // --- updateFlight ---
+
     @Test
     void updateFlight_success_returnsTrue() throws SQLException {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
@@ -437,7 +437,7 @@ class FlightDAOTest {
         assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при оновленні рейсу з ID " + testFlight1.getId(), SQLException.class));
     }
 
-    // --- updateFlightStatus ---
+
     @Test
     void updateFlightStatus_success_returnsTrue() throws SQLException {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
@@ -468,7 +468,7 @@ class FlightDAOTest {
         assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при оновленні статусу рейсу ID " + testFlight1.getId() + ": " + FlightStatus.CANCELLED, SQLException.class));
     }
 
-    // --- getOccupiedSeatsCount ---
+
     @Test
     void getOccupiedSeatsCount_success_returnsCount() throws SQLException {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
@@ -511,7 +511,7 @@ class FlightDAOTest {
         assertTrue(listAppender.containsMessageWithException(Level.ERROR, "Помилка при отриманні кількості зайнятих місць для рейсу ID " + testFlight1.getId(), SQLException.class));
     }
 
-    // --- getFlightById ---
+
     @Test
     void getFlightById_success_flightFound_returnsOptionalOfFlight() throws SQLException {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
@@ -582,7 +582,7 @@ class FlightDAOTest {
         when(mockResultSet.getString("status")).thenReturn("BOGUS_STATUS");
         when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
         when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
-        // ... other necessary fields ...
+
 
         SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getFlightById(testFlight1.getId()));
         assertTrue(exception.getMessage().contains("Недійсний статус 'BOGUS_STATUS' для рейсу ID " + testFlight1.getId()));
@@ -599,7 +599,7 @@ class FlightDAOTest {
         when(mockResultSet.getString("status")).thenReturn(null);
         when(mockRouteDAO.getRouteById(testFlight1.getRoute().getId())).thenReturn(Optional.of(testRoute1));
         when(mockResultSet.getTimestamp("departure_date_time")).thenReturn(Timestamp.valueOf(testFlight1.getDepartureDateTime()));
-        // ... other necessary fields ...
+
 
         SQLException exception = assertThrows(SQLException.class, () -> flightDAO.getFlightById(testFlight1.getId()));
         assertTrue(exception.getMessage().contains("Статус рейсу є null для рейсу ID " + testFlight1.getId()));
@@ -616,7 +616,7 @@ class FlightDAOTest {
 
     }
 
-    // --- getFlightsByDate ---
+
     @Test
     void getFlightsByDate_success_oneFlightOnDate_returnsListWithOneFlight() throws SQLException {
         LocalDate date = testFlight1.getDepartureDateTime().toLocalDate();

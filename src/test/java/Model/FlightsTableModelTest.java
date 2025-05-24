@@ -3,7 +3,7 @@ package Model;
 import Models.Enums.FlightStatus;
 import Models.Flight;
 import Models.Route;
-import Models.Stop; // Імпортуємо ваш клас Stop
+import Models.Stop;
 import UI.Model.FlightsTableModel;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -86,7 +86,7 @@ class FlightsTableModelTest {
     private List<Flight> sampleFlights;
     private Flight flight1, flight2;
     private Route route1, route2;
-    private Stop stopA, stopB, stopC, stopD; // Використовуємо ваш клас Stop
+    private Stop stopA, stopB, stopC, stopD;
 
     private static final DateTimeFormatter TABLE_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -118,7 +118,7 @@ class FlightsTableModelTest {
         loggerConfig.addAppender(listAppender, Level.ALL, null);
         ctx.updateLoggers();
 
-        // Ініціалізація Stop згідно з вашим класом: Stop(long id, String name, String city)
+
         stopA = new Stop(1L, "Центральний Автовокзал", "Київ");
         stopB = new Stop(2L, "Стрийський Автовокзал", "Львів");
         stopC = new Stop(3L, "Привоз", "Одеса");
@@ -126,7 +126,7 @@ class FlightsTableModelTest {
 
 
         route1 = new Route(1L, stopA, stopB, Collections.emptyList());
-        route2 = new Route(2L, stopA, stopC, List.of(stopD)); // stopD - Умань
+        route2 = new Route(2L, stopA, stopC, List.of(stopD));
 
         LocalDateTime dep1 = LocalDateTime.of(2024, 8, 15, 10, 0);
         LocalDateTime arr1 = LocalDateTime.of(2024, 8, 15, 18, 0);
@@ -199,7 +199,7 @@ class FlightsTableModelTest {
         assertEquals(2, model.getRowCount());
         assertEquals(flight1, model.getFlightAt(0));
         assertEquals(flight2, model.getFlightAt(1));
-        initialFlights.clear(); // Довести, що використовується копія
+        initialFlights.clear();
         assertEquals(2, model.getRowCount(), "Модель повинна мати власну копію списку.");
         assertFalse(findLogMessage(Level.DEBUG, "Ініціалізація FlightsTableModel з 2 рейсами."));
     }
@@ -262,7 +262,7 @@ class FlightsTableModelTest {
     @Test
     void getColumnCount_returnsCorrectCount() {
         model = new FlightsTableModel(Collections.emptyList());
-        assertEquals(8, model.getColumnCount()); // "ID", "Маршрут", "Відправлення", "Прибуття", "Місць", "Автобус", "Ціна", "Статус"
+        assertEquals(8, model.getColumnCount());
     }
 
     @ParameterizedTest
@@ -291,14 +291,14 @@ class FlightsTableModelTest {
 
     @ParameterizedTest
     @CsvSource({
-            "0, java.lang.Long",    // ID
-            "1, java.lang.String",  // Маршрут
-            "2, java.lang.String",  // Відправлення
-            "3, java.lang.String",  // Прибуття
-            "4, java.lang.Integer", // Місць
-            "5, java.lang.String",  // Автобус
-            "6, java.math.BigDecimal", // Ціна
-            "7, java.lang.String"   // Статус
+            "0, java.lang.Long",
+            "1, java.lang.String",
+            "2, java.lang.String",
+            "3, java.lang.String",
+            "4, java.lang.Integer",
+            "5, java.lang.String",
+            "6, java.math.BigDecimal",
+            "7, java.lang.String"
     })
     void getColumnClass_returnsCorrectClass(int index, String expectedClassName) throws ClassNotFoundException {
         model = new FlightsTableModel(Collections.emptyList());
@@ -336,26 +336,26 @@ class FlightsTableModelTest {
     @Test
     void getValueAt_validCell_returnsCorrectValue() {
         model = new FlightsTableModel(sampleFlights);
-        // Flight 1
-        assertEquals(101L, model.getValueAt(0, 0)); // ID
-        assertEquals("Київ -> Львів", model.getValueAt(0, 1)); // Маршрут
-        assertEquals(flight1.getDepartureDateTime().format(TABLE_DATE_TIME_FORMATTER), model.getValueAt(0, 2)); // Відправлення
-        assertEquals(flight1.getArrivalDateTime().format(TABLE_DATE_TIME_FORMATTER), model.getValueAt(0, 3)); // Прибуття
-        assertEquals(50, model.getValueAt(0, 4)); // Місць
-        assertEquals("Mercedes", model.getValueAt(0, 5)); // Автобус
-        assertEquals(new BigDecimal("500.00"), model.getValueAt(0, 6)); // Ціна
-        assertEquals(FlightStatus.PLANNED.getDisplayName(), model.getValueAt(0, 7)); // Статус
 
-        // Flight 2 (route2: stopA ("Київ") -> stopD ("Умань") -> stopC ("Одеса"))
-        assertEquals(102L, model.getValueAt(1, 0)); // ID
-        assertEquals("Київ -> Умань -> Одеса", model.getValueAt(1, 1)); // Маршрут
+        assertEquals(101L, model.getValueAt(0, 0));
+        assertEquals("Київ -> Львів", model.getValueAt(0, 1));
+        assertEquals(flight1.getDepartureDateTime().format(TABLE_DATE_TIME_FORMATTER), model.getValueAt(0, 2));
+        assertEquals(flight1.getArrivalDateTime().format(TABLE_DATE_TIME_FORMATTER), model.getValueAt(0, 3));
+        assertEquals(50, model.getValueAt(0, 4));
+        assertEquals("Mercedes", model.getValueAt(0, 5));
+        assertEquals(new BigDecimal("500.00"), model.getValueAt(0, 6));
+        assertEquals(FlightStatus.PLANNED.getDisplayName(), model.getValueAt(0, 7));
+
+
+        assertEquals(102L, model.getValueAt(1, 0));
+        assertEquals("Київ -> Умань -> Одеса", model.getValueAt(1, 1));
     }
 
 
 
     @Test
     void getValueAt_exceptionDuringGetter_returnsErrorStringAndLogsError() {
-        // Використовуємо реальний Flight, але мокуємо Route, щоб викликати виняток
+
         Route faultyRoute = mock(Route.class);
         when(faultyRoute.getFullRouteDescription()).thenThrow(new RuntimeException("Test exception in route"));
 
@@ -365,7 +365,7 @@ class FlightsTableModelTest {
 
         model = new FlightsTableModel(Collections.singletonList(flightWithFaultyRoute));
 
-        assertEquals("ПОМИЛКА ДАНИХ", model.getValueAt(0, 1)); // Колонка "Маршрут"
+        assertEquals("ПОМИЛКА ДАНИХ", model.getValueAt(0, 1));
         assertTrue(findLogMessage(Level.ERROR, "Помилка при отриманні значення для комірки рейсів [0, 1], рейс ID 301"));
         assertTrue(getLogEvents().stream().anyMatch(e -> e.getThrown() != null && e.getThrown().getMessage().contains("Test exception in route")));
     }

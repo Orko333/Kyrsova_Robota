@@ -1,4 +1,4 @@
-package Panel; // Або ваш дійсний пакет
+package Panel;
 
 import DAO.PassengerDAO;
 import DAO.TicketDAO;
@@ -20,7 +20,7 @@ import org.assertj.swing.fixture.FrameFixture;
 import org.assertj.swing.fixture.JOptionPaneFixture;
 import org.assertj.swing.fixture.JTableFixture;
 import org.assertj.swing.junit.testcase.AssertJSwingJUnitTestCase;
-import org.assertj.swing.timing.Pause; // Для можливих пауз
+import org.assertj.swing.timing.Pause;
 import org.junit.Test;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
@@ -40,8 +40,7 @@ import static org.mockito.Mockito.*;
 public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
 
     private FrameFixture window;
-    // Не робимо поле passengersPanel, отримуємо його в onSetUp, якщо потрібно
-    // private PassengersPanel passengersPanel;
+
 
     private PassengerDAO mockPassengerDAO;
     private TicketDAO mockTicketDAO;
@@ -73,10 +72,9 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
         ticket3_p2 = new Ticket(1003L, flight1, passenger2, "12C", LocalDateTime.now().minusDays(2), BigDecimal.valueOf(175.00), TicketStatus.SOLD);
 
         try {
-            // Налаштування моків для початкового завантаження
+
             when(mockPassengerDAO.getAllPassengers()).thenReturn(Arrays.asList(passenger1, passenger2));
-            // Важливо: getTicketsByPassengerId не викликається при початковому завантаженні,
-            // доки не буде обрано пасажира.
+
             when(mockTicketDAO.getTicketsByPassengerId(passenger1.getId())).thenReturn(Arrays.asList(ticket1_p1, ticket2_p1));
             when(mockTicketDAO.getTicketsByPassengerId(passenger2.getId())).thenReturn(Collections.singletonList(ticket3_p2));
         } catch (SQLException e) {
@@ -101,8 +99,7 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
     public void testInitialDataLoad() throws SQLException {
         JTableFixture passengersTable = window.table("passengersTable");
         passengersTable.requireRowCount(2);
-        // Індекси колонок залежать від вашої PassengersTableModel
-        // Припустимо: 0-ID, 1-FullName, 2-DocType, 3-DocNum, 4-Phone, 5-Email, 6-Benefit
+
         passengersTable.requireCellValue(TableCell.row(0).column(1), passenger1.getFullName());
         passengersTable.requireCellValue(TableCell.row(0).column(2), passenger1.getDocumentType());
         passengersTable.requireCellValue(TableCell.row(1).column(1), passenger2.getFullName());
@@ -121,9 +118,8 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
 
         passengersTable.selectRows(0);
         verify(mockTicketDAO, times(1)).getTicketsByPassengerId(passenger1.getId());
-        historyTable.requireRowCount(2); // Очікуємо 2 квитки для passenger1
-        // Індекси колонок залежать від вашої PassengerHistoryTableModel
-        // Припустимо: 0-TicketID, 1-FlightID, 2-Route, 3-Departure, 4-Seat, 5-Price, 6-Status
+        historyTable.requireRowCount(2);
+
         historyTable.requireCellValue(TableCell.row(0).column(0), String.valueOf(ticket1_p1.getId()));
         historyTable.requireCellValue(TableCell.row(0).column(1), String.valueOf(ticket1_p1.getFlight().getId()));
         historyTable.requireCellValue(TableCell.row(0).column(2), ticket1_p1.getFlight().getRoute().getFullRouteDescription());
@@ -134,7 +130,7 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
 
         passengersTable.selectRows(1);
         verify(mockTicketDAO, times(1)).getTicketsByPassengerId(passenger2.getId());
-        historyTable.requireRowCount(1); // Очікуємо 1 квиток для passenger2
+        historyTable.requireRowCount(1);
         historyTable.requireCellValue(TableCell.row(0).column(0), String.valueOf(ticket3_p2.getId()));
     }
 
@@ -145,10 +141,10 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
 
         passengersTableFixture.selectRows(0);
         verify(mockTicketDAO, times(1)).getTicketsByPassengerId(passenger1.getId());
-        historyTable.requireRowCount(2); // Переконуємося, що дані завантажились
+        historyTable.requireRowCount(2);
 
         GuiActionRunner.execute(() -> passengersTableFixture.target().clearSelection());
-        Pause.pause(100); // Даємо час на обробку події ListSelectionListener
+        Pause.pause(100);
         historyTable.requireRowCount(0);
     }
 
@@ -156,11 +152,11 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
     public void testRefreshButton_ReloadsPassengers() throws SQLException {
         Passenger newPassenger = new Passenger(3L, "Олег Сидоренко", "СС777777", "Закордонний паспорт", "0671112233", "oleg@test.com", BenefitType.NONE);
 
-        // Початкове завантаження (2 пасажири) вже відбулося в onSetUp
+
         JTableFixture passengersTable = window.table("passengersTable");
         passengersTable.requireRowCount(2);
 
-        // Налаштовуємо мок для наступного виклику getAllPassengers
+
         when(mockPassengerDAO.getAllPassengers()).thenReturn(Collections.singletonList(newPassenger));
 
         window.button("btnRefreshPassengers").click();
@@ -168,8 +164,7 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
         passengersTable.requireRowCount(1);
         passengersTable.requireCellValue(TableCell.row(0).column(1), newPassenger.getFullName());
 
-        // 1-й виклик в onSetUp (через конструктор -> loadPassengersData)
-        // 2-й виклик після натискання кнопки "Оновити"
+
         verify(mockPassengerDAO, times(2)).getAllPassengers();
     }
 
@@ -186,7 +181,7 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
     @Test
     public void testEditPassengerButton_WithSelection_OpensDialog_AndSaves() throws SQLException {
         JTableFixture passengersTable = window.table("passengersTable");
-        passengersTable.selectRows(0); // Вибираємо passenger1
+        passengersTable.selectRows(0);
 
         try (MockedConstruction<PassengerDialog> mockedDialog = Mockito.mockConstruction(PassengerDialog.class,
                 (mock, context) -> {
@@ -233,8 +228,7 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
 
     @Test
     public void testLoadPassengersData_HandlesSQLException() throws SQLException {
-        // Початкове завантаження в onSetUp пройшло з Arrays.asList(passenger1, passenger2)
-        // Налаштовуємо, що *наступний* виклик getAllPassengers кине виняток
+
         when(mockPassengerDAO.getAllPassengers()).thenThrow(new SQLException("Test DB error loading passengers"));
 
         window.button("btnRefreshPassengers").click();
@@ -252,11 +246,11 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
     @Test
     public void testLoadPassengerHistory_HandlesSQLException() throws SQLException {
         JTableFixture passengersTable = window.table("passengersTable");
-        // Налаштовуємо, що виклик getTicketsByPassengerId для passenger1 кине виняток
+
         when(mockTicketDAO.getTicketsByPassengerId(passenger1.getId()))
                 .thenThrow(new SQLException("Test DB error loading history"));
 
-        passengersTable.selectRows(0); // Вибір пасажира має викликати loadPassengerHistory
+        passengersTable.selectRows(0);
 
         JOptionPaneFixture optionPane = JOptionPaneFinder.findOptionPane().using(robot());
         optionPane.requireErrorMessage();
@@ -270,7 +264,7 @@ public class PassengersPanelTest extends AssertJSwingJUnitTestCase {
 
     @Override
     protected void onTearDown() {
-        // Скидання стану моків після кожного тесту
+
         Mockito.reset(mockPassengerDAO, mockTicketDAO);
     }
 }

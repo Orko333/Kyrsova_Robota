@@ -67,15 +67,15 @@ class TicketDAOTest {
     private TicketDAO ticketDAO;
 
     private static ListAppender listAppender;
-    private static org.apache.logging.log4j.core.Logger appLogger; // Змінено назву для ясності
+    private static org.apache.logging.log4j.core.Logger appLogger;
     private static MockedStatic<DatabaseConnectionManager> mockedDbManager;
 
     private Flight testFlight;
     private Passenger testPassenger;
     private Route testRoute;
     private Stop departureStop, destinationStop;
-    private Ticket testTicket1; // BOOKED
-    private Ticket testTicket2; // SOLD
+    private Ticket testTicket1;
+    private Ticket testTicket2;
 
 
     private static class ListAppender extends AbstractAppender {
@@ -94,12 +94,12 @@ class TicketDAOTest {
     @BeforeAll
     static void setupLogAppenderAndStaticMock() {
         LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        // Використовуємо правильний логер, як у TicketDAO
-        appLogger = context.getLogger("insurance.log"); // Використовуємо той самий логер
+
+        appLogger = context.getLogger("insurance.log");
         listAppender = new ListAppender("TestTicketDAOAppender");
         listAppender.start();
         appLogger.addAppender(listAppender);
-        appLogger.setLevel(Level.ALL); // Встановлюємо рівень логування для захоплення всіх повідомлень
+        appLogger.setLevel(Level.ALL);
         mockedDbManager = Mockito.mockStatic(DatabaseConnectionManager.class);
     }
 
@@ -117,7 +117,7 @@ class TicketDAOTest {
         listAppender.clearEvents();
         mockedDbManager.when(DatabaseConnectionManager::getConnection).thenReturn(mockConnection);
 
-        // Lenient stubs for resource closing
+
         lenient().doNothing().when(mockResultSet).close();
         lenient().doNothing().when(mockPreparedStatement).close();
         lenient().doNothing().when(mockStatement).close();
@@ -149,13 +149,13 @@ class TicketDAOTest {
             verify(mockStatement, atLeast(0)).close();
             verify(mockResultSet, atLeast(0)).close();
         } catch (SQLException e) {
-            // e.printStackTrace(); // Or log
+
         }
         reset(mockConnection, mockPreparedStatement, mockStatement, mockResultSet,
                 mockFlightDAO, mockPassengerDAO, mockRouteDAO);
     }
 
-    // --- getOccupiedSeatsForFlight ---
+
     @Test
     void getOccupiedSeatsForFlight_success_returnsSeats() throws SQLException {
         long flightId = testFlight.getId();
@@ -200,7 +200,7 @@ class TicketDAOTest {
     }
 
 
-    // --- addTicket ---
+
     @Test
     void addTicket_success_returnsTrueAndSetsId() throws SQLException {
         long generatedId = 123L;
@@ -287,7 +287,7 @@ class TicketDAOTest {
         assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка SQL при додаванні квитка: Рейс ID=" + testTicket1.getFlight().getId()));
     }
 
-    // --- updateTicketStatus ---
+
     @Test
     void updateTicketStatus_toSold_success_returnsTrue() throws SQLException {
         long ticketId = testTicket1.getId();
@@ -335,7 +335,7 @@ class TicketDAOTest {
         assertTrue(listAppender.containsMessage(Level.ERROR, "Помилка при оновленні статусу квитка ID " + testTicket1.getId()));
     }
 
-    // --- getTicketsByPassengerId ---
+
     @Test
     void getTicketsByPassengerId_success_returnsTickets() throws SQLException {
         long passengerId = testPassenger.getId();
@@ -457,10 +457,10 @@ class TicketDAOTest {
     }
 
 
-    // --- getAllTickets ---
+
 
     private void setupMockResultSetForGetAllTickets(ResultSet rs, Ticket... tickets) throws SQLException {
-        // Setup 'next' calls
+
         Boolean[] nextCalls = new Boolean[tickets.length + 1];
         for (int i = 0; i < tickets.length; i++) {
             nextCalls[i] = true;
@@ -468,9 +468,9 @@ class TicketDAOTest {
         nextCalls[tickets.length] = false;
         when(rs.next()).thenReturn(nextCalls[0], java.util.Arrays.copyOfRange(nextCalls, 1, nextCalls.length));
 
-        // Setup column values based on tickets array
+
         if (tickets.length > 0) {
-            Long[] ids = new Long[tickets.length * 2]; // For logger and constructor
+            Long[] ids = new Long[tickets.length * 2];
             Long[] fIds = new Long[tickets.length];
             Long[] pIds = new Long[tickets.length];
             String[] seats = new String[tickets.length];
@@ -493,7 +493,7 @@ class TicketDAOTest {
                 purchases[i] = t.getPurchaseDateTime() != null ? Timestamp.valueOf(t.getPurchaseDateTime()) : null;
                 expiries[i] = t.getBookingExpiryDateTime() != null ? Timestamp.valueOf(t.getBookingExpiryDateTime()) : null;
 
-                // Mock DAO calls for this ticket
+
                 when(mockFlightDAO.getFlightById(fIds[i])).thenReturn(Optional.of(t.getFlight()));
                 when(mockPassengerDAO.findById(pIds[i])).thenReturn(Optional.of(t.getPassenger()));
             }
@@ -525,7 +525,7 @@ class TicketDAOTest {
         assertTrue(tickets.contains(testTicket1));
         assertFalse(tickets.contains(testTicket2));
         assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 2 квитків. Фільтр за статусом: немає"));
-        verify(mockPreparedStatement, never()).setObject(anyInt(), any()); // No parameters set
+        verify(mockPreparedStatement, never()).setObject(anyInt(), any());
         verify(mockPreparedStatement).executeQuery();
     }
 
@@ -534,7 +534,7 @@ class TicketDAOTest {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
 
-        // Only setup SOLD ticket (testTicket2) in ResultSet
+
         setupMockResultSetForGetAllTickets(mockResultSet, testTicket2);
 
         List<Ticket> tickets = ticketDAO.getAllTickets(TicketStatus.SOLD);
@@ -544,7 +544,7 @@ class TicketDAOTest {
         assertTrue(tickets.contains(testTicket2));
         assertFalse(tickets.contains(testTicket1));
         assertTrue(listAppender.containsMessage(Level.INFO, "Успішно отримано 1 квитків. Фільтр за статусом: SOLD"));
-        verify(mockPreparedStatement).setObject(1, TicketStatus.SOLD.name()); // Verify filter parameter
+        verify(mockPreparedStatement).setObject(1, TicketStatus.SOLD.name());
         verify(mockPreparedStatement).executeQuery();
     }
 
@@ -552,7 +552,7 @@ class TicketDAOTest {
     void getAllTickets_noTicketsFound_returnsEmptyList() throws SQLException {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
-        when(mockResultSet.next()).thenReturn(false); // No tickets in ResultSet
+        when(mockResultSet.next()).thenReturn(false);
 
         List<Ticket> tickets = ticketDAO.getAllTickets(null);
 
@@ -576,7 +576,7 @@ class TicketDAOTest {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
 
-        // Setup ResultSet for one ticket
+
         when(mockResultSet.next()).thenReturn(true).thenReturn(false);
         when(mockResultSet.getLong("id")).thenReturn(testTicket1.getId());
         when(mockResultSet.getLong("flight_id")).thenReturn(testTicket1.getFlight().getId());
@@ -588,7 +588,7 @@ class TicketDAOTest {
         when(mockResultSet.getTimestamp("purchase_date_time")).thenReturn(null);
         when(mockResultSet.getTimestamp("booking_expiry_date_time")).thenReturn(Timestamp.valueOf(testTicket1.getBookingExpiryDateTime()));
 
-        // Mock DAOs - Flight NOT found, Passenger found
+
         when(mockFlightDAO.getFlightById(testTicket1.getFlight().getId())).thenReturn(Optional.empty());
         when(mockPassengerDAO.findById(testTicket1.getPassenger().getId())).thenReturn(Optional.of(testPassenger));
 
@@ -602,7 +602,7 @@ class TicketDAOTest {
         when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
         when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
 
-        // Setup ResultSet for one ticket
+
         when(mockResultSet.next()).thenReturn(true).thenReturn(false);
         when(mockResultSet.getLong("id")).thenReturn(testTicket1.getId());
         when(mockResultSet.getLong("flight_id")).thenReturn(testTicket1.getFlight().getId());
@@ -614,7 +614,7 @@ class TicketDAOTest {
         when(mockResultSet.getTimestamp("purchase_date_time")).thenReturn(null);
         when(mockResultSet.getTimestamp("booking_expiry_date_time")).thenReturn(Timestamp.valueOf(testTicket1.getBookingExpiryDateTime()));
 
-        // Mock DAOs - Flight found, Passenger NOT found
+
         when(mockFlightDAO.getFlightById(testTicket1.getFlight().getId())).thenReturn(Optional.of(testFlight));
         when(mockPassengerDAO.findById(testTicket1.getPassenger().getId())).thenReturn(Optional.empty());
 
@@ -624,7 +624,7 @@ class TicketDAOTest {
     }
 
 
-    // --- getSalesByRouteForPeriod ---
+
     @Test
     void getSalesByRouteForPeriod_success_returnsSalesData() throws SQLException {
         LocalDate startDate = LocalDate.now().minusDays(7);
@@ -675,7 +675,7 @@ class TicketDAOTest {
         assertTrue(listAppender.containsMessage(Level.WARN, "Маршрут з ID " + unknownRouteId + " не знайдено під час генерації звіту продажів"));
     }
 
-    // --- getTicketCountsByStatus ---
+
     @Test
     void getTicketCountsByStatus_success_returnsCounts() throws SQLException {
         when(mockConnection.createStatement()).thenReturn(mockStatement);
@@ -692,7 +692,7 @@ class TicketDAOTest {
         assertEquals(Integer.valueOf(10), counts.get(TicketStatus.SOLD));
         for (TicketStatus ts : TicketStatus.values()) {
             assertTrue(counts.containsKey(ts));
-            assertNotNull(counts.get(ts)); // Перевірка, що значення не null
+            assertNotNull(counts.get(ts));
         }
         assertEquals(Integer.valueOf(0), counts.get(TicketStatus.CANCELLED));
         assertTrue(listAppender.containsMessage(Level.INFO, "Кількість квитків за статусами отримана"));

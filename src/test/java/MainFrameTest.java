@@ -40,22 +40,21 @@ class MainFrameTest {
 
     @BeforeEach
     void setUp() {
-        MainFrame.setSuppressMessagesForTesting(true); // Default to suppressed for most tests
-        // Initialize mainFrameInstanceForTest here if it's needed by many tests
-        // For specific tests like showDialogMessage, it can be initialized within the test or a helper
+        MainFrame.setSuppressMessagesForTesting(true);
+
     }
 
     @AfterEach
     void tearDown() {
-        MainFrame.setSuppressMessagesForTesting(false); // Reset to default behavior
+        MainFrame.setSuppressMessagesForTesting(false);
 
         if (mainFrameInstanceForTest != null && mainFrameInstanceForTest.isDisplayable()) {
             try {
                 SwingUtilities.invokeAndWait(() -> mainFrameInstanceForTest.dispose());
-            } catch (Exception e) { /* ігноруємо в tearDown */ }
+            } catch (Exception e) {  }
         }
         mainFrameInstanceForTest = null;
-        // Mockito.framework().clearInlineMocks(); // Розкоментуйте, якщо тести впливають один на одного через статичні моки
+
     }
 
     @SuppressWarnings("unused")
@@ -65,7 +64,7 @@ class MainFrameTest {
              MockedConstruction<PassengersPanel> passengersMock = Mockito.mockConstruction(PassengersPanel.class);
              MockedConstruction<ReportsPanel> reportsMock = Mockito.mockConstruction(ReportsPanel.class)) {
 
-            // Run GUI instantiation on the EDT
+
             if (SwingUtilities.isEventDispatchThread()) {
                 mainFrameInstanceForTest = new MainFrame();
             } else {
@@ -112,7 +111,7 @@ class MainFrameTest {
     @Test
     @DisplayName("createIcon: іконку не знайдено")
     void createIcon_notFound() {
-        initializeMainFrameWithMockedPanels(); // Ensures mainFrameInstanceForTest is created
+        initializeMainFrameWithMockedPanels();
         ImageIcon icon = mainFrameInstanceForTest.createIcon("/non/existent/icon.png");
         assertNull(icon, "Іконка має бути null, якщо файл не існує");
     }
@@ -163,7 +162,7 @@ class MainFrameTest {
     @Test
     @DisplayName("checkDatabaseConnection: помилка підключення (SQLException)")
     void checkDatabaseConnection_sqlException() throws SQLException {
-        // suppressMessagesForTesting is true by default from setUp
+
         try (MockedStatic<DatabaseConnectionManager> dbManagerMock = Mockito.mockStatic(DatabaseConnectionManager.class);
              MockedStatic<JOptionPane> optionPaneMock = Mockito.mockStatic(JOptionPane.class) ) {
 
@@ -179,7 +178,7 @@ class MainFrameTest {
     @Test
     @DisplayName("checkDatabaseConnection: з'єднання null")
     void checkDatabaseConnection_connectionNull() throws SQLException {
-        // suppressMessagesForTesting is true by default from setUp
+
         try (MockedStatic<DatabaseConnectionManager> dbManagerMock = Mockito.mockStatic(DatabaseConnectionManager.class);
              MockedStatic<JOptionPane> optionPaneMock = Mockito.mockStatic(JOptionPane.class) ) {
 
@@ -203,12 +202,10 @@ class MainFrameTest {
              MockedConstruction<ReportsPanel> reportsMock = Mockito.mockConstruction(ReportsPanel.class);
              MockedConstruction<MainFrame> mainFrameConstructionMock = Mockito.mockConstruction(MainFrame.class,
                      (mock, context) -> {
-                         // Store the mock instance if needed, or stub methods
-                         mainFrameInstanceForTest = mock; // Capture the instance
+
+                         mainFrameInstanceForTest = mock;
                          doNothing().when(mock).setVisible(anyBoolean());
-                         // If showDialogMessage is called during constructor, you might need to stub it here too
-                         // For instance, if panel creation fails and showDialogMessage is called.
-                         // doNothing().when(mock).showDialogMessage(any(), any(), anyString(), anyInt());
+
                      })) {
 
             mainFrameStaticSpy.when(MainFrame::setupLookAndFeel).thenAnswer(invocation -> null);
@@ -217,7 +214,7 @@ class MainFrameTest {
             swingUtilitiesMock.when(() -> SwingUtilities.invokeLater(any(Runnable.class)))
                     .thenAnswer((Answer<Void>) invocation -> {
                         Runnable runnable = invocation.getArgument(0);
-                        runnable.run(); // This will run createAndShowGUI, which constructs MainFrame
+                        runnable.run();
                         return null;
                     });
 
@@ -227,23 +224,23 @@ class MainFrameTest {
             mainFrameStaticSpy.verify(MainFrame::checkDatabaseConnection);
 
             assertEquals(1, mainFrameConstructionMock.constructed().size(), "Має бути створений один екземпляр MainFrame");
-            MainFrame constructed = mainFrameConstructionMock.constructed().get(0); // This is the same as mainFrameInstanceForTest captured above
+            MainFrame constructed = mainFrameConstructionMock.constructed().get(0);
             verify(constructed).setVisible(true);
         }
     }
 
-    // --- NEW TESTS FOR showDialogMessage ---
+
 
     @Test
     @DisplayName("showDialogMessage: відображає JOptionPane, коли повідомлення НЕ придушені")
     void showDialogMessage_displaysDialog_whenNotSuppressed() {
-        initializeMainFrameWithMockedPanels(); // Creates mainFrameInstanceForTest
-        MainFrame.setSuppressMessagesForTesting(false); // Override setUp for this test
+        initializeMainFrameWithMockedPanels();
+        MainFrame.setSuppressMessagesForTesting(false);
 
         try (MockedStatic<JOptionPane> optionPaneMock = Mockito.mockStatic(JOptionPane.class)) {
             optionPaneMock.when(() -> JOptionPane.showMessageDialog(
                     any(Component.class), any(Object.class), anyString(), anyInt()
-            )).thenAnswer(invocation -> null); // Standard behavior for void static methods
+            )).thenAnswer(invocation -> null);
 
             mainFrameInstanceForTest.showDialogMessage(mainFrameInstanceForTest, "Test Message", "Test Title", JOptionPane.INFORMATION_MESSAGE);
 
@@ -256,8 +253,8 @@ class MainFrameTest {
     @Test
     @DisplayName("showDialogMessage: НЕ відображає JOptionPane (а логує), коли повідомлення придушені")
     void showDialogMessage_logsMessage_whenSuppressed() {
-        initializeMainFrameWithMockedPanels(); // Creates mainFrameInstanceForTest
-        // MainFrame.setSuppressMessagesForTesting(true); // This is already set by setUp
+        initializeMainFrameWithMockedPanels();
+
 
         try (MockedStatic<JOptionPane> optionPaneMock = Mockito.mockStatic(JOptionPane.class)) {
             optionPaneMock.when(() -> JOptionPane.showMessageDialog(
@@ -269,8 +266,7 @@ class MainFrameTest {
             optionPaneMock.verify(() -> JOptionPane.showMessageDialog(
                     any(Component.class), any(Object.class), anyString(), anyInt()
             ), never());
-            // Verifying the log output directly with Mockito is complex without additional setup (e.g., TestAppender for Log4j2).
-            // The main testable behavior here is that JOptionPane is NOT called.
+
         }
     }
 
@@ -278,11 +274,10 @@ class MainFrameTest {
     @DisplayName("showDialogMessage: коректно обробляє різні типи повідомлень при логуванні (придушено)")
     void showDialogMessage_handlesDifferentMessageTypes_whenSuppressed() {
         initializeMainFrameWithMockedPanels();
-        // MainFrame.setSuppressMessagesForTesting(true); // from setUp
+
 
         try (MockedStatic<JOptionPane> optionPaneMock = Mockito.mockStatic(JOptionPane.class)) {
-            // We only care that JOptionPane is not called. The logger part is an internal implementation detail
-            // whose exact output string is less critical to verify than the JOptionPane interaction.
+
             mainFrameInstanceForTest.showDialogMessage(null, "Error msg", "Title1", JOptionPane.ERROR_MESSAGE);
             mainFrameInstanceForTest.showDialogMessage(null, "Info msg", "Title2", JOptionPane.INFORMATION_MESSAGE);
             mainFrameInstanceForTest.showDialogMessage(null, "Warning msg", "Title3", JOptionPane.WARNING_MESSAGE);
@@ -290,9 +285,7 @@ class MainFrameTest {
             mainFrameInstanceForTest.showDialogMessage(null, "Default msg", "Title5", JOptionPane.PLAIN_MESSAGE); // Example of a default/unknown
 
             optionPaneMock.verify(() -> JOptionPane.showMessageDialog(any(), any(), anyString(), anyInt()), never());
-            // If log verification was simple, we could check that logger.info was called 5 times
-            // and potentially inspect the formatted log messages if a test appender was used.
-            // For now, this confirms the "suppressed" branch is taken for various types.
+
         }
     }
 }

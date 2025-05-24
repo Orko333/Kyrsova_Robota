@@ -1,4 +1,4 @@
-package Panel; // Або ваш дійсний пакет
+package Panel;
 
 import DAO.FlightDAO;
 import DAO.TicketDAO;
@@ -7,7 +7,7 @@ import Models.Enums.TicketStatus;
 import Models.Flight;
 import Models.Route;
 import Models.Stop;
-// Переконайтеся, що ці імпорти є
+
 import UI.Panel.ReportsPanel;
 import org.assertj.swing.fixture.JComboBoxFixture;
 import org.assertj.swing.fixture.JButtonFixture;
@@ -65,14 +65,14 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
     private static final String REPORT_TYPE_STATUS = "Статистика по статусах квитків";
     private static final String REPORT_TYPE_DEFAULT = "Оберіть тип звіту...";
 
-    // Індекси для таблиці звіту Завантаженість рейсів
+
     private static final int LOAD_COL_ID = 0;
     private static final int LOAD_COL_ROUTE = 1;
     private static final int LOAD_COL_DEPARTURE = 2;
     private static final int LOAD_COL_TOTAL_SEATS = 3;
     private static final int LOAD_COL_OCCUPIED = 4;
     private static final int LOAD_COL_PERCENTAGE = 5;
-    // private static final DateTimeFormatter LOAD_TABLE_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"); // Already in ReportsPanel
+
 
 
     @Override
@@ -96,7 +96,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         window.show();
     }
 
-    // Helper to create a mock Route
+
     private Route createMockRoute(long id, String description) {
         Route mockRoute = mock(Route.class);
         when(mockRoute.getId()).thenReturn(id);
@@ -110,7 +110,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         window.comboBox("cmbReportType").selectItem(REPORT_TYPE_SALES);
         window.button("btnGenerateReport").requireEnabled();
 
-        // Переконуємося, що текстові поля створені (їх імена встановлюються в onReportTypeChange)
+
         window.textBox("txtStartDate").requireVisible().requireEnabled();
         window.textBox("txtEndDate").requireVisible().requireEnabled();
     }
@@ -119,7 +119,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
     public void testSelectLoadReportType_ShowsDateParameter() {
         window.comboBox("cmbReportType").selectItem(REPORT_TYPE_LOAD);
         window.button("btnGenerateReport").requireEnabled();
-        // Припускаємо, що txtReportDate створюється і має ім'я
+
         window.textBox("txtReportDate").requireVisible().requireEnabled();
     }
 
@@ -140,7 +140,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
     public void testGenerateSalesReport_InvalidDateFormat_ShowsError() {
         window.comboBox("cmbReportType").selectItem(REPORT_TYPE_SALES);
         window.textBox("txtStartDate").setText("invalid-date");
-        // Переконуємося, що txtEndDate існує, навіть якщо його значення не ключове для цієї помилки
+
         window.textBox("txtEndDate").setText(LocalDate.now().format(DATE_FORMATTER_UI));
 
         window.button("btnGenerateReport").click();
@@ -164,7 +164,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         when(mockTicketDAO.getTicketCountsByStatus()).thenReturn(statusData);
 
         window.button("btnGenerateReport").click();
-        Pause.pause(200); // Allow UI to update
+        Pause.pause(200);
 
         String reportText = window.textBox("reportTextArea").text();
         assertThat(reportText).contains("Звіт: Статистика по статусах квитків");
@@ -179,7 +179,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
     @Test
     public void testGenerateReport_NoTypeSelected_ShowsWarning() {
         window.comboBox("cmbReportType").selectItem(REPORT_TYPE_DEFAULT);
-        // Кнопка повинна бути неактивною, якщо тип не вибрано, але для тестування помилки - активуємо її
+
         GuiActionRunner.execute(() -> window.button("btnGenerateReport").target().setEnabled(true));
         window.button("btnGenerateReport").click();
 
@@ -194,7 +194,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         when(mockTicketDAO.getTicketCountsByStatus()).thenThrow(new SQLException("Test DB error for statuses"));
 
         window.button("btnGenerateReport").click();
-        Pause.pause(100); // Allow JOptionPane to appear
+        Pause.pause(100);
 
         JOptionPaneFixture optionPane = JOptionPaneFinder.findOptionPane().using(robot());
         optionPane.requireErrorMessage();
@@ -205,7 +205,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
     }
 
 
-    // --- Тести для generateSalesByRouteReport ---
+
 
     @Test
     public void testGenerateSalesReport_Successful() throws SQLException {
@@ -230,7 +230,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
                 .thenReturn(salesData);
 
         window.button("btnGenerateReport").click();
-        Pause.pause(200); // Allow UI to update
+        Pause.pause(200);
 
         JTextComponentFixture reportTextArea = window.textBox("reportTextArea");
         reportTextArea.requireVisible();
@@ -290,7 +290,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         optionPane.okButton().click();
     }
 
-    // --- Тести для generateFlightLoadReport ---
+
 
     @Test
     public void testGenerateFlightLoadReport_Successful() throws SQLException {
@@ -309,7 +309,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         when(mockFlightDAO.getOccupiedSeatsCount(102L)).thenReturn(30); // 100% load
 
         window.button("btnGenerateReport").click();
-        Pause.pause(500); // Allow UI and invokeLater to update
+        Pause.pause(500);
 
         JScrollPane scrollPane = window.scrollPane("reportScrollPane").targetCastedTo(JScrollPane.class);
         assertThat(scrollPane.getViewport().getView()).isInstanceOf(JTable.class);
@@ -328,7 +328,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         assertThat(table.target().getColumnName(LOAD_COL_PERCENTAGE)).isEqualTo(expectedColumnHeaders[LOAD_COL_PERCENTAGE]);
 
 
-        // Verify flight1 data
+
         table.cell(TableCell.row(0).column(LOAD_COL_ID)).requireValue(String.valueOf(flight1.getId()));
         table.cell(TableCell.row(0).column(LOAD_COL_ROUTE)).requireValue(flight1.getRoute().getFullRouteDescription());
         table.cell(TableCell.row(0).column(LOAD_COL_DEPARTURE)).requireValue(flight1.getDepartureDateTime().format(TABLE_DATE_TIME_FORMATTER));
@@ -336,7 +336,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         table.cell(TableCell.row(0).column(LOAD_COL_OCCUPIED)).requireValue(String.valueOf(25));
         table.cell(TableCell.row(0).column(LOAD_COL_PERCENTAGE)).requireValue("50.00 %");
 
-        // Verify flight2 data
+
         table.cell(TableCell.row(1).column(LOAD_COL_ID)).requireValue(String.valueOf(flight2.getId()));
         table.cell(TableCell.row(1).column(LOAD_COL_ROUTE)).requireValue(flight2.getRoute().getFullRouteDescription());
         table.cell(TableCell.row(1).column(LOAD_COL_DEPARTURE)).requireValue(flight2.getDepartureDateTime().format(TABLE_DATE_TIME_FORMATTER));
@@ -361,8 +361,8 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
 
         JTableFixture table = window.table("reportTable");
         table.requireVisible();
-        table.requireRowCount(0); // No data rows
-        assertThat(table.target().getModel().getColumnCount()).isEqualTo(6); // Columns should still be there
+        table.requireRowCount(0);
+        assertThat(table.target().getModel().getColumnCount()).isEqualTo(6);
         String[] expectedColumnHeaders = {"ID Рейсу", "Маршрут", "Відправлення", "Місць всього", "Зайнято", "Завантаженість (%)"};
         assertThat(table.target().getColumnName(LOAD_COL_ID)).isEqualTo(expectedColumnHeaders[LOAD_COL_ID]);
     }
@@ -405,8 +405,8 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
         JTableFixture table = window.table("reportTable");
         table.requireRowCount(1);
         table.cell(TableCell.row(0).column(LOAD_COL_ID)).requireValue(String.valueOf(flight1.getId()));
-        table.cell(TableCell.row(0).column(LOAD_COL_OCCUPIED)).requireValue(String.valueOf(0)); // Should default to 0 due to catch block
-        table.cell(TableCell.row(0).column(LOAD_COL_PERCENTAGE)).requireValue("0.00 %"); // Calculated with 0 occupied seats
+        table.cell(TableCell.row(0).column(LOAD_COL_OCCUPIED)).requireValue(String.valueOf(0));
+        table.cell(TableCell.row(0).column(LOAD_COL_PERCENTAGE)).requireValue("0.00 %");
     }
 
 
@@ -431,19 +431,19 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
     public void testHandleGenericException_WhenPanelIsShowing_ShowsJOptionPane() throws SQLException {
         window.comboBox("cmbReportType").selectItem(REPORT_TYPE_STATUS);
         String exceptionMessage = "Generic test error for showing panel";
-        // Спричиняємо RuntimeException замість SQLException
+
         when(mockTicketDAO.getTicketCountsByStatus()).thenThrow(new RuntimeException(exceptionMessage));
 
         window.button("btnGenerateReport").click();
-        Pause.pause(100); // Даємо час для появи JOptionPane
+        Pause.pause(100);
 
         JOptionPaneFixture optionPane = JOptionPaneFinder.findOptionPane().using(robot());
-        optionPane.requireErrorMessage(); // Перевіряємо тип повідомлення
-        optionPane.requireTitle("Внутрішня помилка програми"); // Перевіряємо заголовок
+        optionPane.requireErrorMessage();
+        optionPane.requireTitle("Внутрішня помилка програми");
 
         String dialogMessage = GuiActionRunner.execute(() -> optionPane.target().getMessage().toString());
         String expectedUserMessagePart = "Непередбачена помилка при генерації звіту '" + REPORT_TYPE_STATUS + "'";
-        // Перевіряємо, що повідомлення діалогу містить і частину користувача, і повідомлення винятку
+
         assertThat(dialogMessage).isEqualTo(expectedUserMessagePart + ":\n" + exceptionMessage);
         optionPane.okButton().click();
     }
@@ -452,7 +452,7 @@ public class ReportsPanelTest extends AssertJSwingJUnitTestCase {
 
     @Override
     protected void onTearDown() {
-        window.cleanUp(); // Clean up the window
+        window.cleanUp();
         Mockito.reset(mockTicketDAO, mockFlightDAO);
     }
 }

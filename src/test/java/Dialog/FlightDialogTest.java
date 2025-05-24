@@ -1,4 +1,4 @@
-package Dialog; // Або ваш актуальний пакет
+package Dialog;
 
 import DAO.FlightDAO;
 import DAO.RouteDAO;
@@ -52,12 +52,12 @@ class FlightDialogTest {
     private static final DateTimeFormatter INPUT_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     @BeforeEach
-    void setUp() throws SQLException { // Додано throws SQLException для мокінгу DAO
-        FlightDialog.setSuppressMessagesForTesting(true); // Придушуємо JOptionPane
+    void setUp() throws SQLException {
+        FlightDialog.setSuppressMessagesForTesting(true);
 
         testOwnerFrame = new JFrame();
 
-        // Створюємо тестові маршрути
+
         Stop stopA = new Stop(1, "Місто А", "Вокзал А");
         Stop stopB = new Stop(2, "Місто Б", "Вокзал Б");
         Stop stopC = new Stop(3, "Місто В", "Вокзал В");
@@ -65,10 +65,10 @@ class FlightDialogTest {
         Route route2 = new Route(102, stopB, stopC, Collections.singletonList(stopA));
         availableRoutes = new ArrayList<>(List.of(route1, route2));
 
-        // Мокуємо завантаження маршрутів
+
         when(mockRouteDAO.getAllRoutes()).thenReturn(availableRoutes);
 
-        // Створюємо тестовий рейс для редагування (опціонально, для деяких тестів)
+
         flightToEdit = new Flight(
                 1L, route1,
                 LocalDateTime.of(2025, 1, 1, 10, 0),
@@ -76,12 +76,12 @@ class FlightDialogTest {
                 50, FlightStatus.PLANNED, "TestBus 123", new BigDecimal("100.00")
         );
 
-        flightDialog = null; // Скидаємо перед кожним тестом
+        flightDialog = null;
     }
 
     @AfterEach
     void tearDown() {
-        FlightDialog.setSuppressMessagesForTesting(false); // Відновлюємо
+        FlightDialog.setSuppressMessagesForTesting(false);
 
         if (flightDialog != null) {
             final FlightDialog currentDialog = flightDialog;
@@ -102,7 +102,7 @@ class FlightDialogTest {
         }
     }
 
-    private void initializeDialog(Flight flight) { // Приймає flightToEdit або null
+    private void initializeDialog(Flight flight) {
         try {
             SwingUtilities.invokeAndWait(() -> {
                 flightDialog = new FlightDialog(testOwnerFrame, "Test Flight Dialog", mockFlightDAO, mockRouteDAO, flight);
@@ -117,21 +117,21 @@ class FlightDialogTest {
     @Test
     @DisplayName("Конструктор: успішна ініціалізація для нового рейсу")
     void constructor_newFlight_successfulInitialization() {
-        initializeDialog(null); // Новий рейс
+        initializeDialog(null);
         assertNotNull(flightDialog);
         assertEquals("Test Flight Dialog", flightDialog.getTitle());
         assertEquals(availableRoutes.size(), flightDialog.getCmbRoute().getItemCount());
-        assertEquals(FlightStatus.PLANNED, flightDialog.getCmbStatus().getSelectedItem()); // Перевірка статусу за замовчуванням
+        assertEquals(FlightStatus.PLANNED, flightDialog.getCmbStatus().getSelectedItem());
         assertTrue(flightDialog.getCmbRoute().isEnabled());
     }
 
     @Test
     @DisplayName("Конструктор: успішна ініціалізація для редагування рейсу")
     void constructor_editFlight_successfulInitialization() {
-        initializeDialog(flightToEdit); // Редагування
+        initializeDialog(flightToEdit);
         assertNotNull(flightDialog);
 
-        // Перевірка заповнення полів
+
         Route selectedInCombo = (Route) flightDialog.getCmbRoute().getSelectedItem();
         assertNotNull(selectedInCombo);
         assertEquals(flightToEdit.getRoute().getId(), selectedInCombo.getId());
@@ -149,9 +149,9 @@ class FlightDialogTest {
     void loadRoutesIntoComboBox_emptyList() throws SQLException {
         when(mockRouteDAO.getAllRoutes()).thenReturn(new ArrayList<>());
         initializeDialog(null);
-        // JOptionPane буде придушено, але ми можемо перевірити стан cmbRoute
+
         assertFalse(flightDialog.getCmbRoute().isEnabled());
-        assertEquals(1, flightDialog.getCmbRoute().getItemCount()); // Має бути один null елемент
+        assertEquals(1, flightDialog.getCmbRoute().getItemCount());
         assertNull(flightDialog.getCmbRoute().getItemAt(0));
     }
 
@@ -163,7 +163,7 @@ class FlightDialogTest {
         assertFalse(flightDialog.getCmbRoute().isEnabled());
     }
 
-    // --- Тести для saveFlightAction ---
+
 
     private void fillValidNewFlightData() {
         flightDialog.getCmbRoute().setSelectedItem(availableRoutes.get(0));
@@ -176,7 +176,7 @@ class FlightDialogTest {
     }
 
     private void fillValidEditFlightData() {
-        flightDialog.getCmbRoute().setSelectedItem(availableRoutes.get(1)); // Змінюємо маршрут
+        flightDialog.getCmbRoute().setSelectedItem(availableRoutes.get(1));
         flightDialog.getTxtDepartureDateTime().setText("2025-03-01 14:00");
         flightDialog.getTxtArrivalDateTime().setText("2025-03-01 16:00");
         flightDialog.getTxtTotalSeats().setText("40");
@@ -186,9 +186,8 @@ class FlightDialogTest {
     }
 
     private void clickSaveButton() {
-        // Отримуємо кнопку "Зберегти" - припускаємо, що вона друга на панелі кнопок
-        // Краще було б мати прямий доступ через геттер або шукати за текстом/іменем
-        JPanel buttonPanel = (JPanel) flightDialog.getContentPane().getComponent(1); // Index 1 for SOUTH panel
+
+        JPanel buttonPanel = (JPanel) flightDialog.getContentPane().getComponent(1);
         JButton btnSave = null;
         for(Component comp : buttonPanel.getComponents()){
             if(comp instanceof JButton && "Зберегти".equals(((JButton) comp).getText())){
@@ -215,14 +214,14 @@ class FlightDialogTest {
         fillValidNewFlightData();
         when(mockFlightDAO.addFlight(any(Flight.class))).thenAnswer(invocation -> {
             Flight f = invocation.getArgument(0);
-            f.setId(999L); // Симулюємо встановлення ID DAO
+            f.setId(999L);
             return true;
         });
 
         clickSaveButton();
 
         assertTrue(flightDialog.isSaved());
-        assertFalse(flightDialog.isDisplayable()); // Діалог має закритися
+        assertFalse(flightDialog.isDisplayable());
         verify(mockFlightDAO).addFlight(flightCaptor.capture());
         Flight captured = flightCaptor.getValue();
         assertEquals(availableRoutes.get(0).getId(), captured.getRoute().getId());
@@ -244,8 +243,8 @@ class FlightDialogTest {
         assertFalse(flightDialog.isDisplayable());
         verify(mockFlightDAO).updateFlight(flightCaptor.capture());
         Flight captured = flightCaptor.getValue();
-        assertEquals(flightToEdit.getId(), captured.getId()); // ID має бути той самий
-        assertEquals(availableRoutes.get(1).getId(), captured.getRoute().getId()); // Маршрут оновлено
+        assertEquals(flightToEdit.getId(), captured.getId());
+        assertEquals(availableRoutes.get(1).getId(), captured.getRoute().getId());
         assertEquals(LocalDateTime.of(2025,3,1,14,0), captured.getDepartureDateTime());
         assertEquals(40, captured.getTotalSeats());
         assertEquals(FlightStatus.DELAYED, captured.getStatus());
@@ -255,7 +254,7 @@ class FlightDialogTest {
     @DisplayName("Збереження: помилка валідації - не обрано маршрут")
     void saveFlightAction_validationError_noRouteSelected() throws SQLException {
         initializeDialog(null);
-        // Не обираємо маршрут, інші поля заповнені
+
         flightDialog.getTxtDepartureDateTime().setText("2025-02-01 10:00");
         flightDialog.getTxtArrivalDateTime().setText("2025-02-01 12:00");
         flightDialog.getTxtTotalSeats().setText("30");
@@ -264,7 +263,7 @@ class FlightDialogTest {
         clickSaveButton();
 
         assertFalse(flightDialog.isSaved());
-        assertTrue(flightDialog.isDisplayable()); // Діалог не має закриватися
+        assertTrue(flightDialog.isDisplayable());
     }
 
     @Test
@@ -286,7 +285,7 @@ class FlightDialogTest {
     void saveFlightAction_validationError_arrivalBeforeDeparture() throws SQLException {
         initializeDialog(null);
         fillValidNewFlightData();
-        flightDialog.getTxtArrivalDateTime().setText("2025-02-01 09:00"); // Раніше ніж 10:00
+        flightDialog.getTxtArrivalDateTime().setText("2025-02-01 09:00");
 
         clickSaveButton();
 
@@ -385,7 +384,7 @@ class FlightDialogTest {
     @DisplayName("Натискання кнопки 'Скасувати'")
     void cancelButton_action() {
         initializeDialog(null);
-        // Знаходимо кнопку "Скасувати"
+
         JPanel buttonPanel = (JPanel) flightDialog.getContentPane().getComponent(1);
         JButton btnCancel = null;
         for(Component comp : buttonPanel.getComponents()){

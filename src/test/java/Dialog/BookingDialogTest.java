@@ -1,4 +1,4 @@
-package Dialog; // Або UI.Dialog, залежно від вашої структури
+package Dialog;
 
 import DAO.PassengerDAO;
 import DAO.TicketDAO;
@@ -62,7 +62,7 @@ class BookingDialogTest {
 
     @BeforeEach
     void setUp() {
-        BookingDialog.setSuppressMessagesForTesting(true); // Придушуємо JOptionPane
+        BookingDialog.setSuppressMessagesForTesting(true);
 
         testOwnerFrame = new JFrame();
 
@@ -74,7 +74,7 @@ class BookingDialogTest {
                 1L, route,
                 LocalDateTime.of(2024, 8, 1, 10, 0),
                 LocalDateTime.of(2024, 8, 1, 17, 0),
-                50, FlightStatus.PLANNED, // Або PLANNED, якщо він у вас є
+                50, FlightStatus.PLANNED,
                 "Neoplan N1216", new BigDecimal("1000.00")
         );
         testSeat = "A1";
@@ -83,7 +83,7 @@ class BookingDialogTest {
 
     @AfterEach
     void tearDown() {
-        BookingDialog.setSuppressMessagesForTesting(false); // Відновлюємо показ JOptionPane
+        BookingDialog.setSuppressMessagesForTesting(false);
 
         if (bookingDialog != null) {
             final BookingDialog currentDialog = bookingDialog;
@@ -149,9 +149,9 @@ class BookingDialogTest {
             });
         }, "Конструктор з null flight не повинен кидати винятків, коли повідомлення придушені.");
 
-        // Даємо час для SwingUtilities.invokeLater
+
         try {
-            Thread.sleep(100); // Зменшено, оскільки JOptionPane не блокує
+            Thread.sleep(100);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -166,9 +166,7 @@ class BookingDialogTest {
                 System.err.println("Перевірка isDisplayable для null-flight діалогу (повідомлення придушені): " + e.getMessage());
             }
         } else {
-            // Це може статися, якщо конструктор завершується дуже швидко після return
-            // і dialogHolder[0] не встигає ініціалізуватися до перевірки
-            // Головне, що тест не впав з помилкою через JOptionPane
+
             System.out.println("Інформація: dialogHolder[0] залишився null, що очікувано, якщо dispose спрацював дуже швидко.");
         }
         assertNull(this.bookingDialog, "Глобальний bookingDialog не повинен бути змінений цим тестом.");

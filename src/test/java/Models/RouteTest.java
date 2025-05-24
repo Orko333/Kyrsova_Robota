@@ -24,7 +24,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
-import org.mockito.Mockito; // Потрібен для Mockito.lenient()
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.Serializable;
@@ -36,7 +36,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
-// import static org.mockito.Mockito.when; // Видалено, якщо не використовується глобально
+
 
 @ExtendWith(MockitoExtension.class)
 class RouteTest {
@@ -116,7 +116,7 @@ class RouteTest {
         Mockito.lenient().when(mockDestinationStop.getCity()).thenReturn("МістоБ");
         Mockito.lenient().when(mockIntermediateStop1.getCity()).thenReturn("МістоС1");
         Mockito.lenient().when(mockIntermediateStop2.getCity()).thenReturn("МістоС2");
-        // Видалено: Mockito.lenient().when(mockDepartureStop.equals(mockDestinationStop)).thenReturn(false);
+
 
         validRoute = new Route(DEFAULT_ID, stopA, stopB, Arrays.asList(stopC));
         listAppender.clear();
@@ -184,13 +184,13 @@ class RouteTest {
     @Test
     void constructor_departureEqualsDestination_logsWarn() {
         listAppender.clear();
-        // Використовуємо той самий екземпляр stopA
+
         Route route = new Route(5L, stopA, stopA, null);
         assertTrue(findLogMessage(Level.WARN, "Увага при створенні Route (ID: 5): Зупинка відправлення та зупинка призначення однакові."));
     }
 
     private static Stream<Arguments> invalidConstructorArguments() {
-        // Використовуємо mock() для створення моків, оскільки реальні об'єкти Stop не потрібні для перевірки null
+
         Stop validStop1 = mock(Stop.class);
         Stop validStop2 = mock(Stop.class);
         return Stream.of(
@@ -254,8 +254,7 @@ class RouteTest {
 
     @Test
     void setDepartureStop_equalsDestination_logsWarn() {
-        // validRoute має destinationStop = stopB (Львів)
-        // Створюємо новий об'єкт Stop з тим самим ID, що й stopB, щоб спрацював equals()
+
         Stop stopBEquivalent = new Stop(stopB.getId(), "Інша назва, те саме ID", "Інше місто, те саме ID");
 
         validRoute.setDepartureStop(stopBEquivalent);
@@ -288,7 +287,7 @@ class RouteTest {
 
     @Test
     void setDestinationStop_equalsDeparture_logsWarn() {
-        // validRoute має departureStop = stopA (Київ)
+
         Stop stopAEquivalent = new Stop(stopA.getId(), "Інша назва для A", "Інше місто для A");
 
         validRoute.setDestinationStop(stopAEquivalent);
@@ -298,14 +297,14 @@ class RouteTest {
 
     @Test
     void getIntermediateStops_returnsCopyOfList() {
-        List<Stop> originalStops = validRoute.getIntermediateStops(); // містить stopC
+        List<Stop> originalStops = validRoute.getIntermediateStops();
         assertNotNull(originalStops);
         assertEquals(1, originalStops.size());
         assertEquals(stopC, originalStops.get(0));
 
-        originalStops.add(stopD); // Модифікуємо повернутий список
+        originalStops.add(stopD);
 
-        List<Stop> currentStopsInRoute = validRoute.getIntermediateStops(); // Отримуємо знову
+        List<Stop> currentStopsInRoute = validRoute.getIntermediateStops();
         assertEquals(1, currentStopsInRoute.size(), "Оригінальний список у Route не повинен змінюватися.");
         assertFalse(currentStopsInRoute.contains(stopD), "Оригінальний список не повинен містити додану зупинку.");
     }
@@ -330,19 +329,19 @@ class RouteTest {
 
     @Test
     void getFullRouteDescription_noIntermediateStops() {
-        Route simpleRoute = new Route(8L, stopA, stopB, null); // Київ -> Львів
+        Route simpleRoute = new Route(8L, stopA, stopB, null);
         assertEquals("Київ -> Львів", simpleRoute.getFullRouteDescription());
     }
 
     @Test
     void getFullRouteDescription_withIntermediateStops() {
-        // validRoute: stopA (Київ) -> stopC (Одеса) -> stopB (Львів)
+
         assertEquals("Київ -> Одеса -> Львів", validRoute.getFullRouteDescription());
     }
 
     @Test
     void getFullRouteDescription_withMultipleIntermediateStops() {
-        Route complexRoute = new Route(9L, stopA, stopB, Arrays.asList(stopC, stopD)); // Київ -> Одеса -> Харків -> Львів
+        Route complexRoute = new Route(9L, stopA, stopB, Arrays.asList(stopC, stopD));
         assertEquals("Київ -> Одеса -> Харків -> Львів", complexRoute.getFullRouteDescription());
     }
 
@@ -352,7 +351,7 @@ class RouteTest {
     void getFullRouteDescription_intermediateStopNullCity() {
         Mockito.reset(mockIntermediateStop1);
         Mockito.lenient().when(mockIntermediateStop1.getCity()).thenReturn(null);
-        // ID може бути не потрібен для getCity, але хороший тон для моків, що представляють сутності
+
         Mockito.lenient().when(mockIntermediateStop1.getId()).thenReturn(70L);
 
         Route route = new Route(12L, stopA, stopB, Arrays.asList(mockIntermediateStop1));
@@ -362,7 +361,7 @@ class RouteTest {
     @Test
     void getFullRouteDescription_intermediateStopIsNull() {
         List<Stop> stopsWithNull = new ArrayList<>();
-        stopsWithNull.add(null); // Додаємо сам null у список
+        stopsWithNull.add(null);
         Route route = new Route(13L, stopA, stopB, stopsWithNull);
         assertEquals("Київ -> Невідомо -> Львів", route.getFullRouteDescription());
     }
@@ -393,7 +392,7 @@ class RouteTest {
 
     @Test
     void equals_sameId_returnsTrue() {
-        Route anotherRoute = new Route(DEFAULT_ID, stopD, stopA, Collections.emptyList()); // Інші зупинки, той самий ID
+        Route anotherRoute = new Route(DEFAULT_ID, stopD, stopA, Collections.emptyList());
         assertTrue(validRoute.equals(anotherRoute));
     }
 

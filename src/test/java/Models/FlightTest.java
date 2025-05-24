@@ -85,7 +85,7 @@ class FlightTest {
     @Mock
     private Route mockRoute;
     @Mock
-    private FlightStatus mockFlightStatus; // Для тестування toString з null displayName
+    private FlightStatus mockFlightStatus;
 
     private final long DEFAULT_ID = 1L;
     private final LocalDateTime DEFAULT_DEPARTURE = LocalDateTime.of(2024, 1, 1, 10, 0);
@@ -112,9 +112,9 @@ class FlightTest {
         loggerConfig.addAppender(listAppender, Level.ALL, null);
         ctx.updateLoggers();
 
-        // Налаштування моків для toString
+
         Mockito.lenient().when(mockRoute.getFullRouteDescription()).thenReturn("МістоА -> МістоБ");
-        // Не потрібно мокувати DEFAULT_STATUS_ENUM.getDisplayName(), оскільки це реальний enum.
+
 
         validFlight = new Flight(DEFAULT_ID, mockRoute, DEFAULT_DEPARTURE, DEFAULT_ARRIVAL,
                 DEFAULT_TOTAL_SEATS, DEFAULT_STATUS_ENUM, DEFAULT_BUS_MODEL, DEFAULT_PRICE);
@@ -154,7 +154,7 @@ class FlightTest {
                 DEFAULT_TOTAL_SEATS, DEFAULT_STATUS_ENUM, DEFAULT_BUS_MODEL, DEFAULT_PRICE);
         assertNotNull(flight);
         assertEquals(2L, flight.getId());
-        // ... інші перевірки полів ...
+
 
         assertFalse(findLogMessage(Level.DEBUG, "Спроба створити новий об'єкт Flight з ID: 2"));
         assertTrue(findLogMessage(Level.INFO, "Об'єкт Flight успішно створено: ID=2"));
@@ -164,7 +164,7 @@ class FlightTest {
     void constructor_departureAfterArrival_logsWarn() {
         listAppender.clear();
         LocalDateTime departure = LocalDateTime.of(2024, 1, 1, 14, 0);
-        LocalDateTime arrival = LocalDateTime.of(2024, 1, 1, 12, 0); // Прибуття раніше відправлення
+        LocalDateTime arrival = LocalDateTime.of(2024, 1, 1, 12, 0);
         new Flight(3L, mockRoute, departure, arrival, DEFAULT_TOTAL_SEATS, DEFAULT_STATUS_ENUM, null, DEFAULT_PRICE);
         assertTrue(findLogMessage(Level.WARN, "Увага при створенні Flight (ID: 3): Дата відправлення (" + departure + ") пізніше за дату прибуття (" + arrival + ")."));
     }
@@ -274,7 +274,7 @@ class FlightTest {
 
     @Test
     void setDepartureDateTime_newDepartureAfterArrival_logsWarn() {
-        LocalDateTime newDeparture = DEFAULT_ARRIVAL.plusHours(1); // Нове відправлення ПІСЛЯ поточного прибуття
+        LocalDateTime newDeparture = DEFAULT_ARRIVAL.plusHours(1);
         validFlight.setDepartureDateTime(newDeparture);
         assertEquals(newDeparture, validFlight.getDepartureDateTime());
         assertTrue(findLogMessage(Level.WARN, "Увага при зміні дати відправлення рейсу ID " + DEFAULT_ID + ": Нова дата відправлення (" + newDeparture + ") пізніше за поточну дату прибуття (" + DEFAULT_ARRIVAL + ")."));
@@ -306,7 +306,7 @@ class FlightTest {
 
     @Test
     void setArrivalDateTime_newArrivalBeforeDeparture_logsWarn() {
-        LocalDateTime newArrival = DEFAULT_DEPARTURE.minusHours(1); // Нове прибуття РАНІШЕ поточного відправлення
+        LocalDateTime newArrival = DEFAULT_DEPARTURE.minusHours(1);
         validFlight.setArrivalDateTime(newArrival);
         assertEquals(newArrival, validFlight.getArrivalDateTime());
         assertTrue(findLogMessage(Level.WARN, "Увага при зміні дати прибуття рейсу ID " + DEFAULT_ID + ": Нова дата прибуття (" + newArrival + ") раніше за поточну дату відправлення (" + DEFAULT_DEPARTURE + ")."));
@@ -386,7 +386,7 @@ class FlightTest {
     }
 
     @ParameterizedTest
-    @NullAndEmptySource // Перевіряє null та ""
+    @NullAndEmptySource
     void setBusModel_nullOrEmptyModel_setsItAndLogsTrace(String modelValue) {
         validFlight.setBusModel(modelValue);
         assertEquals(modelValue, validFlight.getBusModel());
@@ -449,39 +449,29 @@ class FlightTest {
     @Test
     void toString_withNullStatusDisplayName_handlesGracefully() {
         when(mockFlightStatus.getDisplayName()).thenReturn(null);
-        validFlight.setStatus(mockFlightStatus); // Це використовує setStatus
+        validFlight.setStatus(mockFlightStatus);
         listAppender.clear();
         assertTrue(validFlight.toString().contains("Статус невідомий"));
     }
 
     @Test
     void toString_withNullDeparture_handlesGracefully() {
-        // Неможливо через конструктор і сеттер.
-        // Але якщо б departureDateTime стало null, toString має впоратися.
-        // Створимо рейс і "зіпсуємо" поле (не рекомендовано для реального коду)
-        // Flight flight = new Flight(...); flight.departureDateTime = null;
-        // Для чистого тесту, якщо б це було можливо:
-        // when(mockFlight.getDepartureDateTime()).thenReturn(null); // Якщо б ми тестували інший клас, що використовує Flight
-        // Оскільки ми тестуємо сам Flight, перевіряємо, що toString не падає,
-        // якщо ми викликаємо його на об'єкті, де departureDateTime null (що заборонено конструктором/сеттером).
-        // Отже, цей шлях не буде досягнутий при нормальному використанні.
-        // Проте, якщо ми передамо null в конструктор (що викличе виняток), ми це вже протестували.
-        // Для демонстрації, що toString обробляє це:
-        String expected = "Рейс " + DEFAULT_ID; // Початок
-        assertTrue(validFlight.toString().startsWith(expected)); // Базовий тест, що toString працює
-        // Фактично, перевірка null departureDateTime у toString вже покрита валідацією в конструкторі/сеттері.
+
+        String expected = "Рейс " + DEFAULT_ID;
+        assertTrue(validFlight.toString().startsWith(expected));
+
     }
 
     @Test
     void toString_withNullArrival_handlesGracefully() {
-        // Аналогічно до departureDateTime
+
         String expected = "Рейс " + DEFAULT_ID;
         assertTrue(validFlight.toString().startsWith(expected));
     }
 
     @Test
     void toString_withNullPrice_handlesGracefully() {
-        // Неможливо через конструктор і сеттер.
+
         String expected = "Рейс " + DEFAULT_ID;
         assertTrue(validFlight.toString().startsWith(expected));
     }
@@ -500,7 +490,7 @@ class FlightTest {
         validFlight.setBusModel("");
         listAppender.clear();
         String str = validFlight.toString();
-        assertFalse(str.contains(", Автобус:")); // ", Автобус: " не буде, якщо busModel порожній
+        assertFalse(str.contains(", Автобус:"));
     }
 
 
@@ -521,7 +511,7 @@ class FlightTest {
 
     @Test
     void equals_sameId_returnsTrue() {
-        Flight anotherFlight = new Flight(DEFAULT_ID, mock(Route.class), DEFAULT_ARRIVAL, DEFAULT_DEPARTURE, // Навмисно інші значення
+        Flight anotherFlight = new Flight(DEFAULT_ID, mock(Route.class), DEFAULT_ARRIVAL, DEFAULT_DEPARTURE,
                 10, FlightStatus.CANCELLED, "Інший", BigDecimal.ONE);
         assertTrue(validFlight.equals(anotherFlight));
     }

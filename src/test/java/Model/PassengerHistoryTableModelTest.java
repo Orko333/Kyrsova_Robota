@@ -1,7 +1,7 @@
 package Model;
 
 import Models.*;
-import Models.Enums.BenefitType; // Імпорт BenefitType
+import Models.Enums.BenefitType;
 import Models.Enums.FlightStatus;
 import Models.Enums.TicketStatus;
 import UI.Model.PassengerHistoryTableModel;
@@ -86,7 +86,7 @@ class PassengerHistoryTableModelTest {
     private List<Ticket> sampleTickets;
     private Ticket ticket1, ticket2;
     private Flight flight1, flight2;
-    private Passenger passenger1; // Використовуємо ваш клас Passenger
+    private Passenger passenger1;
     private Route route1, route2;
     private Stop stopA, stopB, stopC, stopD;
 
@@ -122,7 +122,7 @@ class PassengerHistoryTableModelTest {
         loggerConfig.addAppender(listAppender, Level.ALL, null);
         ctx.updateLoggers();
 
-        // Ініціалізація Passenger згідно з вашим класом
+
         passenger1 = new Passenger(1L, "Іван Іванов", "СН123456", "Паспорт",
                 "0991234567", "ivan@example.com", BenefitType.NONE);
 
@@ -236,7 +236,7 @@ class PassengerHistoryTableModelTest {
     @Test
     void getColumnCount_returnsCorrectCount() {
         model = new PassengerHistoryTableModel(Collections.emptyList());
-        assertEquals(7, model.getColumnCount()); // "ID Квитка", "Рейс (ID)", "Маршрут", "Дата відпр.", "Місце", "Ціна", "Статус квитка"
+        assertEquals(7, model.getColumnCount());
     }
 
     @ParameterizedTest
@@ -295,16 +295,16 @@ class PassengerHistoryTableModelTest {
     @Test
     void getValueAt_validCell_returnsCorrectValue() {
         model = new PassengerHistoryTableModel(sampleTickets);
-        // Ticket 1, Flight 1
-        assertEquals(501L, model.getValueAt(0, 0)); // ID Квитка
-        assertEquals(101L, model.getValueAt(0, 1)); // Рейс (ID)
-        assertEquals("Київ -> Львів", model.getValueAt(0, 2)); // Маршрут
-        assertEquals(flight1.getDepartureDateTime().format(HISTORY_DATE_FORMATTER), model.getValueAt(0, 3)); // Дата відпр.
-        assertEquals("1A", model.getValueAt(0, 4)); // Місце
-        assertEquals(new BigDecimal("450.00"), model.getValueAt(0, 5)); // Ціна
-        assertEquals(TicketStatus.USED.getDisplayName(), model.getValueAt(0, 6)); // Статус квитка
 
-        // Ticket 2, Flight 2 (route2: Київ -> Умань -> Одеса)
+        assertEquals(501L, model.getValueAt(0, 0));
+        assertEquals(101L, model.getValueAt(0, 1));
+        assertEquals("Київ -> Львів", model.getValueAt(0, 2));
+        assertEquals(flight1.getDepartureDateTime().format(HISTORY_DATE_FORMATTER), model.getValueAt(0, 3));
+        assertEquals("1A", model.getValueAt(0, 4));
+        assertEquals(new BigDecimal("450.00"), model.getValueAt(0, 5));
+        assertEquals(TicketStatus.USED.getDisplayName(), model.getValueAt(0, 6));
+
+
         assertEquals(502L, model.getValueAt(1, 0));
         assertEquals(102L, model.getValueAt(1, 1));
         assertEquals("Київ -> Умань -> Одеса", model.getValueAt(1, 2));
@@ -327,7 +327,7 @@ class PassengerHistoryTableModelTest {
 
         model = new PassengerHistoryTableModel(Collections.singletonList(ticketWithFaultyFlight));
 
-        assertEquals("ПОМИЛКА ДАНИХ", model.getValueAt(0, 2)); // Колонка "Маршрут"
+        assertEquals("ПОМИЛКА ДАНИХ", model.getValueAt(0, 2));
         assertTrue(findLogMessage(Level.ERROR, "Помилка при отриманні значення для комірки історії пасажира [0, 2], квиток ID 801"));
         assertTrue(getLogEvents().stream().anyMatch(e -> e.getThrown() != null && e.getThrown().getMessage().contains("Test exception in route getter")));
     }

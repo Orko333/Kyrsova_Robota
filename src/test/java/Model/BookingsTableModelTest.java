@@ -85,7 +85,7 @@ class BookingsTableModelTest {
 
     private BookingsTableModel model;
     private List<Ticket> sampleTickets;
-    private Ticket ticket1, ticket2, ticket3_older; // Видалено ticketWithNullBookingDate
+    private Ticket ticket1, ticket2, ticket3_older;
     private Flight flight1, flight2;
     private Passenger passenger1, passenger2;
     private Route route1, route2;
@@ -96,7 +96,7 @@ class BookingsTableModelTest {
     private TestListAppender listAppender;
 
     @Mock
-    private Ticket mockedTicket; // Залишаємо для інших тестів з моками
+    private Ticket mockedTicket;
     @Mock
     private Flight mockedFlight;
     @Mock
@@ -151,7 +151,7 @@ class BookingsTableModelTest {
 
         ticket3_older = new Ticket(203L, flight1, passenger2, "3C", LocalDateTime.of(2024, 8, 10, 9, 0), new BigDecimal("480.00"), TicketStatus.CANCELLED);
 
-        // Видалено: ticketWithNullBookingDate = new Ticket(... null ...);
+
 
         sampleTickets = new ArrayList<>(List.of(ticket1, ticket2, ticket3_older));
 
@@ -367,9 +367,9 @@ class BookingsTableModelTest {
 
     @Test
     void getValueAt_handlesNullPurchaseDateTime_returnsDefaultString() {
-        // Використовуємо реальний квиток, але встановлюємо purchaseDateTime в null
+
         ticket1.setPurchaseDateTime(null);
-        model = new BookingsTableModel(Collections.singletonList(ticket1)); // ticket1 вже має booking date
+        model = new BookingsTableModel(Collections.singletonList(ticket1));
         assertEquals("-", model.getValueAt(0, 6));
     }
 
@@ -380,7 +380,7 @@ class BookingsTableModelTest {
         Passenger faultyPassenger = mock(Passenger.class);
         when(faultyPassenger.getFullName()).thenThrow(new RuntimeException("Test exception in getFullName"));
 
-        // Створюємо реальний квиток, але з мокнутим пасажиром, який кидає виняток
+
         Ticket ticketWithFaultyPassenger = new Ticket(601L, flight1, faultyPassenger, "X1",
                 LocalDateTime.now(), BigDecimal.TEN, TicketStatus.BOOKED);
 

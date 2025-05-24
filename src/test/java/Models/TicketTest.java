@@ -113,7 +113,7 @@ class TicketTest {
         loggerConfig.addAppender(listAppender, Level.ALL, null);
         ctx.updateLoggers();
 
-        // Використовуємо lenient() для стаббінгів, які можуть бути не використані в кожному тесті
+
         Mockito.lenient().when(mockFlight.getId()).thenReturn(101L);
         Mockito.lenient().when(mockPassenger.getFullName()).thenReturn("Тест Пасажир");
 
@@ -387,8 +387,7 @@ class TicketTest {
 
     @Test
     void toString_withValidData_returnsCorrectFormat() {
-        // Переконуємося, що моки, які використовуються в toString, налаштовані
-        // Це вже зроблено в setUp через lenient()
+
         String expected = String.format("Квиток ID %d: Рейс [ID %d], Пасажир [%s], Місце [%s], Бронювання [%s], Ціна [%s], Статус [%s]",
                 DEFAULT_ID, mockFlight.getId(), mockPassenger.getFullName(), DEFAULT_SEAT_NUMBER,
                 DEFAULT_BOOKING_DATE_TIME.toString(), DEFAULT_PRICE_PAID.toString(), DEFAULT_STATUS_ENUM_INSTANCE.getDisplayName());
@@ -413,7 +412,7 @@ class TicketTest {
 
     @Test
     void toString_withNullPassengerFullName_handlesGracefully() {
-        // Створюємо новий мок Passenger для цього тесту або змінюємо налаштування існуючого mockPassenger
+
         Passenger passengerWithNullName = mock(Passenger.class);
         when(passengerWithNullName.getFullName()).thenReturn(null);
 
@@ -456,10 +455,10 @@ class TicketTest {
 
     @Test
     void toString_withStatusHavingNullDisplayName_handlesGracefully() {
-        // Використовуємо @Mock mockTicketStatus
+
         when(mockTicketStatus.getDisplayName()).thenReturn(null);
         validTicket.setStatus(mockTicketStatus);
-        listAppender.clear(); // Очистити логи від setStatus
+        listAppender.clear();
         String str = validTicket.toString();
         assertTrue(str.contains("Статус невідомий"));
     }

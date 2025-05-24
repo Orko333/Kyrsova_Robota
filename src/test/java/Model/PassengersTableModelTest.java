@@ -43,7 +43,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PassengersTableModelTest {
 
-    // Simple ListAppender for capturing logs
+
     @Plugin(name = "TestListAppenderPassengers", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE, printObject = true)
     public static class TestListAppender extends AbstractAppender {
         private final List<LogEvent> events = Collections.synchronizedList(new ArrayList<>());
@@ -110,13 +110,13 @@ class PassengersTableModelTest {
         loggerConfig.addAppender(listAppender, Level.ALL, null);
         ctx.updateLoggers();
 
-        // Sample Data using the provided Passenger class
+
         passenger1 = new Passenger(1L, "Петренко Петро Петрович", "АА123456", "Паспорт громадянина України",
                 "0501112233", "petro@example.com", BenefitType.NONE);
         passenger2 = new Passenger(2L, "Сидоренко Марія Іванівна", "КК987654", "Студентський квиток",
                 "0679998877", "maria.s@example.com", BenefitType.STUDENT);
         passengerWithNulls = new Passenger(3L, "Невідомий Невідомець", "XX000000", "Посвідка",
-                null, null, null); // benefitType will be NONE due to constructor logic
+                null, null, null);
 
         samplePassengers = new ArrayList<>(List.of(passenger1, passenger2));
 
@@ -181,7 +181,7 @@ class PassengersTableModelTest {
         assertEquals(2, model.getRowCount());
         assertEquals(passenger1, model.getPassengerAt(0));
         assertEquals(passenger2, model.getPassengerAt(1));
-        initialPassengers.clear(); // Ensure it's a copy
+        initialPassengers.clear();
         assertEquals(2, model.getRowCount(), "Model should have its own copy of the list.");
         assertFalse(findLogMessage(Level.DEBUG, "Ініціалізація PassengersTableModel з 2 пасажирами."));
     }
@@ -224,7 +224,7 @@ class PassengersTableModelTest {
         model = new PassengersTableModel(passengersWithNull);
         Passenger result = model.getPassengerAt(0);
         assertNull(result);
-        // The log will show "null" for ID if passenger is null
+
         assertFalse(findLogMessage(Level.TRACE, "Отримання пасажира за індексом 0: ID null"));
     }
 
@@ -256,7 +256,7 @@ class PassengersTableModelTest {
     @Test
     void getColumnCount_returnsCorrectCount() {
         model = new PassengersTableModel(Collections.emptyList());
-        assertEquals(7, model.getColumnCount()); // {"ID", "ПІБ", "Документ", "Номер документа", "Телефон", "Email", "Пільга"}
+        assertEquals(7, model.getColumnCount());
     }
 
     @ParameterizedTest
@@ -313,16 +313,16 @@ class PassengersTableModelTest {
     @Test
     void getValueAt_validCells_returnsCorrectValues() {
         model = new PassengersTableModel(samplePassengers);
-        // Passenger 1
-        assertEquals(1L, model.getValueAt(0, 0)); // ID
-        assertEquals("Петренко Петро Петрович", model.getValueAt(0, 1)); // ПІБ
-        assertEquals("Паспорт громадянина України", model.getValueAt(0, 2)); // Документ
-        assertEquals("АА123456", model.getValueAt(0, 3)); // Номер документа
-        assertEquals("0501112233", model.getValueAt(0, 4)); // Телефон
-        assertEquals("petro@example.com", model.getValueAt(0, 5)); // Email
-        assertEquals(BenefitType.NONE.getDisplayName(), model.getValueAt(0, 6)); // Пільга
 
-        // Passenger 2
+        assertEquals(1L, model.getValueAt(0, 0));
+        assertEquals("Петренко Петро Петрович", model.getValueAt(0, 1));
+        assertEquals("Паспорт громадянина України", model.getValueAt(0, 2));
+        assertEquals("АА123456", model.getValueAt(0, 3));
+        assertEquals("0501112233", model.getValueAt(0, 4));
+        assertEquals("petro@example.com", model.getValueAt(0, 5));
+        assertEquals(BenefitType.NONE.getDisplayName(), model.getValueAt(0, 6));
+
+
         assertEquals(2L, model.getValueAt(1, 0));
         assertEquals("Сидоренко Марія Іванівна", model.getValueAt(1, 1));
         assertEquals("Студентський квиток", model.getValueAt(1, 2));
@@ -335,14 +335,14 @@ class PassengersTableModelTest {
     @Test
     void getValueAt_passengerWithNullFields_returnsDefaultStrings() {
         model = new PassengersTableModel(Collections.singletonList(passengerWithNulls));
-        // passengerWithNulls: phone, email, benefitType (becomes NONE) are null
+
         assertEquals(3L, model.getValueAt(0, 0));
         assertEquals("Невідомий Невідомець", model.getValueAt(0, 1));
         assertEquals("Посвідка", model.getValueAt(0, 2));
         assertEquals("XX000000", model.getValueAt(0, 3));
-        assertEquals("Телефон не вказано", model.getValueAt(0, 4)); // Null phone
-        assertEquals("-", model.getValueAt(0, 5)); // Null email
-        assertEquals(BenefitType.NONE.getDisplayName(), model.getValueAt(0, 6)); // Null benefitType in constructor, becomes NONE
+        assertEquals("Телефон не вказано", model.getValueAt(0, 4));
+        assertEquals("-", model.getValueAt(0, 5));
+        assertEquals(BenefitType.NONE.getDisplayName(), model.getValueAt(0, 6));
     }
 
     @Test
@@ -362,21 +362,21 @@ class PassengersTableModelTest {
         assertEquals("Номер не вказано", model.getValueAt(0, 3));
         assertEquals("Телефон не вказано", model.getValueAt(0, 4));
         assertEquals("-", model.getValueAt(0, 5));
-        assertEquals("Без пільг", model.getValueAt(0, 6)); // Null benefit type
+        assertEquals("Без пільг", model.getValueAt(0, 6));
     }
 
 
 
     @Test
     void getValueAt_exceptionDuringGetter_returnsErrorStringAndLogsError() {
-        // Mock a passenger to throw an exception on getFullName()
+
         Passenger faultyPassenger = mock(Passenger.class);
         when(faultyPassenger.getId()).thenReturn(999L);
         when(faultyPassenger.getFullName()).thenThrow(new RuntimeException("Test exception in getFullName"));
 
         model = new PassengersTableModel(Collections.singletonList(faultyPassenger));
 
-        assertEquals("ПОМИЛКА ДАНИХ", model.getValueAt(0, 1)); // Column "ПІБ"
+        assertEquals("ПОМИЛКА ДАНИХ", model.getValueAt(0, 1));
         assertTrue(findLogMessage(Level.ERROR, "Помилка при отриманні значення для комірки пасажирів [0, 1], пасажир ID 999"));
         assertTrue(getLogEvents().stream().anyMatch(e -> e.getThrown() != null && e.getThrown().getMessage().contains("Test exception in getFullName")));
     }

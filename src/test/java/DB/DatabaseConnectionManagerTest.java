@@ -3,7 +3,7 @@ package DB;
 import Config.DatabaseConfig;
 
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager; // Звичайний імпорт
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
@@ -37,17 +37,15 @@ import static org.mockito.Mockito.*;
 class DatabaseConnectionManagerTest {
 
     @Mock
-    private static Connection mockConnection; // Може бути статичним, якщо використовується лише в статичних контекстах
+    private static Connection mockConnection;
 
     private static ListAppender listAppender;
     private static org.apache.logging.log4j.core.Logger insuranceLogger;
 
-    // Статичні моки для DatabaseConfig та DriverManager
-    // Ініціалізуються в @BeforeAll, закриваються в @AfterAll
+
     private static MockedStatic<DatabaseConfig> mockedDatabaseConfig;
     private static MockedStatic<DriverManager> mockedDriverManager;
-    // MockedStatic для Class.forName (складніше, зазвичай не робиться так для ClassNotFoundException)
-    // private static MockedStatic<Class> mockedClass;
+
 
 
     private static class ListAppender extends AbstractAppender {
@@ -73,43 +71,38 @@ class DatabaseConnectionManagerTest {
         insuranceLogger.addAppender(listAppender);
         insuranceLogger.setLevel(Level.ALL);
 
-        // Створюємо статичні моки ОДИН РАЗ
+
         mockedDatabaseConfig = Mockito.mockStatic(DatabaseConfig.class);
         mockedDriverManager = Mockito.mockStatic(DriverManager.class);
-        // mockedClass = Mockito.mockStatic(Class.class, Mockito.CALLS_REAL_METHODS); // Якщо потрібно мокувати Class.forName
 
-        // Мокуємо Connection, якщо він потрібен у тестах
+
+
         mockConnection = mock(Connection.class);
     }
 
     @AfterAll
     static void tearDownAll() {
-        // Закриваємо ListAppender
+
         if (listAppender != null) {
             insuranceLogger.removeAppender(listAppender);
             listAppender.stop();
         }
-        // Закриваємо статичні моки ОДИН РАЗ
+
         if (mockedDatabaseConfig != null) mockedDatabaseConfig.close();
         if (mockedDriverManager != null) mockedDriverManager.close();
-        // if (mockedClass != null) mockedClass.close();
+
     }
 
     @BeforeEach
     void setUpForEachTest() {
-        listAppender.clearEvents(); // Очищаємо логи перед кожним тестом
+        listAppender.clearEvents();
 
-        // ВАЖЛИВО: Не створюйте MockedStatic тут заново.
-        // Замість цього, якщо потрібно скинути поведінку (що зазвичай не потрібно для when().thenReturn()),
-        // або просто переналаштовуйте .when() для кожного тесту.
-        // Для безпеки можна явно скинути попередні налаштування, хоча це не завжди необхідно:
-        mockedDatabaseConfig.reset(); // Скидає всі налаштування для цього статичного моку
-        mockedDriverManager.reset();  // Скидає всі налаштування для цього статичного моку
 
-        // Примітка: .reset() для MockedStatic може бути агресивним.
-        // Часто достатньо просто перевизначити .when() у кожному тесті.
-        // Якщо виникнуть проблеми з .reset(), спробуйте без нього і просто
-        // налаштовуйте .when() в кожному тесті.
+
+        mockedDatabaseConfig.reset();
+        mockedDriverManager.reset();
+
+
     }
 
     @AfterEach
@@ -119,26 +112,18 @@ class DatabaseConnectionManagerTest {
 
     @Test
     void staticBlock_driverLoadsSuccessfully_logsInfo() {
-        // Цей тест перевіряє лог, який мав бути згенерований під час першого
-        // завантаження класу DatabaseConnectionManager.
-        // Передбачається, що клас завантажується один раз під час виконання тест-сюїти.
 
-        // Щоб забезпечити, що статичний блок точно виконався перед цією перевіркою
-        // (хоча він, швидше за все, вже виконавсь під час завантаження тестового класу),
-        // можна звернутися до класу.
         try {
             assertNotNull(Class.forName("DB.DatabaseConnectionManager"));
         } catch (ClassNotFoundException e) {
             fail("Клас DatabaseConnectionManager не знайдено: " + e.getMessage());
         }
 
-        // Даємо невелику затримку, щоб логи встигли обробитися, якщо це асинхронно (малоймовірно тут)
-        // Thread.sleep(100); // Розкоментуйте, якщо є проблеми з часом логування
+
 
     }
 
-    // Тест на ClassNotFoundException у статичному блоці все ще дуже складний без PowerMockito.
-    // Його можна пропустити або позначити як @Disabled, якщо немає можливості використовувати PowerMockito.
+
 
     @Test
     void getConnection_success_returnsConnection() throws SQLException {
@@ -163,7 +148,7 @@ class DatabaseConnectionManagerTest {
 
     @Test
     void getConnection_urlIsNull_throwsSQLExceptionAndLogsError() {
-        // Переналаштовуємо моки для цього конкретного тесту
+
         mockedDatabaseConfig.when(DatabaseConfig::getDbUrl).thenReturn(null);
         mockedDatabaseConfig.when(DatabaseConfig::getDbUsername).thenReturn("user");
         mockedDatabaseConfig.when(DatabaseConfig::getDbPassword).thenReturn("pass");

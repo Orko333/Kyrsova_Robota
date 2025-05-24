@@ -67,11 +67,11 @@ class BookingsManagementPanelTest {
     @BeforeEach
     void setUp() throws Exception {
         mockJOptionPane = Mockito.mockStatic(JOptionPane.class);
-        // For void methods like showMessageDialog, use thenAnswer or doNothing.
+
         mockJOptionPane.when(() -> JOptionPane.showMessageDialog(any(), any(), any(), anyInt()))
                 .thenAnswer(invocation -> {
                     System.out.println("JOptionPane.showMessageDialog called (mocked): Title='" + invocation.getArgument(2) + "', Message='" + invocation.getArgument(1) + "'");
-                    return null; // Void method
+                    return null;
                 });
         mockJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(JOptionPane.YES_OPTION);
@@ -104,28 +104,26 @@ class BookingsManagementPanelTest {
 
         when(mockTicketDAO.getAllTickets(null)).thenReturn(Collections.emptyList());
 
-        // Make frame visible for isShowing() to be true, hoping it helps JOptionPane checks.
-        // This is often flaky in unit tests.
+
         SwingUtilities.invokeAndWait(() -> {
             bookingsPanel = new BookingsManagementPanel(mockTicketDAO);
             testFrame.add(bookingsPanel);
             testFrame.pack();
-            // testFrame.setVisible(true); // Attempt to make it "showing"
+
         });
-        // Give it a moment if setVisible was used.
-        // if (testFrame.isVisible()) Thread.sleep(50);
 
 
-        SwingUtilities.invokeAndWait(() -> {}); // Ensure EDT tasks from constructor complete
+
+        SwingUtilities.invokeAndWait(() -> {});
         Thread.sleep(100);
-        reset(mockTicketDAO); // Reset after constructor's initial load
+        reset(mockTicketDAO);
     }
 
     @AfterEach
     void tearDown() {
-        SwingUtilities.invokeLater(() -> { // Dispose on EDT
+        SwingUtilities.invokeLater(() -> {
             if (testFrame != null) {
-                // testFrame.setVisible(false);
+
                 testFrame.dispose();
             }
         });
@@ -134,16 +132,16 @@ class BookingsManagementPanelTest {
 
     @Test
     void constructor_nullDAO_throwsIllegalArgumentExceptionAndShowsError() {
-        mockJOptionPane.close(); // Close global for this specific test
+        mockJOptionPane.close();
         try (MockedStatic<JOptionPane> JOptionPaneMock = Mockito.mockStatic(JOptionPane.class)) {
-            // Stub the specific showMessageDialog call for the constructor
+
             JOptionPaneMock.when(() -> JOptionPane.showMessageDialog(any(), any(), any(), anyInt())).thenAnswer(invocation -> null);
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> new BookingsManagementPanel(null)); // This panel instance won't be fully initialized or added to frame
+                    () -> new BookingsManagementPanel(null));
             assertEquals("TicketDAO не може бути null.", ex.getMessage());
         }
-        // Re-setup global mock for other tests
+
         mockJOptionPane = Mockito.mockStatic(JOptionPane.class);
         mockJOptionPane.when(() -> JOptionPane.showMessageDialog(any(), any(), any(), anyInt())).thenAnswer(invocation -> null);
         mockJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), any(), anyInt(), anyInt())).thenReturn(JOptionPane.YES_OPTION);
@@ -176,16 +174,13 @@ class BookingsManagementPanelTest {
     @Test
     void loadBookingsData_sqlException_clearsTableAndShowsError() throws SQLException {
         when(mockTicketDAO.getAllTickets(null)).thenThrow(new SQLException("DB Error"));
-        bookingsPanel.bookingsTableModel.setTickets(Collections.singletonList(ticket1BookedFuture)); // Pre-populate
+        bookingsPanel.bookingsTableModel.setTickets(Collections.singletonList(ticket1BookedFuture));
         assertEquals(1, bookingsPanel.bookingsTableModel.getRowCount(), "Table should have 1 row before error load");
 
-        bookingsPanel.loadBookingsData(null); // This will call handleSqlException
+        bookingsPanel.loadBookingsData(null);
 
         assertEquals(1, bookingsPanel.bookingsTableModel.getRowCount(), "Table should be empty after error load");
-        // Verification of JOptionPane depends on isShowing(). We rely on logs or the fact that handleSqlException was called.
-        // If we made the frame visible, we might catch it.
-        // mockJOptionPane.verify(() -> JOptionPane.showMessageDialog(any(Component.class), contains("Помилка завантаження списку квитків"), eq("Помилка бази даних"), eq(JOptionPane.ERROR_MESSAGE)));
-        // For now, let's assume the method was called. We see the log "BookingsManagementPanel не видима..."
+
     }
 
     @Test
@@ -217,13 +212,7 @@ class BookingsManagementPanelTest {
         bookingsPanel.bookingsTable.setRowSelectionInterval(0, 0);
 
         assertFalse(bookingsPanel.btnSellTicket.isEnabled());
-        // bookingsPanel.btnSellTicket.doClick(); // Button is disabled, click has no effect usually
 
-        // If we force click or if logic error, then JOptionPane would show
-        // For robust check of warning, we might need to simulate circumstances where button could be enabled despite wrong status
-        // Given the current logic, if btnSellTicket.isEnabled() is false, the action won't proceed to show JOptionPane from sellTicketAction.
-        // The warning JOptionPane would only show if btnSellTicket was enabled AND status was not BOOKED.
-        // So, verifying no DAO call is sufficient if button is correctly disabled.
         verify(mockTicketDAO, never()).updateTicketStatus(anyLong(), any(TicketStatus.class), any(LocalDateTime.class));
     }
 
@@ -268,12 +257,10 @@ class BookingsManagementPanelTest {
 
         when(mockTicketDAO.updateTicketStatus(eq(ticket1BookedFuture.getId()), eq(TicketStatus.SOLD), any(LocalDateTime.class))).thenReturn(false);
 
-        bookingsPanel.btnSellTicket.doClick(); // This will call handleGenericException
+        bookingsPanel.btnSellTicket.doClick();
 
         verify(mockTicketDAO).updateTicketStatus(eq(ticket1BookedFuture.getId()), eq(TicketStatus.SOLD), any(LocalDateTime.class));
-        // JOptionPane might not be shown due to isShowing(), but the error is logged.
-        // We can't easily verify JOptionPane here without making frame reliably "showing".
-        // The log "BookingsManagementPanel не видима, JOptionPane для GenericException не буде показано" confirms this path.
+
         verify(mockTicketDAO, never()).getAllTickets(any());
     }
 
@@ -292,8 +279,7 @@ class BookingsManagementPanelTest {
         bookingsPanel.bookingsTable.setRowSelectionInterval(0, 0);
 
         assertFalse(bookingsPanel.btnCancelBookingTicket.isEnabled());
-        // bookingsPanel.btnCancelBookingTicket.doClick(); // Button disabled
-        // Similar to sellTicketAction_selectedTicketNotBooked_showsWarning, warning JOptionPane from action method won't be hit if button is correctly disabled.
+
         verify(mockTicketDAO, never()).updateTicketStatus(anyLong(), any(TicketStatus.class), eq(null));
     }
 
@@ -304,12 +290,7 @@ class BookingsManagementPanelTest {
 
         assertFalse(bookingsPanel.btnCancelBookingTicket.isEnabled(), "Cancel button should be disabled for a ticket on a departed flight.");
 
-        // If we were to force the click (e.g. if button state logic failed)
-        // bookingsPanel.btnCancelBookingTicket.doClick();
-        // mockJOptionPane.verify(() -> JOptionPane.showMessageDialog(any(Component.class),
-        // eq("Неможливо скасувати квиток на рейс, який вже відправлений або прибув."),
-        // eq("Помилка"),
-        // eq(JOptionPane.ERROR_MESSAGE)));
+
 
         verify(mockTicketDAO, never()).updateTicketStatus(anyLong(), any(TicketStatus.class), eq(null));
     }
@@ -317,7 +298,7 @@ class BookingsManagementPanelTest {
 
     @Test
     void cancelTicketAction_bookedTicket_confirmationYes_cancelsTicket() throws SQLException {
-        bookingsPanel.bookingsTableModel.setTickets(Collections.singletonList(ticket1BookedFuture)); // Using future flight
+        bookingsPanel.bookingsTableModel.setTickets(Collections.singletonList(ticket1BookedFuture));
         bookingsPanel.bookingsTable.setRowSelectionInterval(0, 0);
         assertTrue(bookingsPanel.btnCancelBookingTicket.isEnabled());
 
@@ -389,8 +370,7 @@ class BookingsManagementPanelTest {
 
     @Test
     void updateButtonStates_bookedTicketSelected_pastFlightNotYetDeparted_sellEnabled_cancelStillEnabled() {
-        // Scenario: Flight time has passed, but status is still PLANNED (e.g., system hasn't updated to DEPARTED yet)
-        // According to current refined updateButtonStates logic, cancel for BOOKED should still be possible.
+
         bookingsPanel.bookingsTableModel.setTickets(Collections.singletonList(ticket5BookedPastNotDeparted));
         bookingsPanel.bookingsTable.setRowSelectionInterval(0, 0);
 
@@ -400,7 +380,7 @@ class BookingsManagementPanelTest {
 
     @Test
     void updateButtonStates_bookedTicketSelected_pastDepartedFlight_sellEnabled_cancelDisabled() {
-        // Explicitly use a ticket on a flight marked DEPARTED
+
         Flight departedFlight = new Flight(36L, route1, LocalDateTime.now().minusDays(1), LocalDateTime.now().minusDays(1).plusHours(2), 50, FlightStatus.DEPARTED, "Old Bus", new BigDecimal("15.00"));
         Ticket bookedOnDeparted = new Ticket(8L, departedFlight, passenger1, "G1", LocalDateTime.now().minusDays(2), new BigDecimal("15.00"), TicketStatus.BOOKED);
 

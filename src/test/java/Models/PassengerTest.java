@@ -27,7 +27,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension; // Можна залишити, навіть якщо моки не використовуються активно
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when; // Якщо потрібно для mockBenefitType
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PassengerTest {
@@ -86,7 +86,7 @@ class PassengerTest {
     private final String DEFAULT_EMAIL = "ivan@example.com";
     private final BenefitType DEFAULT_BENEFIT = BenefitType.NONE;
 
-    @Mock // Мок для тестування toString з null displayName у BenefitType
+    @Mock
     private BenefitType mockBenefitType;
 
 
@@ -155,7 +155,7 @@ class PassengerTest {
     void constructor_nullBenefitType_setsToNoneAndLogsWarn() {
         listAppender.clear();
         Passenger passenger = new Passenger(3L, "Анна Антоненко", "СС112233", "Закордонний паспорт",
-                "0671122334", null, null); // benefitType is null
+                "0671122334", null, null);
 
         assertNotNull(passenger);
         assertEquals(BenefitType.NONE, passenger.getBenefitType());
@@ -238,7 +238,7 @@ class PassengerTest {
     @ValueSource(strings = {"  "})
     void setFullName_nullOrEmptyOrBlank_setsItAndLogsWarnAndTrace(String invalidName) {
         validPassenger.setFullName(invalidName);
-        assertEquals(invalidName, validPassenger.getFullName()); // Поточна реалізація дозволяє це
+        assertEquals(invalidName, validPassenger.getFullName());
         assertTrue(findLogMessage(Level.WARN, "Спроба встановити порожнє повне ім'я для пасажира ID: " + DEFAULT_ID));
         assertFalse(findLogMessage(Level.TRACE, "Зміна повного імені для пасажира ID " + DEFAULT_ID));
     }
@@ -378,11 +378,7 @@ class PassengerTest {
 
     @Test
     void toString_withNullFullNameInObject_returnsDefault() {
-        // Цей сценарій неможливий через валідацію в конструкторі.
-        // Якщо б fullName могло стати null після створення:
-        // validPassenger.setFullName(null); listAppender.clear();
-        // assertTrue(validPassenger.toString().contains("Ім'я не вказано"));
-        // Натомість, перевіримо, що toString працює як очікується з валідним fullName
+
         assertTrue(validPassenger.toString().contains(DEFAULT_FULL_NAME));
     }
 
@@ -412,10 +408,10 @@ class PassengerTest {
 
     @Test
     void toString_withBenefitTypeHavingNullDisplayName_returnsDefault() {
-        // Використовуємо mockBenefitType, налаштований в setUp
+
         when(mockBenefitType.getDisplayName()).thenReturn(null);
-        validPassenger.setBenefitType(mockBenefitType); // Це викличе логування INFO
-        listAppender.clear(); // Очистити лог від setBenefitType
+        validPassenger.setBenefitType(mockBenefitType);
+        listAppender.clear();
 
         String str = validPassenger.toString();
         assertTrue(str.contains("Пільга: не вказано"));
@@ -423,10 +419,10 @@ class PassengerTest {
 
     @Test
     void toString_withNullBenefitTypeInObject_returnsDefault() {
-        // Створюємо пасажира з null benefitType, конструктор встановить BenefitType.NONE
+
         Passenger passengerWithNullBenefit = new Passenger(6L, "Test", "TestDoc", "TestType", "123", "e@mail", null);
         listAppender.clear();
-        // benefitType.getDisplayName() для NONE буде "Без пільг"
+
         assertTrue(passengerWithNullBenefit.toString().contains("Пільга: " + BenefitType.NONE.getDisplayName()));
     }
 

@@ -25,7 +25,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.junit.jupiter.MockitoExtension; // Не потрібен для цього тесту, але можна залишити
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@ExtendWith(MockitoExtension.class) // Можна видалити, якщо Mockito не використовується
+@ExtendWith(MockitoExtension.class)
 class StopTest {
 
     @Plugin(name = "TestListAppenderStop", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE, printObject = true)
@@ -96,7 +96,7 @@ class StopTest {
         ctx.updateLoggers();
 
         validStop = new Stop(DEFAULT_ID, DEFAULT_NAME, DEFAULT_CITY);
-        listAppender.clear(); // Очистити логи від створення validStop у setUp
+        listAppender.clear();
     }
 
     @AfterEach
@@ -127,14 +127,13 @@ class StopTest {
 
     @Test
     void constructor_validArguments_createsInstanceAndLogs() {
-        // validStop створюється в setUp, перевіряємо його стан
+
         assertNotNull(validStop);
         assertEquals(DEFAULT_ID, validStop.getId());
         assertEquals(DEFAULT_NAME, validStop.getName());
         assertEquals(DEFAULT_CITY, validStop.getCity());
 
-        // Логи від створення validStop в setUp вже очищені.
-        // Створимо новий екземпляр, щоб перевірити логи конструктора тут.
+
         listAppender.clear();
         Stop testStop = new Stop(2L, "Інша Зупинка", "Інше Місто");
         assertNotNull(testStop);
@@ -189,7 +188,7 @@ class StopTest {
         assertEquals(DEFAULT_NAME, validStop.getName());
     }
 
-    // Немає сеттера для name, тому тест на set Name не потрібен
+
 
     @Test
     void getCity_returnsCorrectCity() {
@@ -206,11 +205,10 @@ class StopTest {
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"  "}) // Додаємо рядок з пробілами
+    @ValueSource(strings = {"  "})
     void setCity_nullOrEmptyOrBlankCity_setsItAndLogsWarnAndTrace(String invalidCity) {
         validStop.setCity(invalidCity);
-        // Залежно від того, чи хочете ви, щоб поле стало null/порожнім, чи зберегло старе значення
-        // Поточна реалізація встановлює null/порожнє значення
+
         assertEquals(invalidCity, validStop.getCity());
         assertTrue(findLogMessage(Level.WARN, "Спроба встановити порожнє місто для зупинки ID: " + DEFAULT_ID));
         assertFalse(findLogMessage(Level.TRACE, "Зміна міста зупинки ID " + DEFAULT_ID));
@@ -224,16 +222,9 @@ class StopTest {
 
     @Test
     void toString_withNullNameInObjectState_returnsND() {
-        // Цей сценарій неможливий через валідацію в конструкторі.
-        // Однак, якщо б name могло стати null після створення (наприклад, через сеттер без валідації),
-        // то цей тест мав би сенс.
-        // Для повноти, можна створити об'єкт з name = "н/д", якщо це є валідною назвою.
-        // Але поточний toString() обробляє name != null ? name : "н/д",
-        // тому якщо name справді null, він поверне "н/д".
-        // Оскільки конструктор не дозволяє null name, цей конкретний шлях малоймовірний.
-        // Проте, якщо ми симулюємо null city, це можна перевірити:
-        validStop.setCity(null); // Встановлюємо city в null через сеттер
-        listAppender.clear(); // Очистити лог від setCity
+
+        validStop.setCity(null);
+        listAppender.clear();
         String expected = String.format("ID: %d, Назва: %s, Місто: %s", DEFAULT_ID, DEFAULT_NAME, "н/д");
         assertEquals(expected, validStop.toString());
     }
