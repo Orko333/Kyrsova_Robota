@@ -23,7 +23,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.ArrayList; // Додано для new ArrayList<>()
+import java.util.ArrayList;
 
 /**
  * Панель для генерації та відображення звітів у системі автовокзалу.
@@ -38,9 +38,9 @@ import java.util.ArrayList; // Додано для new ArrayList<>()
  */
 public class ReportsPanel extends JPanel {
     private static final Logger logger = LogManager.getLogger("insurance.log");
-    public static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd"); // Зроблено public для доступу з тестів
+    public static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final NumberFormat CURRENCY_FORMATTER = NumberFormat.getCurrencyInstance(new Locale("uk", "UA"));
-    public static final DateTimeFormatter TABLE_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"); // Зроблено public для доступу з тестів
+    public static final DateTimeFormatter TABLE_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     private JComboBox<String> cmbReportType;
     private JPanel parametersPanel;
@@ -69,11 +69,7 @@ public class ReportsPanel extends JPanel {
         try {
             return new TicketDAO();
         } catch (Exception e) {
-            // Логування та кидання RuntimeException вже є в конструкторі, що приймає DAO.
-            // Якщо цей метод викликається лише з конструктора без параметрів,
-            // то помилка буде оброблена там.
-            // Для запобігання NPE, якщо цей метод викликається в іншому контексті,
-            // краще кидати виняток.
+
             throw new RuntimeException("Не вдалося ініціалізувати TicketDAO", e);
         }
     }
@@ -98,9 +94,8 @@ public class ReportsPanel extends JPanel {
         if (ticketDAO == null || flightDAO == null) {
             String missingDAO = (ticketDAO == null ? "TicketDAO" : "") + (flightDAO == null ? (ticketDAO == null ? " та " : "") + "FlightDAO" : "");
             logger.fatal("Наданий {} не може бути null при створенні ReportsPanel.", missingDAO);
-            // Показуємо повідомлення, якщо це можливо (наприклад, якщо панель вже додана до видимого контейнера)
-            // Але оскільки це конструктор, краще кинути виняток, який буде оброблено вище.
-            if (this.isDisplayable()){ // Перевірка, чи компонент є частиною видимої ієрархії
+
+            if (this.isDisplayable()){
                 JOptionPane.showMessageDialog(this, "Критична помилка: не вдалося ініціалізувати сервіси даних ("+missingDAO+").", "Помилка ініціалізації", JOptionPane.ERROR_MESSAGE);
             }
             throw new IllegalArgumentException(missingDAO + " не може бути null.");
@@ -122,7 +117,7 @@ public class ReportsPanel extends JPanel {
     private void initComponents() {
         logger.debug("Ініціалізація компонентів UI для ReportsPanel.");
         JPanel topPanel = new JPanel(new BorderLayout(10, 5));
-        topPanel.setName("topPanel"); // Ім'я для можливого пошуку в тестах
+        topPanel.setName("topPanel");
 
         JPanel reportSelectionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         reportSelectionPanel.add(new JLabel("Тип звіту:"));
@@ -145,7 +140,7 @@ public class ReportsPanel extends JPanel {
         topPanel.add(reportSelectionPanel, BorderLayout.NORTH);
 
         parametersPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        parametersPanel.setName("parametersPanel"); // Ім'я для можливого пошуку в тестах
+        parametersPanel.setName("parametersPanel");
         topPanel.add(parametersPanel, BorderLayout.CENTER);
 
         add(topPanel, BorderLayout.NORTH);
@@ -168,42 +163,41 @@ public class ReportsPanel extends JPanel {
     private void onReportTypeChange(ActionEvent e) {
         String selectedReport = (String) cmbReportType.getSelectedItem();
         logger.info("Змінено тип звіту на: '{}'", selectedReport != null ? selectedReport : "null");
-        parametersPanel.removeAll(); // Очищаємо панель параметрів
+        parametersPanel.removeAll();
         boolean isReportSelectedAndValid = selectedReport != null && !"Оберіть тип звіту...".equals(selectedReport);
         btnGenerateReport.setEnabled(isReportSelectedAndValid);
 
         if ("Продажі за маршрутами (період)".equals(selectedReport)) {
             logger.debug("Налаштування параметрів для звіту 'Продажі за маршрутами'.");
-            JLabel lblStartDate = new JLabel("З:"); // Можна дати ім'я для тестів, якщо потрібно
-            // lblStartDate.setName("lblStartDate");
+            JLabel lblStartDate = new JLabel("З:");
+
             parametersPanel.add(lblStartDate);
 
             txtStartDate = new JTextField(10);
-            txtStartDate.setName("txtStartDate"); // Ім'я для тестів
+            txtStartDate.setName("txtStartDate");
             txtStartDate.setText(LocalDate.now().minusMonths(1).format(DATE_FORMATTER));
             parametersPanel.add(txtStartDate);
 
             JLabel lblEndDate = new JLabel("По:");
-            // lblEndDate.setName("lblEndDate");
+
             parametersPanel.add(lblEndDate);
 
             txtEndDate = new JTextField(10);
-            txtEndDate.setName("txtEndDate"); // Ім'я для тестів
+            txtEndDate.setName("txtEndDate");
             txtEndDate.setText(LocalDate.now().format(DATE_FORMATTER));
             parametersPanel.add(txtEndDate);
         } else if ("Завантаженість рейсів (дата)".equals(selectedReport)) {
             logger.debug("Налаштування параметрів для звіту 'Завантаженість рейсів'.");
             JLabel lblReportDate = new JLabel("Дата:");
-            // lblReportDate.setName("lblReportDate");
+
             parametersPanel.add(lblReportDate);
 
             txtReportDate = new JTextField(10);
-            txtReportDate.setName("txtReportDate"); // Ім'я для тестів
+            txtReportDate.setName("txtReportDate");
             txtReportDate.setText(LocalDate.now().format(DATE_FORMATTER));
             parametersPanel.add(txtReportDate);
         } else if ("Статистика по статусах квитків".equals(selectedReport)) {
-            logger.debug("Для звіту 'Статистика по статусах квитків' параметри не потрібні.");
-            // Панель параметрів залишається порожньою
+
         }
 
         parametersPanel.revalidate();
@@ -225,12 +219,12 @@ public class ReportsPanel extends JPanel {
             return;
         }
 
-        reportTextArea.setText(""); // Завжди очищуємо текстове поле
-        // Якщо раніше відображалася таблиця, перемикаємо назад на текстове поле
+        reportTextArea.setText("");
+
         if (reportTable != null && reportScrollPane.getViewport().getView() == reportTable) {
             logger.debug("Очищення попереднього табличного звіту, встановлення JTextArea.");
             reportScrollPane.setViewportView(reportTextArea);
-            reportTable = null; // Скидаємо посилання на стару таблицю
+            reportTable = null;
         } else {
             logger.debug("Очищення попереднього текстового звіту (або таблиця не відображалася).");
         }
@@ -320,7 +314,7 @@ public class ReportsPanel extends JPanel {
         }
         sb.append("-----------------------------------------------------------------\n");
         reportTextArea.setText(sb.toString());
-        reportScrollPane.setViewportView(reportTextArea); // Переконуємося, що TextArea видима
+        reportScrollPane.setViewportView(reportTextArea);
     }
 
     /**
@@ -344,11 +338,11 @@ public class ReportsPanel extends JPanel {
 
         if (flights.isEmpty()) {
             logger.info("На дату {} рейсів не знайдено. Відображення порожньої таблиці.", reportDate);
-            // Створюємо порожню модель, щоб заголовки були видимі
+
             DefaultTableModel emptyModel = new DefaultTableModel(new Object[][]{}, columnNames);
             if (reportTable == null) {
                 reportTable = new JTable(emptyModel);
-                reportTable.setName("reportTable"); // Встановлюємо ім'я при створенні
+                reportTable.setName("reportTable");
                 reportTable.setEnabled(false);
                 reportTable.setFillsViewportHeight(true);
             } else {
@@ -363,7 +357,7 @@ public class ReportsPanel extends JPanel {
                     occupiedSeats = flightDAO.getOccupiedSeatsCount(flight.getId());
                 } catch (SQLException sqlEx) {
                     logger.error("Помилка отримання кількості зайнятих місць для рейсу ID: {}", flight.getId(), sqlEx);
-                    // Можна встановити якесь значення за замовчуванням або пропустити
+
                 }
                 double loadPercentage = (flight.getTotalSeats() > 0) ? ((double) occupiedSeats / flight.getTotalSeats()) * 100 : 0;
 
@@ -372,29 +366,29 @@ public class ReportsPanel extends JPanel {
                 data[i][2] = (flight.getDepartureDateTime() != null) ? flight.getDepartureDateTime().format(TABLE_DATE_TIME_FORMATTER) : "Дата не вказана";
                 data[i][3] = flight.getTotalSeats();
                 data[i][4] = occupiedSeats;
-                data[i][5] = String.format(Locale.US, "%.2f %%", loadPercentage); // Locale.US для точки як десяткового розділювача
+                data[i][5] = String.format(Locale.US, "%.2f %%", loadPercentage);
                 logger.trace("Дані для звіту завантаженості: Рейс ID={}, Зайнято={}, Завантаженість={}%", flight.getId(), occupiedSeats, String.format(Locale.US, "%.2f", loadPercentage));
             }
 
             if (reportTable == null) {
                 reportTable = new JTable(data, columnNames);
-                reportTable.setName("reportTable"); // Встановлюємо ім'я при створенні
-                reportTable.setEnabled(false); // Таблиця тільки для читання
+                reportTable.setName("reportTable");
+                reportTable.setEnabled(false);
                 reportTable.setFillsViewportHeight(true);
             } else {
                 ((DefaultTableModel) reportTable.getModel()).setDataVector(data, columnNames);
             }
 
-            // Налаштування рендерера (краще робити після встановлення моделі)
+
             SwingUtilities.invokeLater(() -> {
-                if (reportTable.getColumnModel().getColumnCount() > 5) { // 6 стовпців (0-5)
+                if (reportTable.getColumnModel().getColumnCount() > 5) {
                     DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
                     rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
                     try {
-                        reportTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer); // ID
-                        reportTable.getColumnModel().getColumn(3).setCellRenderer(rightRenderer); // Місць всього
-                        reportTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer); // Зайнято
-                        reportTable.getColumnModel().getColumn(5).setCellRenderer(rightRenderer); // Завантаженість
+                        reportTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer);
+                        reportTable.getColumnModel().getColumn(3).setCellRenderer(rightRenderer);
+                        reportTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
+                        reportTable.getColumnModel().getColumn(5).setCellRenderer(rightRenderer);
                     } catch (ArrayIndexOutOfBoundsException e) {
                         logger.warn("Помилка при налаштуванні рендерера для таблиці завантаженості: {}", e.getMessage());
                     }
@@ -403,7 +397,7 @@ public class ReportsPanel extends JPanel {
                 }
             });
         }
-        reportScrollPane.setViewportView(reportTable); // Встановлюємо таблицю у scrollPane
+        reportScrollPane.setViewportView(reportTable);
         logger.info("Звіт завантаженості рейсів на дату {} сформовано.", reportDate);
     }
 

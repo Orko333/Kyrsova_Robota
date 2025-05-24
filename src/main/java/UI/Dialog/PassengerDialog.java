@@ -33,10 +33,10 @@ public class PassengerDialog extends JDialog {
     private JTextField txtPhoneNumber;
     private JTextField txtEmail;
     private JComboBox<BenefitType> cmbBenefitType;
-    private JButton btnSave; // Зроблено полем класу
-    private JButton btnCancel; // Зроблено полем класу
+    private JButton btnSave;
+    private JButton btnCancel;
 
-    // Прапорець для придушення повідомлень під час тестів
+
     private static final AtomicBoolean suppressMessagesForTesting = new AtomicBoolean(false);
 
     /**
@@ -53,7 +53,6 @@ public class PassengerDialog extends JDialog {
         }
     }
 
-    // Приватний метод для відображення повідомлень, який враховує прапорець
     private void showDialogMessage(Component parentComponent, Object message, String title, int messageType) {
         if (!suppressMessagesForTesting.get()) {
             JOptionPane.showMessageDialog(parentComponent, message, title, messageType);
@@ -180,7 +179,7 @@ public class PassengerDialog extends JDialog {
             txtDocumentNumber.setText(currentPassenger.getDocumentNumber());
             txtPhoneNumber.setText(currentPassenger.getPhoneNumber());
             txtEmail.setText(currentPassenger.getEmail() != null ? currentPassenger.getEmail() : "");
-            if (cmbBenefitType.getItemCount() > 0) { // Перевірка, щоб уникнути помилки, якщо cmb порожній
+            if (cmbBenefitType.getItemCount() > 0) {
                 cmbBenefitType.setSelectedItem(currentPassenger.getBenefitType());
             } else {
                 logger.warn("cmbBenefitType порожній, неможливо встановити пільгу.");
@@ -227,7 +226,7 @@ public class PassengerDialog extends JDialog {
         currentPassenger.setDocumentType(documentType);
         currentPassenger.setDocumentNumber(documentNumber);
         currentPassenger.setPhoneNumber(phoneNumber);
-        currentPassenger.setEmail(email.isEmpty() ? null : email); // Встановлюємо null, якщо email порожній
+        currentPassenger.setEmail(email.isEmpty() ? null : email);
         currentPassenger.setBenefitType(selectedBenefit);
 
         try {
@@ -243,7 +242,7 @@ public class PassengerDialog extends JDialog {
         } catch (SQLException ex) {
             logger.error("Помилка бази даних під час оновлення даних пасажира ID: {}.", currentPassenger.getId(), ex);
             showDialogMessage(this, "Помилка бази даних під час оновлення даних пасажира: " + ex.getMessage(), "Помилка БД", JOptionPane.ERROR_MESSAGE);
-        } catch (IllegalArgumentException exArg) { // Обробка помилок з сеттерів моделі Passenger
+        } catch (IllegalArgumentException exArg) {
             logger.error("Помилка даних при оновленні пасажира ID: {}: {}", currentPassenger.getId(), exArg.getMessage(), exArg);
             showDialogMessage(this, "Помилка валідації даних: " + exArg.getMessage(), "Помилка даних", JOptionPane.ERROR_MESSAGE);
         } catch (Exception exGeneral) {
@@ -262,7 +261,7 @@ public class PassengerDialog extends JDialog {
         return saved;
     }
 
-    // Геттери для компонентів UI, щоб тести мали до них доступ
+
     public JTextField getTxtFullName() { return txtFullName; }
     public JTextField getTxtDocumentNumber() { return txtDocumentNumber; }
     public JTextField getTxtDocumentType() { return txtDocumentType; }

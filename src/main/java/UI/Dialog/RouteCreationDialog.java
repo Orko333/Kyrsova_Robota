@@ -44,7 +44,6 @@ public class RouteCreationDialog extends JDialog {
     private Route createdRoute = null;
     private boolean saved = false;
 
-    // Прапорець для придушення повідомлень під час тестів
     private static final AtomicBoolean suppressMessagesForTesting = new AtomicBoolean(false);
 
     /**
@@ -61,7 +60,7 @@ public class RouteCreationDialog extends JDialog {
         }
     }
 
-    // Приватний метод для відображення повідомлень, який враховує прапорець
+
     private void showDialogMessage(Component parentComponent, Object message, String title, int messageType) {
         if (!suppressMessagesForTesting.get()) {
             JOptionPane.showMessageDialog(parentComponent, message, title, messageType);
@@ -89,7 +88,7 @@ public class RouteCreationDialog extends JDialog {
         super(owner, "Створення нового маршруту", true);
         if (stopDAO == null) {
             logger.fatal("Критична помилка: StopDAO є null при ініціалізації RouteCreationDialog.");
-            // Повідомлення буде придушено, якщо suppressMessagesForTesting=true
+
             showDialogMessage(null, "Помилка ініціалізації діалогу: відсутній StopDAO.", "Критична помилка", JOptionPane.ERROR_MESSAGE);
             throw new IllegalArgumentException("StopDAO не може бути null.");
         }
@@ -183,7 +182,7 @@ public class RouteCreationDialog extends JDialog {
         btnCancel.addActionListener(e -> {
             logger.debug("Створення маршруту скасовано користувачем.");
             saved = false;
-            // setVisible(false); // dispose() зробить це
+
             dispose();
         });
 
@@ -216,11 +215,11 @@ public class RouteCreationDialog extends JDialog {
                 btnSave.setEnabled(false);
                 cmbDepartureStop.setEnabled(false);
                 cmbDestinationStop.setEnabled(false);
-                availableStopsModel.clear(); // Очистимо на випадок, якщо там щось було
+                availableStopsModel.clear();
                 return;
             }
 
-            // Увімкнемо компоненти, якщо вони були вимкнені
+
             btnSave.setEnabled(true);
             cmbDepartureStop.setEnabled(true);
             cmbDestinationStop.setEnabled(true);
@@ -228,14 +227,14 @@ public class RouteCreationDialog extends JDialog {
             cmbDepartureStop.removeAllItems();
             cmbDestinationStop.removeAllItems();
 
-            cmbDepartureStop.addItem(null); // Для можливості не вибрати
-            cmbDestinationStop.addItem(null); // Для можливості не вибрати
+            cmbDepartureStop.addItem(null);
+            cmbDestinationStop.addItem(null);
 
             for (Stop stop : allStops) {
                 cmbDepartureStop.addItem(stop);
                 cmbDestinationStop.addItem(stop);
             }
-            updateAvailableIntermediateStops(); // Оновити доступні після заповнення комбобоксів
+            updateAvailableIntermediateStops();
             logger.info("Успішно завантажено {} зупинок.", allStops.size());
 
         } catch (SQLException e) {
@@ -267,9 +266,7 @@ public class RouteCreationDialog extends JDialog {
 
         availableStopsModel.clear();
         try {
-            // Перезавантажуємо список усіх зупинок, оскільки він міг змінитися,
-            // хоча для цього діалогу це менш ймовірно без перезапуску.
-            // Але для узгодженості, якщо stopDAO може давати динамічні дані.
+
             List<Stop> allStops = stopDAO.getAllStops();
             if (allStops == null) allStops = new ArrayList<>();
 
@@ -286,8 +283,7 @@ public class RouteCreationDialog extends JDialog {
             }
         } catch (SQLException e) {
             logger.error("Помилка SQL при оновленні списку доступних проміжних зупинок.", e);
-            // Можливо, варто показати повідомлення користувачу або логувати
-            // Для простоти, зараз тільки логуємо.
+
         } catch (Exception e) {
             logger.error("Непередбачена помилка при оновленні списку доступних проміжних зупинок.", e);
         }
@@ -305,7 +301,7 @@ public class RouteCreationDialog extends JDialog {
             logger.debug("Додавання проміжних зупинок: {}", selectedFromAvailable.stream().map(Stop::getName).collect(Collectors.joining(", ")));
             for (Stop stop : selectedFromAvailable) {
                 selectedStopsModel.addElement(stop);
-                availableStopsModel.removeElement(stop); // Оновлюємо доступні
+                availableStopsModel.removeElement(stop);
             }
         } else {
             logger.trace("Спроба додати проміжну зупинку, але нічого не вибрано в доступних.");
@@ -325,8 +321,7 @@ public class RouteCreationDialog extends JDialog {
             logger.debug("Видалення проміжних зупинок: {}", selectedForRemoval.stream().map(Stop::getName).collect(Collectors.joining(", ")));
             for (Stop stop : selectedForRemoval) {
                 selectedStopsModel.removeElement(stop);
-                // Перевірка перед додаванням назад до доступних, щоб уникнути дублікатів
-                // та не додавати, якщо це поточні кінцеві зупинки (хоча це вже мало б бути відфільтровано в updateAvailable)
+
                 Stop departure = (Stop) cmbDepartureStop.getSelectedItem();
                 Stop destination = (Stop) cmbDestinationStop.getSelectedItem();
                 boolean isDeparture = (departure != null && stop.equals(departure));
@@ -349,12 +344,12 @@ public class RouteCreationDialog extends JDialog {
      */
     private void moveStopUpAction(ActionEvent e) {
         int selectedIndex = lstSelectedIntermediateStops.getSelectedIndex();
-        if (selectedIndex > 0) { // Перевірка, що не перший елемент
+        if (selectedIndex > 0) {
             logger.debug("Переміщення проміжної зупинки вгору: індекс {}", selectedIndex);
             Stop stopToMove = selectedStopsModel.getElementAt(selectedIndex);
             selectedStopsModel.remove(selectedIndex);
             selectedStopsModel.insertElementAt(stopToMove, selectedIndex - 1);
-            lstSelectedIntermediateStops.setSelectedIndex(selectedIndex - 1); // Встановлюємо виділення на переміщений елемент
+            lstSelectedIntermediateStops.setSelectedIndex(selectedIndex - 1);
         } else {
             logger.trace("Спроба перемістити зупинку вгору, але вона вже перша або нічого не вибрано.");
         }
@@ -368,13 +363,13 @@ public class RouteCreationDialog extends JDialog {
      */
     private void moveStopDownAction(ActionEvent e) {
         int selectedIndex = lstSelectedIntermediateStops.getSelectedIndex();
-        // Перевірка, що щось вибрано і це не останній елемент
+
         if (selectedIndex != -1 && selectedIndex < selectedStopsModel.getSize() - 1) {
             logger.debug("Переміщення проміжної зупинки вниз: індекс {}", selectedIndex);
             Stop stopToMove = selectedStopsModel.getElementAt(selectedIndex);
             selectedStopsModel.remove(selectedIndex);
             selectedStopsModel.insertElementAt(stopToMove, selectedIndex + 1);
-            lstSelectedIntermediateStops.setSelectedIndex(selectedIndex + 1); // Встановлюємо виділення
+            lstSelectedIntermediateStops.setSelectedIndex(selectedIndex + 1);
         } else {
             logger.trace("Спроба перемістити зупинку вниз, але вона вже остання або нічого не вибрано.");
         }
@@ -419,7 +414,7 @@ public class RouteCreationDialog extends JDialog {
                 logger.warn("Валідація не пройдена: проміжна зупинка {} збігається з відправленням/призначенням.", intermediate.getName());
                 return;
             }
-            // Перевірка на дублікати серед проміжних зупинок
+
             if (intermediateStops.contains(intermediate)) {
                 showDialogMessage(this,
                         "Проміжна зупинка '" + intermediate.getName() + "' вже додана до списку.",
@@ -430,11 +425,11 @@ public class RouteCreationDialog extends JDialog {
             intermediateStops.add(intermediate);
         }
 
-        // ID маршруту буде встановлено в DAO при збереженні, тому тут 0 або інше значення за замовчуванням
+
         createdRoute = new Route(0, departureStop, destinationStop, intermediateStops);
         saved = true;
         logger.info("Новий маршрут підготовлено до збереження: {}", createdRoute.getFullRouteDescription());
-        // setVisible(false); // dispose() зробить це
+
         dispose();
     }
 

@@ -121,8 +121,7 @@ public class BookingsManagementPanel extends JPanel {
             if (bookingsTable.getColumnModel().getColumnCount() > 0) {
                 DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
                 rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-                // Припускаємо, що стовпець "Ціна" має індекс 6 (0-TicketID, 1-FlightID, 2-Passenger, 3-Seat, 4-Route, 5-Departure, 6-Price, 7-Status)
-                // Адаптуйте цей індекс, якщо ваша модель таблиці інша
+
                 final int priceColumnIndex = 6;
                 if (bookingsTable.getColumnModel().getColumnCount() > priceColumnIndex) {
                     try {
@@ -192,21 +191,20 @@ public class BookingsManagementPanel extends JPanel {
 
         logger.debug("Оновлення стану кнопок для квитка ID: {}, Статус: {}", selectedTicket.getId(), selectedTicket.getStatus());
         btnSellTicket.setEnabled(selectedTicket.getStatus() == TicketStatus.BOOKED);
-        // Дозволяємо скасування, якщо квиток заброньований або проданий (і рейс ще не відбувся)
+
         boolean canCancel = selectedTicket.getStatus() == TicketStatus.BOOKED || selectedTicket.getStatus() == TicketStatus.SOLD;
         if (canCancel && selectedTicket.getFlight() != null && selectedTicket.getFlight().getDepartureDateTime() != null) {
-            // Додатково перевіряємо, чи рейс не відбувся і чи він не має статусу, що забороняє скасування
+
             boolean flightNotDepartedOrArrived = selectedTicket.getFlight().getStatus() != FlightStatus.DEPARTED &&
                     selectedTicket.getFlight().getStatus() != FlightStatus.ARRIVED;
             boolean flightIsCancellable = selectedTicket.getFlight().getStatus() == FlightStatus.PLANNED ||
                     selectedTicket.getFlight().getStatus() == FlightStatus.DELAYED;
 
-            // Квиток можна скасувати, якщо рейс ще не відбувся і він запланований/відкладений, АБО якщо час відправлення ще не настав
-            // Ця логіка дублюється в cancelTicketAction, можливо, варто винести в окремий метод
+
             canCancel = (selectedTicket.getFlight().getDepartureDateTime().isAfter(LocalDateTime.now()) && flightIsCancellable) ||
-                    (selectedTicket.getStatus() == TicketStatus.BOOKED); // Бронювання можна скасувати до оплати незалежно від статусу рейсу, якщо він не відбувся
+                    (selectedTicket.getStatus() == TicketStatus.BOOKED);
         } else if (selectedTicket.getFlight() == null) {
-            canCancel = false; // Немає інформації про рейс, не можна визначити можливість скасування
+            canCancel = false;
         }
 
 
@@ -231,7 +229,7 @@ public class BookingsManagementPanel extends JPanel {
         } catch (Exception e) {
             handleGenericException("Непередбачена помилка при завантаженні списку квитків. Фільтр: " + statusForLog, e);
         }
-        updateButtonStates(); // Оновлюємо стан кнопок після завантаження даних
+        updateButtonStates();
     }
 
     /**
@@ -242,7 +240,7 @@ public class BookingsManagementPanel extends JPanel {
         int selectedRow = bookingsTable.getSelectedRow();
         if (selectedRow == -1) {
             logger.warn("Спроба продати квиток, але жоден рядок не вибрано.");
-            // JOptionPane не потрібен, бо кнопка має бути неактивна
+
             return;
         }
         int modelRow = bookingsTable.convertRowIndexToModel(selectedRow);
@@ -311,8 +309,7 @@ public class BookingsManagementPanel extends JPanel {
                 handleGenericException("Помилка даних рейсу. Неможливо перевірити час відправлення.", new IllegalStateException("Flight data incomplete for ticket ID: " + ticketToCancel.getId()));
                 return;
             }
-            // Скасувати можна, якщо рейс ще не відбувся АБО якщо він запланований/відкладений
-            // і ще не відбувся
+
             boolean flightDepartedOrArrived = ticketToCancel.getFlight().getStatus() == FlightStatus.DEPARTED ||
                     ticketToCancel.getFlight().getStatus() == FlightStatus.ARRIVED;
 
@@ -324,9 +321,7 @@ public class BookingsManagementPanel extends JPanel {
             }
             if (ticketToCancel.getFlight().getDepartureDateTime().isBefore(LocalDateTime.now()) &&
                     ticketToCancel.getStatus() == TicketStatus.SOLD) {
-                // Якщо рейс мав відбутися в минулому, але його статус ще не DEPARTED/ARRIVED (наприклад, затримка не оновлена)
-                // то скасування проданого квитка може бути заборонене.
-                // Тут потрібна більш чітка бізнес-логіка. Припустимо, що якщо час пройшов, то проданий не можна скасувати.
+
                 logger.warn("Спроба скасувати проданий квиток ID: {} на рейс, час відправлення якого минув.",
                         ticketToCancel.getId());
                 JOptionPane.showMessageDialog(this, "Неможливо скасувати проданий квиток на рейс, час відправлення якого вже минув.", "Помилка", JOptionPane.ERROR_MESSAGE);

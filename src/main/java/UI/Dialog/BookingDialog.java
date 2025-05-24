@@ -1,5 +1,4 @@
-package UI.Dialog; // Або ваш актуальний пакет
-
+package UI.Dialog;
 import DAO.PassengerDAO;
 import DAO.TicketDAO;
 import Models.*;
@@ -19,7 +18,7 @@ import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicBoolean; // Для потокобезпечного прапорця
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Діалогове вікно для бронювання квитка.
@@ -57,12 +56,12 @@ public class BookingDialog extends JDialog {
         }
     }
 
-    // Приватний метод для відображення повідомлень, який враховує прапорець
+
     private void showDialogMessage(Component parentComponent, Object message, String title, int messageType) {
         if (!suppressMessagesForTesting.get()) {
             JOptionPane.showMessageDialog(parentComponent, message, title, messageType);
         } else {
-            // Логуємо, яке повідомлення було б показано
+
             String typeStr = "";
             switch (messageType) {
                 case JOptionPane.ERROR_MESSAGE: typeStr = "ERROR"; break;

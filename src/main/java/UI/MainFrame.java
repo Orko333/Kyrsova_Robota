@@ -4,7 +4,7 @@ import UI.Panel.FlightsPanel;
 import UI.Panel.PassengersPanel;
 import UI.Panel.ReportsPanel;
 import UI.Panel.TicketsPanel;
-import DB.DatabaseConnectionManager; // Переконайтеся, що цей імпорт правильний
+import DB.DatabaseConnectionManager;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -96,7 +96,7 @@ public class MainFrame extends JFrame {
         }
     }
 
-    // Рефакторизовані методи для кращої тестуємості
+
     public static void setupLookAndFeel() {
         logger.debug("Спроба встановити FlatLaf LookAndFeel.");
         try {
@@ -145,7 +145,7 @@ public class MainFrame extends JFrame {
         }
     }
 
-    // Зроблено package-private або public для тестування
+
     static void createAndShowGUI() {
         if (!checkDatabaseConnection()) {
             System.exit(1);

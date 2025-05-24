@@ -14,7 +14,7 @@ import java.util.Optional;
 
 public class RouteDAO {
     private static final Logger logger = LogManager.getLogger("insurance.log");
-    private final StopDAO stopDAO = new StopDAO(); // Make sure StopDAO is properly initialized
+    private final StopDAO stopDAO = new StopDAO();
 
 
 
@@ -38,7 +38,7 @@ public class RouteDAO {
                 while (rsIntermediate.next()) {
                     long intermediateStopId = rsIntermediate.getLong("stop_id");
                     logger.trace("Обробка проміжної зупинки ID: {} для маршруту ID: {}", intermediateStopId, routeId);
-                    Optional<Stop> intermediateStopOpt = stopDAO.getStopById(intermediateStopId); // Assuming StopDAO has this
+                    Optional<Stop> intermediateStopOpt = stopDAO.getStopById(intermediateStopId);
                     if (intermediateStopOpt.isPresent()) {
                         stops.add(intermediateStopOpt.get());
                     } else {

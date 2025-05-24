@@ -43,7 +43,7 @@ public class FlightsPanel extends JPanel {
     private final RouteDAO routeDAO;
     private final StopDAO stopDAO;
 
-    // Прапорець для придушення повідомлень під час тестів
+
     private static final AtomicBoolean suppressMessagesForTesting = new AtomicBoolean(false);
 
     /**
@@ -60,7 +60,7 @@ public class FlightsPanel extends JPanel {
         }
     }
 
-    // Приватний метод для відображення повідомлень, який враховує прапорець
+
     private void showDialogMessage(Component parentComponent, Object message, String title, int messageType) {
         if (!suppressMessagesForTesting.get()) {
             JOptionPane.showMessageDialog(parentComponent, message, title, messageType);
@@ -163,29 +163,26 @@ public class FlightsPanel extends JPanel {
         flightsTable.setAutoCreateRowSorter(true);
         flightsTable.setFillsViewportHeight(true);
 
-        // Налаштування рендерера та ширини стовпців краще робити після того,
-        // як таблиця була додана до контейнера і мала шанс ініціалізувати свої стовпці,
-        // або принаймні після встановлення моделі.
-        // Виклик через invokeLater - безпечний підхід.
+
         SwingUtilities.invokeLater(() -> {
             if (flightsTable.getColumnModel().getColumnCount() > 0) {
                 DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
                 rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
                 try {
-                    if (flightsTable.getColumnCount() > 6) { // Перевірка кількості стовпців
-                        flightsTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer); // ID
-                        flightsTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer); // Total Seats
-                        flightsTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); // Price
+                    if (flightsTable.getColumnCount() > 6) {
+                        flightsTable.getColumnModel().getColumn(0).setCellRenderer(rightRenderer);
+                        flightsTable.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
+                        flightsTable.getColumnModel().getColumn(6).setCellRenderer(rightRenderer);
                     }
                     if (flightsTable.getColumnCount() > 7) {
-                        flightsTable.getColumnModel().getColumn(0).setPreferredWidth(40);  // ID
-                        flightsTable.getColumnModel().getColumn(1).setPreferredWidth(250); // Маршрут
-                        flightsTable.getColumnModel().getColumn(2).setPreferredWidth(120); // Відправлення
-                        flightsTable.getColumnModel().getColumn(3).setPreferredWidth(120); // Прибуття
-                        flightsTable.getColumnModel().getColumn(4).setPreferredWidth(60);  // Місць
-                        flightsTable.getColumnModel().getColumn(5).setPreferredWidth(100); // Статус
-                        flightsTable.getColumnModel().getColumn(6).setPreferredWidth(80);  // Ціна
-                        flightsTable.getColumnModel().getColumn(7).setPreferredWidth(100); // Автобус
+                        flightsTable.getColumnModel().getColumn(0).setPreferredWidth(40);
+                        flightsTable.getColumnModel().getColumn(1).setPreferredWidth(250);
+                        flightsTable.getColumnModel().getColumn(2).setPreferredWidth(120);
+                        flightsTable.getColumnModel().getColumn(3).setPreferredWidth(120);
+                        flightsTable.getColumnModel().getColumn(4).setPreferredWidth(60);
+                        flightsTable.getColumnModel().getColumn(5).setPreferredWidth(100);
+                        flightsTable.getColumnModel().getColumn(6).setPreferredWidth(80);
+                        flightsTable.getColumnModel().getColumn(7).setPreferredWidth(100);
                     }
                 } catch (ArrayIndexOutOfBoundsException e) {
                     logger.warn("Помилка при налаштуванні рендерера/ширини стовпців: індекс поза межами. Кількість стовпців: {}", flightsTable.getColumnModel().getColumnCount(), e);
@@ -253,7 +250,7 @@ public class FlightsPanel extends JPanel {
         logger.info("Завантаження даних про рейси.");
         try {
             List<Flight> flights = flightDAO.getAllFlights();
-            flightsTableModel.setFlights(flights != null ? flights : new ArrayList<>()); // Захист від null
+            flightsTableModel.setFlights(flights != null ? flights : new ArrayList<>());
             logger.info("Успішно завантажено {} рейсів.", (flights != null ? flights.size() : 0));
         } catch (SQLException e) {
             handleSqlException("Не вдалося завантажити список рейсів", e);
@@ -268,7 +265,7 @@ public class FlightsPanel extends JPanel {
             return (Frame) topLevelAncestor;
         }
         logger.warn("Батьківське вікно не є JFrame, діалоги можуть не мати коректного власника.");
-        return null; // Або new JFrame(), якщо власник обов'язковий і це безпечно
+        return null;
     }
 
     private void openEditFlightDialog(Flight flightToEdit) {
@@ -347,13 +344,13 @@ public class FlightsPanel extends JPanel {
             String routeDescription = (flightToCancel.getRoute() != null && flightToCancel.getRoute().getFullRouteDescription() != null) ? flightToCancel.getRoute().getFullRouteDescription() : "N/A";
 
             int confirmation;
-            if (!suppressMessagesForTesting.get()) { // Тільки якщо повідомлення НЕ придушені
+            if (!suppressMessagesForTesting.get()) {
                 confirmation = JOptionPane.showConfirmDialog(this,
                         "Ви впевнені, що хочете скасувати рейс ID " + flightToCancel.getId() + " (" + routeDescription + ")?",
                         "Підтвердження скасування", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
             } else {
                 logger.info("FlightsPanel JOptionPane.showConfirmDialog придушено (тестовий режим). Автоматично підтверджуємо YES_OPTION.");
-                confirmation = JOptionPane.YES_OPTION; // Для тестів автоматично підтверджуємо
+                confirmation = JOptionPane.YES_OPTION;
             }
 
 
@@ -414,7 +411,7 @@ public class FlightsPanel extends JPanel {
 
     private void handleSqlException(String userMessagePrefix, SQLException e) {
         logger.error("{}: {}", userMessagePrefix, e.getMessage(), e);
-        if (this.isShowing()) { // Тільки якщо панель видима
+        if (this.isShowing()) {
             showDialogMessage(this, userMessagePrefix + ":\n" + e.getMessage(), "Помилка бази даних", JOptionPane.ERROR_MESSAGE);
         } else {
             logger.warn("FlightsPanel не видима, JOptionPane для SQLException не буде показано: {}", userMessagePrefix);
@@ -423,14 +420,14 @@ public class FlightsPanel extends JPanel {
 
     private void handleGenericException(String userMessagePrefix, Exception e) {
         logger.error("{}: {}", userMessagePrefix, e.getMessage(), e);
-        if (this.isShowing()) { // Тільки якщо панель видима
+        if (this.isShowing()) {
             showDialogMessage(this, userMessagePrefix + ":\n" + e.getMessage(), "Внутрішня помилка програми", JOptionPane.ERROR_MESSAGE);
         } else {
             logger.warn("FlightsPanel не видима, JOptionPane для GenericException не буде показано: {}", userMessagePrefix);
         }
     }
 
-    // Геттери для тестів
+
     public JTable getFlightsTable() { return flightsTable; }
     public FlightsTableModel getFlightsTableModel() { return flightsTableModel; }
     public JButton getBtnAddFlight() { return btnAddFlight; }
